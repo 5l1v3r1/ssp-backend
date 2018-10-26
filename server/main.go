@@ -8,6 +8,7 @@ import (
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/common"
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/ddc"
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/openshift"
+	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/otc"
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/sematext"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -41,6 +42,9 @@ func main() {
 
 		// AWS routes
 		aws.RegisterRoutes(auth)
+
+		// OTC routes
+		otc.RegisterRoutes(auth)
 
 		// Sematext routes
 		sematext.RegisterRoutes(auth)

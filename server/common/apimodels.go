@@ -101,6 +101,7 @@ type FeatureToggleResponse struct {
 	Gluster bool `json:"gluster"`
 	DDC     bool `json:"ddc"`
 	Nfs     bool `json:"nfs"`
+	OTC     bool `json:"otc"`
 }
 
 type ApiResponse struct {
@@ -223,4 +224,30 @@ type NewS3BucketCommand struct {
 type NewS3UserCommand struct {
 	UserName   string `json:"username"`
 	IsReadonly bool   `json:"isReadonly"`
+}
+
+type NewECSCommand struct {
+	ECSName    string `json:"ecsName"`
+	FlavorName string `json:"flavorName"`
+	ImageId    string `json:"imageId"`
+	Billing    string `json:"billing"`
+}
+
+type FlavorListResponse struct {
+	Flavors []Flavor `json:"flavors"`
+}
+
+type Flavor struct {
+	Name  string `json:"name"`
+	VCPUs int    `json:"vcpus"`
+	RAM   int    `json:"ram"`
+}
+
+type ImageListResponse struct {
+	Images []Image `json:"images"`
+}
+
+type Image struct {
+	Name string `json:"name"`
+	Id   string `json:"id"`
 }
