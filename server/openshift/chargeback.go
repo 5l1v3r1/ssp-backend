@@ -160,9 +160,9 @@ func chargebackHandler(c *gin.Context) {
 
 		queries := computeQueries(data.Start, data.End, data.ProjectContains, data.Cluster)
 
-		fmt.Println(queries.assignmentQuery)
+		/* fmt.Println(queries.assignmentQuery)
 		fmt.Println(queries.quotaQuery)
-		fmt.Println(queries.usageQueries)
+		fmt.Println(queries.usageQueries) */
 
 		getJson(client, queries.quotaQuery, quota)
 		addQuotaAndRequestedToResources(resourceMap, quota)
