@@ -14,6 +14,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"text/template"
 	"time"
 )
 
@@ -25,8 +26,8 @@ type OpenshiftChargebackCommand struct {
 }
 
 type ApiResponse struct {
-	CSV  string       `json:"csv"`
-	Rows []Ressources `json:"rows"`
+	CSV  string      `json:"csv"`
+	Rows []Resources `json:"rows"`
 }
 
 // JSON Types
@@ -70,7 +71,7 @@ type AssignmentResult struct {
 }
 
 // Internal types
-type Ressources struct {
+type Resources struct {
 	Project             string
 	ReceptionAssignment string
 	OrderReception      string
@@ -101,6 +102,13 @@ type Queries struct {
 	usageQueries    []string
 }
 
+type templateValues struct {
+	Source string
+	Search string
+	Since  string
+	Until  string
+}
+
 type Cluster string
 
 const (
@@ -113,23 +121,17 @@ const viasSourceQuotaAssignment = "OpenshiftViasQuota"
 const awsSourceQuotaAssignment = "OpenshiftAwsQuota"
 const viasSourceUsage = "fullHostname like '%.sbb.ch'"
 const awsSourceUsage = "`ec2Tag_Environment` = 'prod' OR hostname like 'node%'"
-const sourceKey = "SOURCE"
-const betweenKey = "BETWEEN"
-const projectKey = "PROJECT_KEY"
-const projectSearchKey = "PROJECT_SEARCH"
-const projectQuotaSearchTemplate = "WHERE project like 'PROJECT_KEY'"
-const projectUsageSearchTempate = "AND `containerLabel_io.kubernetes.pod.namespace` LIKE 'PROJECT_KEY'"
 
 const dateFormat = "2006-01-02 15:04:05"
 
 // Templates
 const quotaQueryTemplate = "SELECT average(cpuHard) AS CpuQuota, average(cpuUsed) AS CpuRequests, average(memoryHard) AS MemoryQuota, average(memoryUsed) AS MemoryRequests, average(storage) AS Storage " +
-	"FROM SOURCE FACET project PROJECT_SEARCH BETWEEN LIMIT 1000"
+	"FROM {{.Source}} FACET project WHERE project LIKE '{{.Search}}' SINCE '{{.Since}}' UNTIL '{{.Until}}' LIMIT 1000"
 
 const usageQueryTemplate = "SELECT rate(sum(cpuPercent), 60 minutes)/100 as CPU, rate(sum(memoryResidentSizeBytes), 60 minutes)/(1000*1000*1000) as GB " +
-	"FROM ProcessSample FACET `containerLabel_io.kubernetes.pod.namespace` WHERE SOURCE PROJECT_SEARCH BETWEEN LIMIT 1000"
+	"FROM ProcessSample FACET `containerLabel_io.kubernetes.pod.namespace` WHERE {{.Source}} AND `containerLabel_io.kubernetes.pod.namespace` LIKE '{{.Search}}' SINCE '{{.Since}}' UNTIL '{{.Until}}' LIMIT 1000"
 
-const assignmentQueryTemplate = "SELECT latest(accountAssignment), latest(megaId) FROM SOURCE FACET project PROJECT_SEARCH LIMIT 1000"
+const assignmentQueryTemplate = "SELECT latest(accountAssignment), latest(megaId) FROM {{.Source}} FACET project WHERE project LIKE '{{.Search}}' LIMIT 1000"
 
 func chargebackHandler(c *gin.Context) {
 	username := common.GetUserName(c)
@@ -147,13 +149,8 @@ func chargebackHandler(c *gin.Context) {
 	fmt.Printf("%v called openshift chargeback\n", username)
 	var data OpenshiftChargebackCommand
 	if err := c.BindJSON(&data); err == nil {
-		start := data.Start
-		end := data.End
-		var cluster Cluster = data.Cluster
-		projectContains := data.ProjectContains
-
 		// Programm
-		var resourceMap = make(map[string]Ressources)
+		var resourceMap = make(map[string]Resources)
 
 		client := &http.Client{}
 
@@ -161,11 +158,11 @@ func chargebackHandler(c *gin.Context) {
 		usage := new(Usage)
 		assignment := new(Assignment)
 
-		queries := computeQueries(start, end, projectContains, cluster)
+		queries := computeQueries(data.Start, data.End, data.ProjectContains, data.Cluster)
 
 		fmt.Println(queries.assignmentQuery)
-		/*	  fmt.Println(queries.quotaQuery)
-			  fmt.Println(queries.usageQueries)*/
+		fmt.Println(queries.quotaQuery)
+		fmt.Println(queries.usageQueries)
 
 		getJson(client, queries.quotaQuery, quota)
 		addQuotaAndRequestedToResources(resourceMap, quota)
@@ -182,7 +179,7 @@ func chargebackHandler(c *gin.Context) {
 
 		report := createCSVReport(resourceMap)
 
-		v := make([]Ressources, 0, len(resourceMap))
+		v := make([]Resources, 0, len(resourceMap))
 		for _, value := range resourceMap {
 			v = append(v, value)
 		}
@@ -205,45 +202,42 @@ func computeQueries(start time.Time, end time.Time, searchString string, cluster
 		sourceUsage = awsSourceUsage
 	}
 
-	projectQuotaSearch := ""
-	projectUsageSearch := ""
-
-	if searchString != "" {
-		projectQuotaSearch = strings.Replace(projectQuotaSearchTemplate, projectKey, searchString, len(projectQuotaSearchTemplate))
-		projectUsageSearch = strings.Replace(projectUsageSearchTempate, projectKey, searchString, len(projectQuotaSearchTemplate))
+	s := templateValues{
+		Source: sourceQuotaAssignment,
+		Search: searchString,
+		Since:  start.Format(dateFormat),
+		Until:  end.Format(dateFormat),
 	}
 
-	quotaQuery := strings.Replace(quotaQueryTemplate, sourceKey, sourceQuotaAssignment, len(quotaQueryTemplate))
-	between := fmt.Sprintf("SINCE '%s'", start.Format(dateFormat))
-	between += fmt.Sprintf(" UNTIL '%s'", end.Format(dateFormat))
-	quotaQuery = strings.Replace(quotaQuery, betweenKey, between, len(quotaQuery))
-	quotaQuery = strings.Replace(quotaQuery, projectSearchKey, projectQuotaSearch, len(quotaQuery))
+	var quotaQuery bytes.Buffer
+	t, _ := template.New("quota").Parse(quotaQueryTemplate)
+	t.Execute(&quotaQuery, s)
 
-	assignmentQuery := strings.Replace(assignmentQueryTemplate, sourceKey, sourceQuotaAssignment, len(assignmentQueryTemplate))
-	assignmentQuery = strings.Replace(assignmentQuery, projectSearchKey, projectQuotaSearch, len(assignmentQuery))
+	var assignmentQuery bytes.Buffer
+	t, _ = template.New("assignment").Parse(assignmentQueryTemplate)
+	t.Execute(&assignmentQuery, s)
 
 	usageQueries := make([]string, 0)
-	usageQuery := strings.Replace(usageQueryTemplate, sourceKey, sourceUsage, len(usageQueryTemplate))
-	usageQuery = strings.Replace(usageQuery, projectSearchKey, projectUsageSearch, len(usageQuery))
-
+	t, _ = template.New("usage").Parse(usageQueryTemplate)
 	duration, _ := time.ParseDuration("240h")
 	current := start
-
+	s.Source = sourceUsage
 	for current.Before(end) {
-		clause := fmt.Sprintf("SINCE '%s'", current.Format(dateFormat))
+		s.Since = current.Format(dateFormat)
 		current = current.Add(duration)
 		if current.Before(end) {
-			clause += fmt.Sprintf(" UNTIL '%s'", current.Format(dateFormat))
+			s.Until = current.Format(dateFormat)
 		} else {
-			clause += fmt.Sprintf(" UNTIL '%s'", end.Format(dateFormat))
+			s.Until = current.Format(dateFormat)
 		}
-		usageQueries = append(usageQueries, strings.Replace(usageQuery, betweenKey, clause, len(usageQuery)))
+		var usageQuery bytes.Buffer
+		t.Execute(&usageQuery, s)
+		usageQueries = append(usageQueries, usageQuery.String())
 	}
-	return Queries{quotaQuery: quotaQuery, assignmentQuery: assignmentQuery, usageQueries: usageQueries}
+	return Queries{quotaQuery: quotaQuery.String(), assignmentQuery: assignmentQuery.String(), usageQueries: usageQueries}
 }
 
 func getJson(client *http.Client, query string, target interface{}) error {
-
 	var url = requestUrl + url.QueryEscape(query)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
@@ -267,7 +261,7 @@ func getJson(client *http.Client, query string, target interface{}) error {
 	return json.NewDecoder(resp.Body).Decode(target)
 }
 
-func addQuotaAndRequestedToResources(resourceMap map[string]Ressources, quota *Quota) {
+func addQuotaAndRequestedToResources(resourceMap map[string]Resources, quota *Quota) {
 	for i := range quota.Facets {
 		facet := quota.Facets[i]
 		project := facet.Name
@@ -285,7 +279,7 @@ func addQuotaAndRequestedToResources(resourceMap map[string]Ressources, quota *Q
 			val.Storage = storage
 			resourceMap[project] = val
 		} else {
-			resourceMap[project] = Ressources{
+			resourceMap[project] = Resources{
 				Project:         project,
 				QuotaCpu:        quotaCpu,
 				RequestedCpu:    requestCpu,
@@ -297,7 +291,7 @@ func addQuotaAndRequestedToResources(resourceMap map[string]Ressources, quota *Q
 	}
 }
 
-func addUsedToResources(resourceMap map[string]Ressources, used *Usage) {
+func addUsedToResources(resourceMap map[string]Resources, used *Usage) {
 	for i := range used.Facets {
 		facet := used.Facets[i]
 		project := facet.Name
@@ -308,7 +302,7 @@ func addUsedToResources(resourceMap map[string]Ressources, used *Usage) {
 			val.UsedMemory = usedMemory + val.UsedMemory
 			resourceMap[project] = val
 		} else {
-			resourceMap[project] = Ressources{
+			resourceMap[project] = Resources{
 				Project:    project,
 				UsedCpu:    usedCpu,
 				UsedMemory: usedMemory,
@@ -317,7 +311,7 @@ func addUsedToResources(resourceMap map[string]Ressources, used *Usage) {
 	}
 }
 
-func addAssignmentToResources(resourceMap map[string]Ressources, assignment *Assignment) {
+func addAssignmentToResources(resourceMap map[string]Resources, assignment *Assignment) {
 
 	for i := range assignment.Facets {
 		receptionAssignment := ""
@@ -341,7 +335,7 @@ func addAssignmentToResources(resourceMap map[string]Ressources, assignment *Ass
 			val.PspElement = pspElement
 			resourceMap[project] = val
 		} else {
-			resourceMap[project] = Ressources{
+			resourceMap[project] = Resources{
 				Project:             project,
 				ReceptionAssignment: receptionAssignment,
 				OrderReception:      orderReception,
@@ -351,7 +345,7 @@ func addAssignmentToResources(resourceMap map[string]Ressources, assignment *Ass
 	}
 }
 
-func normalizedResourceUsage(resourceMap map[string]Ressources, count float64) {
+func normalizedResourceUsage(resourceMap map[string]Resources, count float64) {
 	for key, value := range resourceMap {
 		value.UsedCpu = value.UsedCpu / count
 		value.UsedMemory = value.UsedMemory / count
@@ -359,7 +353,7 @@ func normalizedResourceUsage(resourceMap map[string]Ressources, count float64) {
 	}
 }
 
-func computeResourcePrices(resourceMap map[string]Ressources, unitprices Pricing, management float64) {
+func computeResourcePrices(resourceMap map[string]Resources, unitprices Pricing, management float64) {
 
 	// preise per Tag und als übergabe noch die anzahl Tage angeben.
 	for key, value := range resourceMap {
@@ -383,12 +377,12 @@ func computeResourcePrices(resourceMap map[string]Ressources, unitprices Pricing
 	}
 }
 
-func getConsolidatedPrice(value Ressources) string {
+func getConsolidatedPrice(value Resources) string {
 	s := value.Prices.QuotaCpu + value.Prices.RequestedCpu + value.Prices.QuotaMemory + value.Prices.RequestedMemory + value.Prices.UsedCpu + value.Prices.UsedMemory + value.Prices.Storage
 	return strconv.FormatFloat(s, 'g', 6, 64)
 }
 
-func createCSVReport(resourceMap map[string]Ressources) string {
+func createCSVReport(resourceMap map[string]Resources) string {
 	const sender = "70029490"
 	const art = "816753"
 	const waehrung = "CHF"
