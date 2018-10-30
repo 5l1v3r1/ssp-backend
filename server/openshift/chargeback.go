@@ -387,9 +387,18 @@ func getConsolidatedPrice(value Resources) string {
 }
 
 func createCSVReport(resourceMap map[string]Resources) string {
-	const sender = "70029490"
-	const art = "816753"
-	const waehrung = "CHF"
+	sender := os.Getenv("OPENSHIFT_CHARGEBACK_SENDER")
+	if len(sender) == 0 {
+		log.Print("Env variable 'OPENSHIFT_CHARGEBACK_SENDER' should be specified")
+	}
+	art := os.Getenv("OPENSHIFT_CHARGEBACK_ART")
+	if len(art) == 0 {
+		log.Print("Env variable 'OPENSHIFT_CHARGEBACK_ART' should be specified")
+	}
+	currency := os.Getenv("OPENSHIFT_CHARGEBACK_CURRENCY")
+	if len(currency) == 0 {
+		currency = "CHF"
+	}
 
 	b := &bytes.Buffer{}
 	wr := csv.NewWriter(b)
@@ -407,7 +416,7 @@ func createCSVReport(resourceMap map[string]Resources) string {
 	for key, value := range resourceMap {
 		price := getConsolidatedPrice(value)
 
-		row := []string{"", sender, "", "", "", "", "", art, price, waehrung,
+		row := []string{"", sender, "", "", "", "", "", art, price, currency,
 			value.ReceptionAssignment, value.OrderReception, value.PspElement,
 			"", "", "", "", "1", "ST", "", "LM1704 NCS " + key}
 

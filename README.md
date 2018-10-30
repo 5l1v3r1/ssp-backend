@@ -82,6 +82,10 @@ NFS\_API\_SECRET|The password of the NFS-API (optional)|somesecret
 NFS\_PROXY|The proxy to access the NFS-API (optional)|https://someproxy.ch:1234
 NEWRELIC\_API\_TOKEN|Token to access the Newrelic-API|sometokenxyz
 NEWRELIC\_API\_ACCOUNT|Account to access the Newrelic-API|1234567
+OPENSHIFT\_CHARGEBACK\_SENDER|Value for Sender in Openshift chargeback reports|70022222
+OPENSHIFT\_CHARGEBACK\_ART|Value for Kostenart in Openshift chargeback reports|876543
+OPENSHIFT\_CHARGEBACK\_CURRENCY|Value for Währung in Openshift chargeback reports (optional)|CHF
+
 
 ### Route timeout
 The `api/aws/ec2` endpoints wait until VMs have the desired state.
