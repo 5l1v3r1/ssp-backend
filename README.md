@@ -81,6 +81,7 @@ NFS\_API\_URL|The URL of your NFS-API (optional)|https://somenfsapi.ch
 NFS\_API\_SECRET|The password of the NFS-API (optional)|somesecret
 NFS\_PROXY|The proxy to access the NFS-API (optional)|https://someproxy.ch:1234
 NEWRELIC\_API\_TOKEN|Token to access the Newrelic-API|sometokenxyz
+NEWRELIC\_API\_ACCOUNT|Account to access the Newrelic-API|1234567
 
 ### Route timeout
 The `api/aws/ec2` endpoints wait until VMs have the desired state.

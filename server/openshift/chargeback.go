@@ -116,7 +116,6 @@ const (
 	viasCluster Cluster = "vias"
 )
 
-const requestUrl = "https://insights-api.newrelic.com/v1/accounts/1159282/query?nrql="
 const viasSourceQuotaAssignment = "OpenshiftViasQuota"
 const awsSourceQuotaAssignment = "OpenshiftAwsQuota"
 const viasSourceUsage = "fullHostname like '%.sbb.ch'"
@@ -238,16 +237,21 @@ func computeQueries(start time.Time, end time.Time, searchString string, cluster
 }
 
 func getJson(client *http.Client, query string, target interface{}) error {
-	var url = requestUrl + url.QueryEscape(query)
+	newrelic_api_token := os.Getenv("NEWRELIC_API_TOKEN")
+	if len(newrelic_api_token) == 0 {
+		log.Fatal("Env variable 'NEWRELIC_API_TOKEN' must be specified")
+	}
+	newrelic_api_account := os.Getenv("NEWRELIC_API_ACCOUNT")
+	if len(newrelic_api_account) == 0 {
+		log.Fatal("Env variable 'NEWRELIC_API_ACCOUNT' must be specified")
+	}
+
+	var url = fmt.Sprintf("https://insights-api.newrelic.com/v1/accounts/%v/query?nrql=%v", newrelic_api_account, url.QueryEscape(query))
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		fmt.Println(err)
 	}
 
-	newrelic_api_token := os.Getenv("NEWRELIC_API_TOKEN")
-	if len(newrelic_api_token) == 0 {
-		log.Fatal("Env variable 'NEWRELIC_API_TOKEN' must be specified")
-	}
 
 	req.Header.Add("Accept", "application/json")
 	req.Header.Add("X-Query-Key", newrelic_api_token)
