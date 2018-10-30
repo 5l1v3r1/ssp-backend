@@ -5,11 +5,9 @@ import (
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/common"
 	"github.com/gin-gonic/gin"
 	"github.com/gophercloud/gophercloud"
-	"github.com/gophercloud/gophercloud/openstack"
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/flavors"
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/servers"
 	"github.com/gophercloud/gophercloud/openstack/imageservice/v2/images"
-	"github.com/gophercloud/gophercloud/pagination"
 	"github.com/pkg/errors"
 	"net/http"
 	"os"
@@ -30,21 +28,10 @@ func newECSHandler(c *gin.Context) {
 		return
 	}
 
-	provider, err := getProviderClient()
+	client, err := getComputeClient()
 
 	if err != nil {
-		if err != nil {
-			c.JSON(http.StatusBadRequest, err.Error())
-			return
-		}
-	}
-
-	client, err := openstack.NewComputeV2(provider, gophercloud.EndpointOpts{
-		Region: "eu-ch",
-	})
-
-	if err != nil {
-		fmt.Println("Error getting client.", err.Error())
+		fmt.Println("Error getting compute client.", err.Error())
 		if err != nil {
 			c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericOTCAPIError})
 			return
@@ -85,11 +72,11 @@ func newECSHandler(c *gin.Context) {
 
 	if err != nil {
 		fmt.Println("Creating server failed.", err.Error())
-		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: "Unable to create server."})
+		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: "Server konnte nicht erstellt werden."})
 		return
 	} else {
 		fmt.Println("Creating server succeeded.")
-		c.JSON(http.StatusOK, common.ApiResponse{Message: "Server created."})
+		c.JSON(http.StatusOK, common.ApiResponse{Message: "Server erstellt."})
 		return
 	}
 }
@@ -99,44 +86,27 @@ func listECSHandler(c *gin.Context) {
 
 	fmt.Println(username + " lists ECS instances @ OTC.")
 
-	provider, err := getProviderClient()
+	client, err := getComputeClient()
 
 	if err != nil {
-		if err != nil {
-			c.JSON(http.StatusBadRequest, err.Error())
-			return
-		}
-	}
-
-	client, err := openstack.NewComputeV2(provider, gophercloud.EndpointOpts{
-		Region: "eu-ch",
-	})
-
-	if err != nil {
-		fmt.Println("Error getting client.", err.Error())
+		fmt.Println("Error getting compute client.", err.Error())
 		if err != nil {
 			c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericOTCAPIError})
 			return
 		}
 	}
 
-	opts := servers.ListOpts{}
+	allServers, err := getECServersByUsername(client, common.GetUserName(c))
 
-	pager := servers.List(client, opts)
-
-	pager.EachPage(func(page pagination.Page) (bool, error) {
-		serverList, _ := servers.ExtractServers(page)
-
-		for _, s := range serverList {
-			if s.Metadata["Owner"] == username {
-				fmt.Println(s.Name)
-			}
+	if err != nil {
+		fmt.Println("Error getting ECS servers.", err.Error())
+		if err != nil {
+			c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericOTCAPIError})
+			return
 		}
+	}
 
-		return false, nil
-	})
-
-	c.JSON(http.StatusOK, "Listing OK.")
+	c.JSON(http.StatusOK, allServers)
 	return
 
 }
@@ -144,18 +114,15 @@ func listECSHandler(c *gin.Context) {
 func listFlavorsHandler(c *gin.Context) {
 	fmt.Println("Querying flavors @ OTC.")
 
-	provider, err := getProviderClient()
+	client, err := getComputeClient()
 
 	if err != nil {
+		fmt.Println("Error getting compute client.", err.Error())
 		if err != nil {
-			c.JSON(http.StatusBadRequest, err.Error())
+			c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericOTCAPIError})
 			return
 		}
 	}
-
-	client, err := openstack.NewComputeV2(provider, gophercloud.EndpointOpts{
-		Region: "eu-ch",
-	})
 
 	allFlavors, err := getFlavors(client)
 
@@ -174,18 +141,15 @@ func listFlavorsHandler(c *gin.Context) {
 func listImagesHandler(c *gin.Context) {
 	fmt.Println("Querying images @ OTC.")
 
-	provider, err := getProviderClient()
+	client, err := getComputeClient()
 
 	if err != nil {
+		fmt.Println("Error getting compute client.", err.Error())
 		if err != nil {
-			c.JSON(http.StatusBadRequest, err.Error())
+			c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericOTCAPIError})
 			return
 		}
 	}
-
-	client, err := openstack.NewComputeV2(provider, gophercloud.EndpointOpts{
-		Region: "eu-ch",
-	})
 
 	allImages, err := getImages(client)
 
@@ -199,6 +163,70 @@ func listImagesHandler(c *gin.Context) {
 
 	c.JSON(http.StatusOK, allImages)
 	return
+}
+
+func getECServersByUsername(client *gophercloud.ServiceClient, username string) (*common.ECServerListResponse, error) {
+	result := common.ECServerListResponse{
+		ECServers: []common.ECServer{},
+	}
+
+	opts := servers.ListOpts{}
+
+	allPages, err := servers.List(client, opts).AllPages()
+
+	if err != nil {
+		fmt.Println("Error while listing servers.", err.Error())
+		return nil, err
+	}
+
+	allServers, err := servers.ExtractServers(allPages)
+
+	if err != nil {
+		fmt.Println("Error while extracting servers.", err.Error())
+		return nil, err
+	}
+
+	imageClient, err := getImageClient()
+
+	if err != nil {
+		fmt.Println("Error getting image service client.", err.Error())
+		return nil, err
+	}
+
+	for _, server := range allServers {
+
+		if strings.ToLower(server.Metadata["Owner"]) != strings.ToLower(username) {
+			continue
+		}
+
+		flavor, err := flavors.Get(client, server.Flavor["id"].(string)).Extract()
+
+		if err != nil {
+			fmt.Println("Error getting flavor for a server.", err.Error())
+			return nil, err
+		}
+
+		image, err := images.Get(imageClient, server.Image["id"].(string)).Extract()
+
+		if err != nil {
+			fmt.Println("Error getting image for a server.", err.Error())
+			return nil, err
+		}
+
+		result.ECServers = append(result.ECServers,
+			common.ECServer{
+				Name:      server.Name,
+				Created:   server.Created,
+				VCPUs:     flavor.VCPUs,
+				RAM:       flavor.RAM,
+				ImageName: image.Name,
+				Status:    server.Status,
+				Billing:   server.Metadata["Billing"],
+				Owner:     server.Metadata["Owner"]})
+	}
+
+	return &result, nil
+
 }
 
 func getFlavors(client *gophercloud.ServiceClient) (*common.FlavorListResponse, error) {

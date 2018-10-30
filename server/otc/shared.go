@@ -20,24 +20,56 @@ func RegisterRoutes(r *gin.RouterGroup) {
 	r.GET("/otc/images", listImagesHandler)
 }
 
-func getProviderClient() (*gophercloud.ProviderClient, error) {
+func getComputeClient() (*gophercloud.ServiceClient, error) {
 	opts, err := openstack.AuthOptionsFromEnv()
 
 	if err != nil {
 		fmt.Println("Error while getting auth options from environment.", err.Error())
-		if err != nil {
-			return nil, errors.New(genericOTCAPIError)
-		}
+		return nil, errors.New(genericOTCAPIError)
 	}
 
 	provider, err := openstack.AuthenticatedClient(opts)
 
 	if err != nil {
 		fmt.Println("Error while authenticating.", err.Error())
-		if err != nil {
-			return nil, errors.New(genericOTCAPIError)
-		}
+		return nil, errors.New(genericOTCAPIError)
 	}
 
-	return provider, nil
+	client, err := openstack.NewComputeV2(provider, gophercloud.EndpointOpts{
+		Region: "eu-ch",
+	})
+
+	if err != nil {
+		fmt.Println("Error getting client.", err.Error())
+		return nil, errors.New(genericOTCAPIError)
+	}
+
+	return client, nil
+}
+
+func getImageClient() (*gophercloud.ServiceClient, error) {
+	opts, err := openstack.AuthOptionsFromEnv()
+
+	if err != nil {
+		fmt.Println("Error while getting auth options from environment.", err.Error())
+		return nil, errors.New(genericOTCAPIError)
+	}
+
+	provider, err := openstack.AuthenticatedClient(opts)
+
+	if err != nil {
+		fmt.Println("Error while authenticating.", err.Error())
+		return nil, errors.New(genericOTCAPIError)
+	}
+
+	client, err := openstack.NewImageServiceV2(provider, gophercloud.EndpointOpts{
+		Region: "eu-ch",
+	})
+
+	if err != nil {
+		fmt.Println("Error getting client.", err.Error())
+		return nil, errors.New(genericOTCAPIError)
+	}
+
+	return client, nil
 }

@@ -1,7 +1,9 @@
 package common
 
 import "time"
-import "github.com/aws/aws-sdk-go/service/ec2"
+import (
+	"github.com/aws/aws-sdk-go/service/ec2"
+)
 
 type ProjectName struct {
 	Project string `json:"project"`
@@ -250,4 +252,19 @@ type ImageListResponse struct {
 type Image struct {
 	Name string `json:"name"`
 	Id   string `json:"id"`
+}
+
+type ECServerListResponse struct {
+	ECServers []ECServer `json:"ecServers"`
+}
+
+type ECServer struct {
+	Name      string    `json:"name"`
+	Created   time.Time `json:"created"`
+	VCPUs     int       `json:"vcpus"`
+	RAM       int       `json:"ram"`
+	ImageName string    `json:"imageName"`
+	Status    string    `json:"status"`
+	Billing   string    `json:"billing"`
+	Owner     string    `json:"owner"`
 }
