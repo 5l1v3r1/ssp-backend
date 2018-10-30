@@ -147,49 +147,50 @@ func chargebackHandler(c *gin.Context) {
 
 	log.Printf("%v called openshift chargeback", username)
 	var data OpenshiftChargebackCommand
-	if err := c.BindJSON(&data); err == nil {
-		// Programm
-		var resourceMap = make(map[string]Resources)
-
-		client := &http.Client{}
-
-		quota := new(Quota)
-		usage := new(Usage)
-		assignment := new(Assignment)
-
-		queries := computeQueries(data.Start, data.End, data.ProjectContains, data.Cluster)
-
-		/* fmt.Println(queries.assignmentQuery)
-		fmt.Println(queries.quotaQuery)
-		fmt.Println(queries.usageQueries) */
-
-		getJson(client, queries.quotaQuery, quota)
-		addQuotaAndRequestedToResources(resourceMap, quota)
-
-		getJson(client, queries.assignmentQuery, assignment)
-		addAssignmentToResources(resourceMap, assignment)
-
-		for i := range queries.usageQueries {
-			getJson(client, queries.usageQueries[i], usage)
-			addUsedToResources(resourceMap, usage)
-		}
-		normalizedResourceUsage(resourceMap, float64(len(queries.usageQueries)))
-		computeResourcePrices(resourceMap, unitprices, managementFee)
-
-		report := createCSVReport(resourceMap)
-
-		v := make([]Resources, 0, len(resourceMap))
-		for _, value := range resourceMap {
-			v = append(v, value)
-		}
-		c.JSON(http.StatusOK, ApiResponse{
-			CSV:  report,
-			Rows: v,
-		})
-	} else {
-		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: "Wrong API usage"})
+	if err := c.BindJSON(&data); err != nil {
 		fmt.Println(err.Error())
+		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: "Wrong API usage"})
+		return
 	}
+
+	// Programm
+	var resourceMap = make(map[string]Resources)
+
+	client := &http.Client{}
+
+	quota := new(Quota)
+	usage := new(Usage)
+	assignment := new(Assignment)
+
+	queries := computeQueries(data.Start, data.End, data.ProjectContains, data.Cluster)
+
+	/* fmt.Println(queries.assignmentQuery)
+	fmt.Println(queries.quotaQuery)
+	fmt.Println(queries.usageQueries) */
+
+	getJson(client, queries.quotaQuery, quota)
+	addQuotaAndRequestedToResources(resourceMap, quota)
+
+	getJson(client, queries.assignmentQuery, assignment)
+	addAssignmentToResources(resourceMap, assignment)
+
+	for i := range queries.usageQueries {
+		getJson(client, queries.usageQueries[i], usage)
+		addUsedToResources(resourceMap, usage)
+	}
+	normalizedResourceUsage(resourceMap, float64(len(queries.usageQueries)))
+	computeResourcePrices(resourceMap, unitprices, managementFee)
+
+	report := createCSVReport(resourceMap)
+
+	v := make([]Resources, 0, len(resourceMap))
+	for _, value := range resourceMap {
+		v = append(v, value)
+	}
+	c.JSON(http.StatusOK, ApiResponse{
+		CSV:  report,
+		Rows: v,
+	})
 }
 
 func computeQueries(start time.Time, end time.Time, searchString string, cluster Cluster) Queries {
