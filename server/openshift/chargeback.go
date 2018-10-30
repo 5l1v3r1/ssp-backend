@@ -145,7 +145,7 @@ func chargebackHandler(c *gin.Context) {
 	}
 	const managementFee = 1.0625
 
-	fmt.Printf("%v called openshift chargeback\n", username)
+	log.Printf("%v called openshift chargeback", username)
 	var data OpenshiftChargebackCommand
 	if err := c.BindJSON(&data); err == nil {
 		// Programm
@@ -251,7 +251,6 @@ func getJson(client *http.Client, query string, target interface{}) error {
 	if err != nil {
 		fmt.Println(err)
 	}
-
 
 	req.Header.Add("Accept", "application/json")
 	req.Header.Add("X-Query-Key", newrelic_api_token)
