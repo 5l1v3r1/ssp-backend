@@ -259,6 +259,7 @@ type ECServerListResponse struct {
 }
 
 type ECServer struct {
+	Id        string    `json:"id"`
 	Name      string    `json:"name"`
 	Created   time.Time `json:"created"`
 	VCPUs     int       `json:"vcpus"`

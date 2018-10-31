@@ -16,6 +16,10 @@ const (
 func RegisterRoutes(r *gin.RouterGroup) {
 	r.GET("/otc/ecs", listECSHandler)
 	r.POST("/otc/ecs", newECSHandler)
+	r.POST("/otc/stopecs", stopECSHandler)
+	r.POST("/otc/startecs", startECSHandler)
+	r.POST("/otc/rebootecs", rebootECSHandler)
+	r.POST("/otc/deleteecs", deleteECSHandler)
 	r.GET("/otc/flavors", listFlavorsHandler)
 	r.GET("/otc/images", listImagesHandler)
 }
