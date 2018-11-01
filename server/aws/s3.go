@@ -3,6 +3,7 @@ package aws
 import (
 	"encoding/json"
 	"errors"
+	"html"
 	"log"
 	"net/http"
 	"os"
@@ -139,8 +140,8 @@ func newS3UserHandler(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, common.ApiResponse{Message: err.Error()})
 		} else {
 			c.JSON(http.StatusOK, common.ApiResponse{
-				Message: fmt.Sprintf("Der Benutzer (%v) wurde erstellt. Access Key ID: %v - Secret Access Key: %v",
-					credentials.Username, credentials.AccessKeyID, credentials.SecretKey)})
+				Message: fmt.Sprintf("Der Benutzer (%v) wurde erstellt.<br><br><table><tr><td>Access Key ID:</td><td>%v</td></tr><tr><td>Secret Access Key:</td><td>%v</td></tr><tr><td>Password:</td><td>%v</td></tr></table>",
+					credentials.Username, credentials.AccessKeyID, credentials.SecretKey, html.EscapeString(credentials.Password))})
 		}
 	} else {
 		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: wrongAPIUsageError})
@@ -204,15 +205,10 @@ func createNewS3Bucket(username string, projectname string, bucketname string, b
 					"s3:Get*",  // Allow Get commands
 					"s3:List*", // Allow List commands
 				},
-				Resource: "arn:aws:s3:::" + bucketname,
-			},
-			{
-				Effect: "Allow",
-				Action: []string{
-					"s3:Get*",  // Allow Get commands
-					"s3:List*", // Allow List commands
+				Resource: []string{
+					"arn:aws:s3:::" + bucketname,
+					"arn:aws:s3:::" + bucketname + "/*",
 				},
-				Resource: "arn:aws:s3:::" + bucketname + "/*",
 			},
 		},
 	}
@@ -228,17 +224,10 @@ func createNewS3Bucket(username string, projectname string, bucketname string, b
 					"s3:Put*",    // Allow Put commands
 					"s3:Delete*", // Allow Delete commands
 				},
-				Resource: "arn:aws:s3:::" + bucketname,
-			},
-			{
-				Effect: "Allow",
-				Action: []string{
-					"s3:Get*",    // Allow Get commands
-					"s3:List*",   // Allow List commands
-					"s3:Put*",    // Allow Put commands
-					"s3:Delete*", // Allow Delete commands
+				Resource: []string{
+					"arn:aws:s3:::" + bucketname,
+					"arn:aws:s3:::" + bucketname + "/*",
 				},
-				Resource: "arn:aws:s3:::" + bucketname + "/*",
 			},
 		},
 	}

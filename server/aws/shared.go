@@ -13,6 +13,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/aws/aws-sdk-go/service/secretsmanager"
 
 	"github.com/gin-gonic/gin"
 )
@@ -103,6 +104,19 @@ func GetIAMClient(stage string) (*iam.IAM, error) {
 		return nil, err
 	}
 	return iam.New(sess), nil
+}
+
+func GetSecretsmanagerClient(stage string) (*secretsmanager.SecretsManager, error) {
+	account, err := getAccountForStage(stage)
+	if err != nil {
+		return nil, err
+	}
+
+	sess, err := getAwsSession(account)
+	if err != nil {
+		return nil, err
+	}
+	return secretsmanager.New(sess), nil
 }
 
 func getAwsSession(account string) (*session.Session, error) {
