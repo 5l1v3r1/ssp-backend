@@ -1,32 +1,32 @@
 # General idea
 Build Status: [![Build Status](https://travis-ci.org/SchweizerischeBundesbahnen/ssp-backend.svg?branch=master)](https://travis-ci.org/SchweizerischeBundesbahnen/ssp-backend)
 
-We at [@SchweizerischeBundesbahnen](https://github.com/SchweizerischeBundesbahnen) have a lot of projects who need changes on their projects all the time. As those settings are (and that is fine) limited to the administrator roles, we had to do a lot of manual changes like:
+We at [@SchweizerischeBundesbahnen](https://github.com/SchweizerischeBundesbahnen) own a lot of projects which receive changes all the time. As those settings are (and that is fine) limited to administrative roles, we had to do a lot of manual work like:
 
 OpenShift:
 - Creating new projects with certain attributes
-- Updating projects metadata like billing information
+- Updating project metadata like billing information
 - Updating project quotas
 - Creating service-accounts
 
 Persistent storage:
-- Create gluster volumes
-- Increase the size of a gluster volume
-- Create PV, PVC, Gluster Service & Endpoints in OpenShift
+- Creating gluster volumes
+- Increasing gluster volume sizes
+- Creating PV, PVC, Gluster Service & Endpoints in OpenShift
 
 Billing:
-- Create a billing report for diffrent platforms
+- Creating billing reports for different platforms
 
 AWS:
-- Create and manage AWS S3 Buckets
+- Creating and managing AWS S3 Buckets
 
 Sematext:
-- Create and manage sematext logsene apps
+- Creating and managing sematext logsene apps
 
-So we built this tool which allows users to do certain things in self service. The tool checks permissions & certain conditions.
+Because of that we built this tool which allows users to execute certain tasks in self service. The tool checks permissions & multiple defined conditions.
 
 # Components
-- The Self-Service-Portal Backend (as container)
+- The Self-Service-Portal Backend (as a container)
 - The Self-Service-Portal Frontend (see https://github.com/SchweizerischeBundesbahnen/cloud-selfservice-portal-frontend)
 - The GlusterFS-API server (as a sytemd service)
 
@@ -40,7 +40,7 @@ oc create serviceaccount ose-selfservice
 # Add a cluster policy for the portal:
 oc create -f clusterPolicy-selfservice.yml
 
-# Add policy to service account
+# Add policy to the service account
 oc adm policy add-cluster-role-to-user ose:selfservice system:serviceaccount:ose-selfservice-backend:ose-selfservice
 
 # Use the token of the service account in the container
@@ -132,7 +132,7 @@ Content-Length: 70
 {"message":"Error used 4.430051813471502 is bigger than threshold: 3"}
 ```
 
-For the other (internal) endpoints see the code (glusterapi/main.go)
+For the other (internal) endpoints take a look at the code (glusterapi/main.go)
 
 # Contributing
 The backend can be started with Docker. All required environment variables must be set in the `env_vars` file.
@@ -146,7 +146,7 @@ docker build -p 8080:8080 --build-arg https_proxy=http://proxy.ch:9000 -t ssp-ba
 docker run -it --rm --env-file <(sed "s/export\s//" env_vars | tr -d "'") ssp-backend
 ```
 
-There is a small script for locally testing the API. It handles authorization (login, token etc).
+There is a small script for local API testing. It handles authorization (login, token etc).
 ```
 go run curl.go [-X GET/POST] http://localhost:8080/api/...
 ```
