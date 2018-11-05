@@ -26,7 +26,7 @@ type PolicyDocument struct {
 type StatementEntry struct {
 	Effect   string
 	Action   []string
-	Resource string
+	Resource []string
 }
 
 func validateNewS3User(username string, bucketname string, newuser string, stage string) error {
@@ -129,7 +129,68 @@ func createNewS3User(bucketname string, s3username string, stage string, isReado
 		return &cred, errors.New(genericUserCreationError)
 	}
 
+	addUserToGroup(generatedName, "S3-Functionuser", stage)
+
+	password, err := getRandomPassword(stage)
+	if err != nil {
+		log.Print("Error while calling addUserToGroup: " + err.Error())
+		return nil, errors.New(genericUserCreationError)
+	}
+	err = createLoginProfile(generatedName, password, stage)
+	if err != nil {
+		log.Print("Error while calling createLoginProfile: " + err.Error())
+		return nil, errors.New(genericUserCreationError)
+	}
+	cred.Password = *password
+
 	return &cred, nil
+}
+
+func addUserToGroup(user, group, stage string) error {
+	svc, err := GetIAMClient(stage)
+	if err != nil {
+		return err
+	}
+	input := &iam.AddUserToGroupInput{
+		GroupName: &group,
+		UserName:  &user,
+	}
+
+	_, err = svc.AddUserToGroup(input)
+	if err != nil {
+		log.Printf("Error while calling AddUserToGroup: %v", err.Error())
+		return errors.New(genericUserCreationError)
+	}
+	return nil
+}
+
+func getRandomPassword(stage string) (*string, error) {
+	svc, err := GetSecretsmanagerClient(stage)
+	if err != nil {
+		return nil, err
+	}
+	output, err := svc.GetRandomPassword(nil)
+	if err != nil {
+		return nil, err
+	}
+	return output.RandomPassword, nil
+}
+
+func createLoginProfile(username string, password *string, stage string) error {
+	svc, err := GetIAMClient(stage)
+	if err != nil {
+		return err
+	}
+	input := &iam.CreateLoginProfileInput{
+		UserName: &username,
+		Password: password,
+	}
+
+	_, err = svc.CreateLoginProfile(input)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func attachIAMPolicyToUser(policyName string, username string, stage string) error {

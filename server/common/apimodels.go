@@ -168,6 +168,7 @@ type S3CredentialsResponse struct {
 	Username    string `json:"username"`
 	AccessKeyID string `json:"accesskeyid"`
 	SecretKey   string `json:"secretkey"`
+	Password    string `json:"password"`
 }
 
 type AdminList struct {
