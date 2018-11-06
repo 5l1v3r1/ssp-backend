@@ -228,7 +228,7 @@ func computeQueries(start time.Time, end time.Time, searchString string, cluster
 		if current.Before(end) {
 			s.Until = current.Format(dateFormat)
 		} else {
-			s.Until = current.Format(dateFormat)
+			s.Until = end.Format(dateFormat)
 		}
 		var usageQuery bytes.Buffer
 		t.Execute(&usageQuery, s)
