@@ -22,6 +22,8 @@ func RegisterRoutes(r *gin.RouterGroup) {
 	r.POST("/otc/deleteecs", deleteECSHandler)
 	r.GET("/otc/flavors", listFlavorsHandler)
 	r.GET("/otc/images", listImagesHandler)
+	r.GET("/otc/availabilityzones", listAvailabilityZonesHandler)
+	r.GET("/otc/volumetypes", listVolumeTypesHandler)
 }
 
 func getComputeClient() (*gophercloud.ServiceClient, error) {
@@ -67,6 +69,33 @@ func getImageClient() (*gophercloud.ServiceClient, error) {
 	}
 
 	client, err := openstack.NewImageServiceV2(provider, gophercloud.EndpointOpts{
+		Region: "eu-ch",
+	})
+
+	if err != nil {
+		fmt.Println("Error getting client.", err.Error())
+		return nil, errors.New(genericOTCAPIError)
+	}
+
+	return client, nil
+}
+
+func getBlockstorageClient() (*gophercloud.ServiceClient, error) {
+	opts, err := openstack.AuthOptionsFromEnv()
+
+	if err != nil {
+		fmt.Println("Error while getting auth options from environment.", err.Error())
+		return nil, errors.New(genericOTCAPIError)
+	}
+
+	provider, err := openstack.AuthenticatedClient(opts)
+
+	if err != nil {
+		fmt.Println("Error while authenticating.", err.Error())
+		return nil, errors.New(genericOTCAPIError)
+	}
+
+	client, err := openstack.NewBlockStorageV3(provider, gophercloud.EndpointOpts{
 		Region: "eu-ch",
 	})
 

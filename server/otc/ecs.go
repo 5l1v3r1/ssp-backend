@@ -4,7 +4,13 @@ import (
 	"fmt"
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/common"
 	"github.com/gin-gonic/gin"
+	"github.com/gofrs/uuid"
 	"github.com/gophercloud/gophercloud"
+	"github.com/gophercloud/gophercloud/openstack/blockstorage/v1/volumetypes"
+	"github.com/gophercloud/gophercloud/openstack/blockstorage/v3/volumes"
+	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/availabilityzones"
+	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/bootfromvolume"
+	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/keypairs"
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/startstop"
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/flavors"
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/servers"
@@ -41,25 +47,98 @@ func newECSHandler(c *gin.Context) {
 
 	if err != nil {
 		log.Println("Error getting compute client.", err.Error())
-		if err != nil {
-			c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericOTCAPIError})
-			return
-		}
+		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericOTCAPIError})
+		return
 	}
 
 	serverName, err := generateECSName(data.ECSName)
 	if err != nil {
 		log.Println("Error generating server name.", err.Error())
+		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericOTCAPIError})
+		return
+	}
+
+	uniqueId, err := uuid.NewV4()
+	if err != nil {
+		log.Println("Error getting UUID. That's incredible.", err.Error())
+		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericOTCAPIError})
+		return
+	}
+
+	keyPair, err := createKeyPair(client, serverName+"-"+username+"-"+uniqueId.String(), data.PublicKey)
+	if err != nil {
+		log.Println("Error getting key.", err.Error())
+		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericOTCAPIError})
+		return
+	}
+
+	blockStorageClient, err := getBlockstorageClient()
+	if err != nil {
+		log.Println("Error getting block storage client.", err.Error())
+		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericOTCAPIError})
+		return
+	}
+
+	// create system disk volume
+	volOpts := volumes.CreateOpts{
+		Size:             data.SystemDiskSize,
+		Name:             serverName + "-" + uniqueId.String(),
+		Description:      serverName + "-" + uniqueId.String(),
+		VolumeType:       data.SystemVolumeTypeId,
+		ImageID:          data.ImageId,
+		AvailabilityZone: data.AvailabilityZone,
+	}
+
+	vol, err := volumes.Create(blockStorageClient, volOpts).Extract()
+	if err != nil {
+		log.Println("Creating system disk volume failed.", err.Error())
+		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericOTCAPIError})
+		return
+	}
+
+	err = volumes.WaitForStatus(blockStorageClient, vol.ID, "available", 60)
+	if err != nil {
+		log.Println("Error while waiting on system volume.", err.Error())
+		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericOTCAPIError})
+		return
+	}
+
+	var blockDevices []bootfromvolume.BlockDevice
+
+	// add system disk to the list
+	blockDevices = append(blockDevices, bootfromvolume.BlockDevice{SourceType: bootfromvolume.SourceVolume, DestinationType: bootfromvolume.DestinationVolume, UUID: vol.ID})
+
+	for _, disk := range data.DataDisks {
+		volOpts := volumes.CreateOpts{
+			Size:             disk.DiskSize,
+			Name:             serverName + "-" + uniqueId.String(),
+			Description:      serverName + "-" + uniqueId.String(),
+			VolumeType:       disk.VolumeTypeId,
+			AvailabilityZone: data.AvailabilityZone,
+		}
+
+		vol, err := volumes.Create(blockStorageClient, volOpts).Extract()
 		if err != nil {
+			log.Println("Creating data disk volume failed.", err.Error())
+			c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericOTCAPIError})
+			return
+		}
+		blockDevices = append(blockDevices, bootfromvolume.BlockDevice{SourceType: bootfromvolume.SourceVolume, DestinationType: bootfromvolume.DestinationVolume, UUID: vol.ID, BootIndex: -1})
+	}
+
+	for _, blockDevice := range blockDevices {
+		err = volumes.WaitForStatus(blockStorageClient, blockDevice.UUID, "available", 60)
+		if err != nil {
+			log.Println("Error while waiting on data disk volume.", err.Error())
 			c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericOTCAPIError})
 			return
 		}
 	}
 
-	_, err = servers.Create(client, servers.CreateOpts{
-		Name:      serverName,
-		FlavorRef: data.FlavorName,
-		ImageRef:  data.ImageId,
+	serverCreateOpts := servers.CreateOpts{
+		Name:             serverName,
+		AvailabilityZone: data.AvailabilityZone,
+		FlavorRef:        data.FlavorName,
 		Networks: []servers.Network{
 			{
 				UUID: networkId,
@@ -69,6 +148,16 @@ func newECSHandler(c *gin.Context) {
 			"Owner":   username,
 			"Billing": data.Billing,
 		},
+	}
+
+	keyCreateOpts := keypairs.CreateOptsExt{
+		CreateOptsBuilder: serverCreateOpts,
+		KeyName:           keyPair.Name,
+	}
+
+	_, err = bootfromvolume.Create(client, bootfromvolume.CreateOptsExt{
+		CreateOptsBuilder: keyCreateOpts,
+		BlockDevice:       blockDevices,
 	}).Extract()
 
 	if err != nil {
@@ -163,6 +252,60 @@ func listImagesHandler(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, allImages)
+	return
+}
+
+func listAvailabilityZonesHandler(c *gin.Context) {
+	log.Println("Querying availability zones @ OTC.")
+
+	client, err := getComputeClient()
+
+	if err != nil {
+		fmt.Println("Error getting compute client.", err.Error())
+		if err != nil {
+			c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericOTCAPIError})
+			return
+		}
+	}
+
+	allAvailabilityZones, err := getAvailabilityZones(client)
+
+	if err != nil {
+		log.Println("Error getting availability zones.", err.Error())
+		if err != nil {
+			c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericOTCAPIError})
+			return
+		}
+	}
+
+	c.JSON(http.StatusOK, allAvailabilityZones)
+	return
+}
+
+func listVolumeTypesHandler(c *gin.Context) {
+	log.Println("Querying volume types @ OTC.")
+
+	client, err := getBlockstorageClient()
+
+	if err != nil {
+		fmt.Println("Error getting compute client.", err.Error())
+		if err != nil {
+			c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericOTCAPIError})
+			return
+		}
+	}
+
+	allVolumeTypes, err := getVolumeTypes(client)
+
+	if err != nil {
+		log.Println("Error getting volume types.", err.Error())
+		if err != nil {
+			c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericOTCAPIError})
+			return
+		}
+	}
+
+	c.JSON(http.StatusOK, allVolumeTypes)
 	return
 }
 
@@ -314,6 +457,24 @@ func deleteECSHandler(c *gin.Context) {
 	return
 }
 
+func createKeyPair(client *gophercloud.ServiceClient, publicKeyName string, publicKey string) (*keypairs.KeyPair, error) {
+	log.Printf("Creating public key with name %v.", publicKeyName)
+
+	createOpts := keypairs.CreateOpts{
+		Name:      publicKeyName,
+		PublicKey: publicKey,
+	}
+
+	keyPair, err := keypairs.Create(client, createOpts).Extract()
+
+	if err != nil {
+		log.Println("Error while creating key pair.", err.Error())
+		return nil, err
+	}
+
+	return keyPair, nil
+}
+
 func getECServersByUsername(client *gophercloud.ServiceClient, username string) (*common.ECServerListResponse, error) {
 	result := common.ECServerListResponse{
 		ECServers: []common.ECServer{},
@@ -362,9 +523,22 @@ func getECServersByUsername(client *gophercloud.ServiceClient, username string) 
 			return nil, err
 		}
 
+		var ipAddresses []string
+
+		for _, v := range server.Addresses {
+			for _, element := range v.([]interface{}) {
+				for key, value := range element.(map[string]interface{}) {
+					if key == "addr" {
+						ipAddresses = append(ipAddresses, value.(string))
+					}
+				}
+			}
+		}
+
 		result.ECServers = append(result.ECServers,
 			common.ECServer{
 				Id:        server.ID,
+				IPv4:      ipAddresses,
 				Name:      server.Name,
 				Created:   server.Created,
 				VCPUs:     flavor.VCPUs,
@@ -377,6 +551,32 @@ func getECServersByUsername(client *gophercloud.ServiceClient, username string) 
 
 	return &result, nil
 
+}
+
+func getVolumeTypes(client *gophercloud.ServiceClient) (*common.VolumeTypesListResponse, error) {
+	result := common.VolumeTypesListResponse{
+		VolumeTypes: []common.VolumeType{},
+	}
+
+	allPages, err := volumetypes.List(client).AllPages()
+
+	if err != nil {
+		log.Println("Error while listing volume types.", err.Error())
+		return nil, err
+	}
+
+	allVolumeTypes, err := volumetypes.ExtractVolumeTypes(allPages)
+
+	if err != nil {
+		log.Println("Error while extracting volume types.", err.Error())
+		return nil, err
+	}
+
+	for _, volumeType := range allVolumeTypes {
+		result.VolumeTypes = append(result.VolumeTypes, common.VolumeType{Name: volumeType.Name, Id: volumeType.ID})
+	}
+
+	return &result, nil
 }
 
 func getFlavors(client *gophercloud.ServiceClient) (*common.FlavorListResponse, error) {
@@ -401,7 +601,31 @@ func getFlavors(client *gophercloud.ServiceClient) (*common.FlavorListResponse, 
 	}
 
 	for _, flavor := range allFlavors {
-		result.Flavors = append(result.Flavors, common.Flavor{flavor.Name, flavor.VCPUs, flavor.RAM})
+		result.Flavors = append(result.Flavors, common.Flavor{Name: flavor.Name, VCPUs: flavor.VCPUs, RAM: flavor.RAM})
+	}
+
+	return &result, nil
+}
+
+func getAvailabilityZones(client *gophercloud.ServiceClient) (*common.AvailabilityZoneListResponse, error) {
+	result := common.AvailabilityZoneListResponse{}
+
+	allPages, err := availabilityzones.List(client).AllPages()
+
+	if err != nil {
+		log.Println("Error while listing availability zones.", err.Error())
+		return nil, err
+	}
+
+	allAvailabilityZones, err := availabilityzones.ExtractAvailabilityZones(allPages)
+
+	if err != nil {
+		log.Println("Error while extracting availability zones.", err.Error())
+		return nil, err
+	}
+
+	for _, az := range allAvailabilityZones {
+		result.AvailabilityZones = append(result.AvailabilityZones, az.ZoneName)
 	}
 
 	return &result, nil
@@ -429,7 +653,7 @@ func getImages(client *gophercloud.ServiceClient) (*common.ImageListResponse, er
 	}
 
 	for _, image := range allImages {
-		result.Images = append(result.Images, common.Image{image.Name, image.ID})
+		result.Images = append(result.Images, common.Image{Name: image.Name, Id: image.ID})
 	}
 
 	return &result, nil
