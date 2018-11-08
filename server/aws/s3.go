@@ -120,32 +120,41 @@ func newS3UserHandler(c *gin.Context) {
 	bucketName := c.Param("bucketname")
 
 	var data common.NewS3UserCommand
-	if c.BindJSON(&data) == nil {
-		isNonProd := strings.HasSuffix(bucketName, accountNonProd)
-		var stage string
-		if isNonProd {
-			stage = stageDev
-		} else {
-			stage = stageProd
-		}
-		if err := validateNewS3User(username, bucketName, data.UserName, stage); err != nil {
-			c.JSON(http.StatusBadRequest, common.ApiResponse{Message: err.Error()})
-			return
-		}
-
-		log.Print(username + " creates a new user (" + data.UserName + ") for " + bucketName + " , readonly: " + strconv.FormatBool(data.IsReadonly))
-
-		credentials, err := createNewS3User(bucketName, data.UserName, stage, data.IsReadonly)
-		if err != nil {
-			c.JSON(http.StatusBadRequest, common.ApiResponse{Message: err.Error()})
-		} else {
-			c.JSON(http.StatusOK, common.ApiResponse{
-				Message: fmt.Sprintf("Der Benutzer (%v) wurde erstellt.<br><br><table><tr><td>Access Key ID:</td><td>%v</td></tr><tr><td>Secret Access Key:</td><td>%v</td></tr><tr><td>Password:</td><td>%v</td></tr></table>",
-					credentials.Username, credentials.AccessKeyID, credentials.SecretKey, html.EscapeString(credentials.Password))})
-		}
-	} else {
+	if c.BindJSON(&data) != nil {
 		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: wrongAPIUsageError})
+		return
 	}
+
+	isNonProd := strings.HasSuffix(bucketName, accountNonProd)
+	var stage string
+	var loginURL string
+	if isNonProd {
+		stage = stageDev
+		loginURL = os.Getenv("AWS_NONPROD_LOGIN_URL")
+	} else {
+		stage = stageProd
+		loginURL = os.Getenv("AWS_PROD_LOGIN_URL")
+	}
+	if err := validateNewS3User(username, bucketName, data.UserName, stage); err != nil {
+		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: err.Error()})
+		return
+	}
+
+	log.Print(username + " creates a new user (" + data.UserName + ") for " + bucketName + " , readonly: " + strconv.FormatBool(data.IsReadonly))
+
+	credentials, err := createNewS3User(bucketName, data.UserName, stage, data.IsReadonly)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, common.ApiResponse{
+		Message: fmt.Sprintf("Der Benutzer (%v) wurde erstellt.<br><br><table>"+
+			"<tr><td>Access Key ID:</td><td>%v</td></tr>"+
+			"<tr><td>Secret Access Key:</td><td>%v</td></tr>"+
+			"<tr><td>Password:</td><td>%v</td></tr>"+
+			"<tr><td>Login URL:</td><td>%v</td></tr></table>"+
+			"<br><b>Hinweis:</b> diese Keys und Passwörter gut & sicher abspeichern, da sie später nicht wiederhergestellt werden können!",
+			credentials.Username, credentials.AccessKeyID, credentials.SecretKey, html.EscapeString(credentials.Password), loginURL)})
 }
 
 func createNewS3Bucket(username string, projectname string, bucketname string, billing string, stage string) error {

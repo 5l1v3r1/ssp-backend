@@ -56,5 +56,8 @@ func main() {
 	}
 
 	log.Println("Cloud SSP is running")
-	router.Run()
+	err := router.Run()
+	if err != nil {
+		log.Println(err)
+	}
 }
