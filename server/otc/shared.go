@@ -80,7 +80,7 @@ func getImageClient() (*gophercloud.ServiceClient, error) {
 	return client, nil
 }
 
-func getBlockstorageClient() (*gophercloud.ServiceClient, error) {
+func getBlockStorageClient() (*gophercloud.ServiceClient, error) {
 	opts, err := openstack.AuthOptionsFromEnv()
 
 	if err != nil {

@@ -16,11 +16,100 @@ import (
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/servers"
 	"github.com/gophercloud/gophercloud/openstack/imageservice/v2/images"
 	"github.com/pkg/errors"
+	"golang.org/x/crypto/ssh"
 	"log"
 	"net/http"
 	"os"
 	"strings"
 )
+
+func validateUserInput(data NewECSCommand) error {
+	log.Println("Validating user input for ECS creation.")
+
+	_, _, _, _, err := ssh.ParseAuthorizedKey([]byte(data.PublicKey))
+
+	if err != nil {
+		log.Println("Can't parse public key.", err.Error())
+		if err != nil {
+			return errors.New("Der SSH Public Key kann nicht geparst werden.")
+		}
+	}
+
+	if len(data.ECSName) == 0 {
+		return errors.New("Der ECS Name muss angegeben werden.")
+	}
+
+	if len(data.Billing) == 0 {
+		return errors.New("Kontierungsnummer muss angegeben werden.")
+	}
+
+	if len(data.MegaId) == 0 {
+		return errors.New("Mega ID muss angegeben werden.")
+	}
+
+	if len(data.AvailabilityZone) == 0 {
+		return errors.New("Availability Zone muss angegeben werden.")
+	}
+
+	if len(data.FlavorName) == 0 {
+		return errors.New("Flavor muss angegeben werden.")
+	}
+
+	if len(data.ImageId) == 0 {
+		return errors.New("Flavor muss angegeben werden.")
+	}
+
+	// data.systemDataDiskSize
+	imageClient, err := getImageClient()
+
+	if err != nil {
+		log.Println("Error getting compute client.", err.Error())
+		if err != nil {
+			return errors.New(genericOTCAPIError)
+		}
+	}
+
+	image, err := images.Get(imageClient, data.ImageId).Extract()
+
+	if err != nil {
+		log.Println("Error while extracting image.", err.Error())
+		if err != nil {
+			return errors.New(genericOTCAPIError)
+		}
+	}
+
+	if image.MinDiskGigabytes > data.SystemDiskSize {
+		return errors.New(fmt.Sprintf("Das gewählte Image benötigt eine mindestens %vGB grosse System Disk.", image.MinDiskGigabytes))
+	}
+
+	computeClient, err := getComputeClient()
+
+	if err != nil {
+		log.Println("Error getting compute client.", err.Error())
+		if err != nil {
+			return errors.New(genericOTCAPIError)
+		}
+	}
+
+	flavor, err := flavors.Get(computeClient, data.FlavorName).Extract()
+
+	if err != nil {
+		log.Println("Error while extracting flavor.", err.Error())
+		if err != nil {
+			return errors.New(genericOTCAPIError)
+		}
+	}
+
+	if image.MinRAMMegabytes > flavor.RAM {
+		return errors.New(fmt.Sprintf("Das gewählte Image benötigt mindestens %vGB RAM.", image.MinRAMMegabytes/1024))
+	}
+
+	if len(data.SystemVolumeTypeId) == 0 {
+		return errors.New("System Disk Typ muss angegeben werden.")
+	}
+
+	return nil
+}
 
 func newECSHandler(c *gin.Context) {
 	networkId := os.Getenv("OTC_NETWORK_UUID")
@@ -34,12 +123,20 @@ func newECSHandler(c *gin.Context) {
 	username := common.GetUserName(c)
 	log.Printf("%v creates new ECS @ OTC.", username)
 
-	var data common.NewECSCommand
+	var data NewECSCommand
 	err := c.BindJSON(&data)
 
 	if err != nil {
 		log.Println("Binding request to Go struct failed.", err.Error())
 		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: wrongAPIUsageError})
+		return
+	}
+
+	err = validateUserInput(data)
+
+	if err != nil {
+		log.Println("User input validation failed.", err.Error())
+		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: err.Error()})
 		return
 	}
 
@@ -52,6 +149,7 @@ func newECSHandler(c *gin.Context) {
 	}
 
 	serverName, err := generateECSName(data.ECSName)
+
 	if err != nil {
 		log.Println("Error generating server name.", err.Error())
 		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericOTCAPIError})
@@ -65,74 +163,18 @@ func newECSHandler(c *gin.Context) {
 		return
 	}
 
+	blockDevices, err := createECSDisks(data, serverName, uniqueId.String(), username)
+	if err != nil {
+		log.Println("Error creating disks for ECS.", err.Error())
+		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericOTCAPIError})
+		return
+	}
+
 	keyPair, err := createKeyPair(client, serverName+"-"+username+"-"+uniqueId.String(), data.PublicKey)
 	if err != nil {
 		log.Println("Error getting key.", err.Error())
 		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericOTCAPIError})
 		return
-	}
-
-	blockStorageClient, err := getBlockstorageClient()
-	if err != nil {
-		log.Println("Error getting block storage client.", err.Error())
-		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericOTCAPIError})
-		return
-	}
-
-	// create system disk volume
-	volOpts := volumes.CreateOpts{
-		Size:             data.SystemDiskSize,
-		Name:             serverName + "-" + uniqueId.String(),
-		Description:      serverName + "-" + uniqueId.String(),
-		VolumeType:       data.SystemVolumeTypeId,
-		ImageID:          data.ImageId,
-		AvailabilityZone: data.AvailabilityZone,
-	}
-
-	vol, err := volumes.Create(blockStorageClient, volOpts).Extract()
-	if err != nil {
-		log.Println("Creating system disk volume failed.", err.Error())
-		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericOTCAPIError})
-		return
-	}
-
-	err = volumes.WaitForStatus(blockStorageClient, vol.ID, "available", 60)
-	if err != nil {
-		log.Println("Error while waiting on system volume.", err.Error())
-		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericOTCAPIError})
-		return
-	}
-
-	var blockDevices []bootfromvolume.BlockDevice
-
-	// add system disk to the list
-	blockDevices = append(blockDevices, bootfromvolume.BlockDevice{SourceType: bootfromvolume.SourceVolume, DestinationType: bootfromvolume.DestinationVolume, UUID: vol.ID})
-
-	for _, disk := range data.DataDisks {
-		volOpts := volumes.CreateOpts{
-			Size:             disk.DiskSize,
-			Name:             serverName + "-" + uniqueId.String(),
-			Description:      serverName + "-" + uniqueId.String(),
-			VolumeType:       disk.VolumeTypeId,
-			AvailabilityZone: data.AvailabilityZone,
-		}
-
-		vol, err := volumes.Create(blockStorageClient, volOpts).Extract()
-		if err != nil {
-			log.Println("Creating data disk volume failed.", err.Error())
-			c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericOTCAPIError})
-			return
-		}
-		blockDevices = append(blockDevices, bootfromvolume.BlockDevice{SourceType: bootfromvolume.SourceVolume, DestinationType: bootfromvolume.DestinationVolume, UUID: vol.ID, BootIndex: -1})
-	}
-
-	for _, blockDevice := range blockDevices {
-		err = volumes.WaitForStatus(blockStorageClient, blockDevice.UUID, "available", 60)
-		if err != nil {
-			log.Println("Error while waiting on data disk volume.", err.Error())
-			c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericOTCAPIError})
-			return
-		}
 	}
 
 	serverCreateOpts := servers.CreateOpts{
@@ -147,6 +189,7 @@ func newECSHandler(c *gin.Context) {
 		Metadata: map[string]string{
 			"Owner":   username,
 			"Billing": data.Billing,
+			"Mega ID": data.MegaId,
 		},
 	}
 
@@ -169,6 +212,81 @@ func newECSHandler(c *gin.Context) {
 		c.JSON(http.StatusOK, common.ApiResponse{Message: "Server erstellt."})
 		return
 	}
+}
+
+func createECSDisks(data NewECSCommand, serverName string, uniqueId string, username string) ([]bootfromvolume.BlockDevice, error) {
+	log.Println("Creating system and data disks.")
+
+	blockStorageClient, err := getBlockStorageClient()
+	if err != nil {
+		log.Println("Error getting block storage client.", err.Error())
+		return nil, err
+	}
+
+	// create system disk volume
+	volOpts := volumes.CreateOpts{
+		Size:             data.SystemDiskSize,
+		Name:             serverName + "-" + uniqueId,
+		Description:      serverName + "-" + uniqueId,
+		VolumeType:       data.SystemVolumeTypeId,
+		ImageID:          data.ImageId,
+		AvailabilityZone: data.AvailabilityZone,
+		Metadata: map[string]string{
+			"Owner":   username,
+			"Billing": data.Billing,
+			"Mega ID": data.MegaId,
+		},
+	}
+
+	vol, err := volumes.Create(blockStorageClient, volOpts).Extract()
+	if err != nil {
+		log.Println("Creating system disk volume failed.", err.Error())
+		return nil, err
+	}
+
+	err = volumes.WaitForStatus(blockStorageClient, vol.ID, "available", 60)
+	if err != nil {
+		log.Println("Error while waiting on system volume.", err.Error())
+		return nil, err
+	}
+
+	var blockDevices []bootfromvolume.BlockDevice
+
+	// add system disk to the list
+	blockDevices = append(blockDevices, bootfromvolume.BlockDevice{SourceType: bootfromvolume.SourceVolume, DestinationType: bootfromvolume.DestinationVolume, UUID: vol.ID})
+
+	// data disks
+	for _, disk := range data.DataDisks {
+		volOpts := volumes.CreateOpts{
+			Size:             disk.DiskSize,
+			Name:             serverName + "-" + uniqueId,
+			Description:      serverName + "-" + uniqueId,
+			VolumeType:       disk.VolumeTypeId,
+			AvailabilityZone: data.AvailabilityZone,
+			Metadata: map[string]string{
+				"Owner":   username,
+				"Billing": data.Billing,
+				"Mega ID": data.MegaId,
+			},
+		}
+
+		vol, err := volumes.Create(blockStorageClient, volOpts).Extract()
+		if err != nil {
+			log.Println("Creating data disk volume failed.", err.Error())
+			return nil, err
+		}
+		blockDevices = append(blockDevices, bootfromvolume.BlockDevice{SourceType: bootfromvolume.SourceVolume, DestinationType: bootfromvolume.DestinationVolume, UUID: vol.ID, BootIndex: -1})
+	}
+
+	for _, blockDevice := range blockDevices {
+		err = volumes.WaitForStatus(blockStorageClient, blockDevice.UUID, "available", 60)
+		if err != nil {
+			log.Println("Error while waiting on data disk volume.", err.Error())
+			return nil, err
+		}
+	}
+
+	return blockDevices, nil
 }
 
 func listECSHandler(c *gin.Context) {
@@ -231,7 +349,7 @@ func listFlavorsHandler(c *gin.Context) {
 func listImagesHandler(c *gin.Context) {
 	log.Println("Querying images @ OTC.")
 
-	client, err := getComputeClient()
+	client, err := getImageClient()
 
 	if err != nil {
 		log.Println("Error getting compute client.", err.Error())
@@ -285,7 +403,7 @@ func listAvailabilityZonesHandler(c *gin.Context) {
 func listVolumeTypesHandler(c *gin.Context) {
 	log.Println("Querying volume types @ OTC.")
 
-	client, err := getBlockstorageClient()
+	client, err := getBlockStorageClient()
 
 	if err != nil {
 		fmt.Println("Error getting compute client.", err.Error())
@@ -322,7 +440,7 @@ func stopECSHandler(c *gin.Context) {
 		}
 	}
 
-	var data common.ECServerListResponse
+	var data ECServerListResponse
 	err = c.BindJSON(&data)
 
 	if err != nil {
@@ -358,7 +476,7 @@ func startECSHandler(c *gin.Context) {
 		}
 	}
 
-	var data common.ECServerListResponse
+	var data ECServerListResponse
 	err = c.BindJSON(&data)
 
 	if err != nil {
@@ -394,7 +512,7 @@ func rebootECSHandler(c *gin.Context) {
 		}
 	}
 
-	var data common.ECServerListResponse
+	var data ECServerListResponse
 	err = c.BindJSON(&data)
 
 	if err != nil {
@@ -434,7 +552,7 @@ func deleteECSHandler(c *gin.Context) {
 		}
 	}
 
-	var data common.ECServerListResponse
+	var data ECServerListResponse
 	err = c.BindJSON(&data)
 
 	if err != nil {
@@ -475,9 +593,11 @@ func createKeyPair(client *gophercloud.ServiceClient, publicKeyName string, publ
 	return keyPair, nil
 }
 
-func getECServersByUsername(client *gophercloud.ServiceClient, username string) (*common.ECServerListResponse, error) {
-	result := common.ECServerListResponse{
-		ECServers: []common.ECServer{},
+func getECServersByUsername(client *gophercloud.ServiceClient, username string) (*ECServerListResponse, error) {
+	log.Printf("Getting EC servers for user %v.", username)
+
+	result := ECServerListResponse{
+		ECServers: []ECServer{},
 	}
 
 	opts := servers.ListOpts{}
@@ -536,7 +656,7 @@ func getECServersByUsername(client *gophercloud.ServiceClient, username string) 
 		}
 
 		result.ECServers = append(result.ECServers,
-			common.ECServer{
+			ECServer{
 				Id:        server.ID,
 				IPv4:      ipAddresses,
 				Name:      server.Name,
@@ -546,16 +666,19 @@ func getECServersByUsername(client *gophercloud.ServiceClient, username string) 
 				ImageName: image.Name,
 				Status:    server.Status,
 				Billing:   server.Metadata["Billing"],
-				Owner:     server.Metadata["Owner"]})
+				Owner:     server.Metadata["Owner"],
+				MegaId:    server.Metadata["Mega ID"]})
 	}
 
 	return &result, nil
 
 }
 
-func getVolumeTypes(client *gophercloud.ServiceClient) (*common.VolumeTypesListResponse, error) {
-	result := common.VolumeTypesListResponse{
-		VolumeTypes: []common.VolumeType{},
+func getVolumeTypes(client *gophercloud.ServiceClient) (*VolumeTypesListResponse, error) {
+	log.Println("Getting volume types @ OTC.")
+
+	result := VolumeTypesListResponse{
+		VolumeTypes: []VolumeType{},
 	}
 
 	allPages, err := volumetypes.List(client).AllPages()
@@ -573,15 +696,17 @@ func getVolumeTypes(client *gophercloud.ServiceClient) (*common.VolumeTypesListR
 	}
 
 	for _, volumeType := range allVolumeTypes {
-		result.VolumeTypes = append(result.VolumeTypes, common.VolumeType{Name: volumeType.Name, Id: volumeType.ID})
+		result.VolumeTypes = append(result.VolumeTypes, VolumeType{Name: volumeType.Name, Id: volumeType.ID})
 	}
 
 	return &result, nil
 }
 
-func getFlavors(client *gophercloud.ServiceClient) (*common.FlavorListResponse, error) {
-	result := common.FlavorListResponse{
-		Flavors: []common.Flavor{},
+func getFlavors(client *gophercloud.ServiceClient) (*FlavorListResponse, error) {
+	log.Println("Getting flavors @ OTC.")
+
+	result := FlavorListResponse{
+		Flavors: []Flavor{},
 	}
 
 	opts := flavors.ListOpts{}
@@ -601,14 +726,16 @@ func getFlavors(client *gophercloud.ServiceClient) (*common.FlavorListResponse, 
 	}
 
 	for _, flavor := range allFlavors {
-		result.Flavors = append(result.Flavors, common.Flavor{Name: flavor.Name, VCPUs: flavor.VCPUs, RAM: flavor.RAM})
+		result.Flavors = append(result.Flavors, Flavor{Name: flavor.Name, VCPUs: flavor.VCPUs, RAM: flavor.RAM})
 	}
 
 	return &result, nil
 }
 
-func getAvailabilityZones(client *gophercloud.ServiceClient) (*common.AvailabilityZoneListResponse, error) {
-	result := common.AvailabilityZoneListResponse{}
+func getAvailabilityZones(client *gophercloud.ServiceClient) (*AvailabilityZoneListResponse, error) {
+	log.Println("Getting availability zones @ OTC.")
+
+	result := AvailabilityZoneListResponse{}
 
 	allPages, err := availabilityzones.List(client).AllPages()
 
@@ -631,9 +758,11 @@ func getAvailabilityZones(client *gophercloud.ServiceClient) (*common.Availabili
 	return &result, nil
 }
 
-func getImages(client *gophercloud.ServiceClient) (*common.ImageListResponse, error) {
-	result := common.ImageListResponse{
-		Images: []common.Image{},
+func getImages(client *gophercloud.ServiceClient) (*ImageListResponse, error) {
+	log.Println("Getting images @ OTC.")
+
+	result := ImageListResponse{
+		Images: []Image{},
 	}
 
 	opts := images.ListOpts{}
@@ -653,13 +782,15 @@ func getImages(client *gophercloud.ServiceClient) (*common.ImageListResponse, er
 	}
 
 	for _, image := range allImages {
-		result.Images = append(result.Images, common.Image{Name: image.Name, Id: image.ID})
+		result.Images = append(result.Images, Image{Name: image.Name, Id: image.ID, MinDiskGigabytes: image.MinDiskGigabytes, MinRAMMegabytes: image.MinRAMMegabytes})
 	}
 
 	return &result, nil
 }
 
 func generateECSName(ecsName string) (string, error) {
+	log.Println("Generating ECS name.")
+
 	// <prefix>-<ecsName>
 	ecsPrefix := os.Getenv("OTC_ECS_PREFIX")
 
