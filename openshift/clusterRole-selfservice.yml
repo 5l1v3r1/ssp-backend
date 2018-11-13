@@ -4,7 +4,9 @@ metadata:
   creationTimestamp: null
   name: ose:selfservice
 rules:
-- apiGroups: null
+- apiGroups:
+  - ""
+  - rbac.authorization.k8s.io
   attributeRestrictions: null
   resources:
   - rolebindings
@@ -41,9 +43,6 @@ rules:
   verbs:
   - create
   - list
-  - get
-  - patch
-  - delete
 - apiGroups: null
   attributeRestrictions: null
   resources:
