@@ -105,21 +105,25 @@ func growVolumeHandler(c *gin.Context) {
 	username := common.GetUserName(c)
 
 	var data common.GrowVolumeCommand
-	if c.BindJSON(&data) == nil {
-		if err := validateGrowVolume(data.Project, data.NewSize, data.PvName, username); err != nil {
-			c.JSON(http.StatusBadRequest, common.ApiResponse{Message: err.Error()})
-			return
-		}
-
-		if err := growExistingVolume(data.Project, data.NewSize, data.PvName, username); err != nil {
-			c.JSON(http.StatusBadRequest, common.ApiResponse{Message: err.Error()})
-		} else {
-			c.JSON(http.StatusOK, common.ApiResponse{Message: "Das Volume wurde vergrössert."})
-		}
-
-	} else {
+	if c.BindJSON(&data) != nil {
 		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: wrongAPIUsageError})
+		return
 	}
+	if err := validateGrowVolume(data.Project, data.NewSize, data.PvName, username); err != nil {
+		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: err.Error()})
+		return
+	}
+	pv, err := getOpenshiftPV(data.PvName)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: err.Error()})
+		return
+	}
+	if err := growExistingVolume(pv, data.NewSize, username); err != nil {
+		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, common.ApiResponse{Message: "Das Volume wurde vergrössert."})
 }
 
 func validateNewVolume(project string, size string, pvcName string, mode string, technology string, username string) error {
@@ -444,6 +448,24 @@ func createNfsVolume(project string, pvcName string, size string, username strin
 	return nil, fmt.Errorf("Fehlerhafte Antwort vom nfs-api: %v", string(errMsg))
 }
 
+func getOpenshiftPV(pvName string) (*gabs.Container, error) {
+	client, req := getOseHTTPClient("GET", fmt.Sprintf("api/v1/persistentvolumes/%v", pvName), nil)
+
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Println("Error from server while getting pv: ", err.Error())
+		return nil, errors.New(genericAPIError)
+	}
+	defer resp.Body.Close()
+
+	json, err := gabs.ParseJSONBuffer(resp.Body)
+	if err != nil {
+		log.Println("error parsing body of response:", err)
+		return nil, errors.New(genericAPIError)
+	}
+	return json, nil
+}
+
 func getJob(jobId int) (*common.WorkflowJob, error) {
 	client, req := getNfsHTTPClient("GET", fmt.Sprintf("workflows/jobs/%v", jobId), nil)
 
@@ -479,15 +501,15 @@ func getJobProgress(job common.WorkflowJob) float64 {
 	return 100.0 / maxProgress * currentProgress
 }
 
-func growExistingVolume(project string, newSize string, pvName string, username string) error {
-	if strings.HasPrefix(pvName, "gl-") {
-		if err := growGlusterVolume(project, newSize, pvName, username); err != nil {
+func growExistingVolume(pv *gabs.Container, newSize string, username string) error {
+	if pv.ExistsP("spec.glusterfs") {
+		if err := growGlusterVolume(pv, newSize, username); err != nil {
 			return err
 		}
 		return nil
 	}
-	if strings.HasPrefix(pvName, "nfs-") {
-		if err := growNfsVolume(project, newSize, pvName, username); err != nil {
+	if pv.ExistsP("spec.nfs") {
+		if err := growNfsVolume(pv, newSize, username); err != nil {
 			return err
 		}
 		return nil
@@ -495,12 +517,22 @@ func growExistingVolume(project string, newSize string, pvName string, username 
 	return errors.New("Wrong pv name")
 }
 
-func growNfsVolume(project string, newSize string, pvName string, username string) error {
+func growNfsVolume(pv *gabs.Container, newSize string, username string) error {
+	nfsPath, ok := pv.Path("spec.nfs.path").Data().(string)
+	if !ok {
+		log.Println("spec.nfs.path not found in pv: growNfsVolume()")
+		return errors.New(genericAPIError)
+	}
+	pvName, ok := pv.Path("metadata.name").Data().(string)
+	if !ok {
+		log.Println("metadata.name not found in pv: growNfsVolume()")
+		return errors.New(genericAPIError)
+	}
 	cmd := common.WorkflowCommand{
 		UserInputValues: []common.WorkflowKeyValue{
 			{
 				Key:   "Projectname",
-				Value: strings.Replace(pvName, "nfs-", "vol_", 1),
+				Value: strings.Replace(nfsPath, "/v004_0/", "", 1),
 			},
 			{
 				Key:   "newSize",
@@ -551,13 +583,19 @@ func growNfsVolume(project string, newSize string, pvName string, username strin
 	return errors.New(genericAPIError)
 }
 
-func growGlusterVolume(project string, newSize string, pvName string, username string) error {
-	// Renaming Rules:
-	// OpenShift cannot use _ in names. Thus the pvName will be gl-<project>-pv<number>
-	// 1. Remove gl-
-	// 2. Change -pv to _pv
+func growGlusterVolume(pv *gabs.Container, newSize string, username string) error {
+	glusterfsPath, ok := pv.Path("spec.glusterfs.path").Data().(string)
+	if !ok {
+		log.Println("spec.glusterfs.path not found in pv: growGlusterVolume()")
+		return errors.New(genericAPIError)
+	}
+	pvName, ok := pv.Path("metadata.name").Data().(string)
+	if !ok {
+		log.Println("metadata.name not found in pv: growGlusterVolume()")
+		return errors.New(genericAPIError)
+	}
 	cmd := models.GrowVolumeCommand{
-		PvName:  strings.Replace(strings.Replace(pvName, "gl-", "", 1), "-pv", "_pv", 1),
+		PvName:  strings.Replace(glusterfsPath, "vol_", "", 1),
 		NewSize: newSize,
 	}
 
@@ -577,7 +615,7 @@ func growGlusterVolume(project string, newSize string, pvName string, username s
 	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusOK {
-		log.Printf("%v grew gluster volume. Project: %v, newSize: %v", username, project, newSize)
+		log.Printf("%v grew gluster volume. pv: %v, newSize: %v", username, pvName, newSize)
 		return nil
 	}
 
