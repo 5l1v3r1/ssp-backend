@@ -33,6 +33,7 @@ rules:
   - serviceaccounts
   verbs:
   - create
+  - get
 - apiGroups: null
   attributeRestrictions: null
   resources:
@@ -63,3 +64,10 @@ rules:
   - projectrequests
   verbs:
   - create
+- apiGroups:
+  - ""
+  attributeRestrictions: null
+  resources:
+  - secrets
+  verbs:
+  - get
