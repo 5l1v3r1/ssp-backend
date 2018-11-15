@@ -23,11 +23,12 @@ import (
 )
 
 const (
-	wrongSizeFormatError  = "Ungültige Grösse. Format muss Zahl gefolgt von M/G sein (z.B. 500M)."
-	wrongSizeLimitError   = "Grösse nicht erlaubt. Mindestgrösse: 500M (1G für NFS). Maximale Grössen sind: M: %v, G: %v"
-	apiCreateWorkflowUuid = "64b3b95b-0d79-4563-8b88-f8c4486b40a0"
-	apiChangeWorkflowUuid = "186b1295-1b82-42e4-b04d-477da967e1d4"
-	apiDeleteWorkflowUuid = "06090103-2313-4ad5-8e89-36d872349eaa"
+	wrongSizeFormatError    = "Ungültige Grösse. Format muss Zahl gefolgt von M/G sein (z.B. 500M)."
+	wrongSizeNFSFormatError = "Ungültige Grösse. Format muss Zahl gefolgt von G sein (z.B. 1G)."
+	wrongSizeLimitError     = "Grösse nicht erlaubt. Mindestgrösse: 500M (1G für NFS). Maximale Grössen sind: M: %v, G: %v"
+	apiCreateWorkflowUuid   = "64b3b95b-0d79-4563-8b88-f8c4486b40a0"
+	apiChangeWorkflowUuid   = "186b1295-1b82-42e4-b04d-477da967e1d4"
+	apiDeleteWorkflowUuid   = "06090103-2313-4ad5-8e89-36d872349eaa"
 )
 
 func newVolumeHandler(c *gin.Context) {
@@ -200,7 +201,7 @@ func validateSizeFormat(size string, technology string) error {
 		if strings.HasSuffix(size, "G") {
 			return nil
 		}
-		return errors.New(wrongSizeFormatError)
+		return errors.New(wrongSizeNFSFormatError)
 	}
 	if strings.HasSuffix(size, "M") || strings.HasSuffix(size, "G") {
 		return nil
@@ -372,7 +373,7 @@ func createNfsVolume(project string, pvcName string, size string, username strin
 		UserInputValues: []common.WorkflowKeyValue{
 			{
 				Key:   "Projectname",
-				Value: fmt.Sprintf("vol_%v-%v", project, pvcName),
+				Value: fmt.Sprintf("%v-%v", project, pvcName),
 			},
 			{
 				Key:   "Projectsize",

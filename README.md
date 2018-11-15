@@ -38,7 +38,7 @@ oc new-project ose-selfservice-backend
 oc create serviceaccount ose-selfservice
 
 # Add a cluster policy for the portal:
-oc create -f clusterPolicy-selfservice.yml
+oc create -f clusterRole-selfservice.yml
 
 # Add policy to service account
 oc adm policy add-cluster-role-to-user ose:selfservice system:serviceaccount:ose-selfservice-backend:ose-selfservice
