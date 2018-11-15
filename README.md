@@ -49,7 +49,7 @@ oc adm policy add-cluster-role-to-user ose:selfservice system:serviceaccount:ose
 Just create a 'oc new-app' from the dockerfile.
 
 ### Parameters
-https://github.com/SchweizerischeBundesbahnen/ssp-backend/blob/master/openshift/ssp-backend-template.json#L254
+[openshift/ssp-backend-template.json#L254](https://github.com/SchweizerischeBundesbahnen/ssp-backend/blob/master/openshift/ssp-backend-template.json#L254)
 
 ### Route timeout
 The `api/aws/ec2` endpoints wait until VMs have the desired state.
