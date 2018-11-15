@@ -44,6 +44,7 @@ rules:
   verbs:
   - create
   - list
+  - get
 - apiGroups: null
   attributeRestrictions: null
   resources:
