@@ -110,12 +110,12 @@ func growVolumeHandler(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: wrongAPIUsageError})
 		return
 	}
-	if err := validateGrowVolume(data.Project, data.NewSize, data.PvName, username); err != nil {
+	pv, err := getOpenshiftPV(data.PvName)
+	if err != nil {
 		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: err.Error()})
 		return
 	}
-	pv, err := getOpenshiftPV(data.PvName)
-	if err != nil {
+	if err := validateGrowVolume(pv, data.NewSize, username); err != nil {
 		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: err.Error()})
 		return
 	}
@@ -159,9 +159,9 @@ func validateNewVolume(project string, size string, pvcName string, mode string,
 	return nil
 }
 
-func validateGrowVolume(project string, newSize string, pvName string, username string) error {
+func validateGrowVolume(pv *gabs.Container, newSize string, username string) error {
 	// Required fields
-	if len(project) == 0 || len(pvName) == 0 || len(newSize) == 0 {
+	if len(newSize) == 0 {
 		return errors.New("Es müssen alle Felder ausgefüllt werden")
 	}
 
@@ -175,6 +175,11 @@ func validateGrowVolume(project string, newSize string, pvName string, username 
 	}
 
 	// Permissions on project
+	project, ok := pv.Path("spec.claimRef.namespace").Data().(string)
+	if !ok {
+		log.Println("metadata.claimRef.namespace not found in pv: validateGrowVolume()")
+		return errors.New(genericAPIError)
+	}
 	if err := checkAdminPermissions(username, project); err != nil {
 		return err
 	}
@@ -449,6 +454,9 @@ func createNfsVolume(project string, pvcName string, size string, username strin
 }
 
 func getOpenshiftPV(pvName string) (*gabs.Container, error) {
+	if len(pvName) == 0 {
+		return nil, errors.New(genericAPIError)
+	}
 	client, req := getOseHTTPClient("GET", fmt.Sprintf("api/v1/persistentvolumes/%v", pvName), nil)
 
 	resp, err := client.Do(req)
@@ -591,7 +599,7 @@ func growNfsVolume(pv *gabs.Container, newSize string, username string) error {
 		}
 		time.Sleep(time.Second)
 	}
-    return nil
+	return nil
 }
 
 func growGlusterVolume(pv *gabs.Container, newSize string, username string) error {

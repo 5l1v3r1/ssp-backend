@@ -20,7 +20,6 @@ type FixVolumeCommand struct {
 }
 
 type GrowVolumeCommand struct {
-	ProjectName
 	NewSize string `json:"newSize"`
 	PvName  string `json:"pvName"`
 }
