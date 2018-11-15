@@ -2,6 +2,7 @@ export OPENSHIFT_API='https://master.ose.cloud.net'
 export OPENSHIFT_TOKEN=
 export MAX_QUOTA_CPU=30
 export MAX_QUOTA_MEMORY=50
+export MAX_VOLUME_GB=100
 export LDAP_URL=ldapi.firm.ch
 export LDAP_BIND_DN='cn=Manager,ou=users,dc=firm,dc=CH'
 export LDAP_BIND_CRED=administrator
@@ -9,8 +10,6 @@ export LDAP_FILTER='(cn=%s)'
 export SESSION_KEY=
 export LDAP_SEARCH_BASE=
 export GIN_MODE=release
-export LOGSENE_ENABLED=true
-export MAX_VOLUME_GB=100
 export GLUSTER_API_URL='http://firm.ch:2000'
 export GLUSTER_SECRET=
 export GLUSTER_IPS=

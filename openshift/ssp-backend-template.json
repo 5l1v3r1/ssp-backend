@@ -156,6 +156,26 @@
                                         "value": "${SEC_API_PASSWORD}"
                                     },
                                     {
+                                        "name": "JENKINS_URL",
+                                        "value": "${JENKINS_URL}"
+                                    },
+                                    {
+                                        "name": "WZUBACKEND_URL",
+                                        "value": "${WZUBACKEND_URL}"
+                                    },
+                                    {
+                                        "name": "WZUBACKEND_SECRET",
+                                        "value": "${WZUBACKEND_SECRET}"
+                                    },
+                                    {
+                                        "name": "AWS_NONPROD_LOGIN_URL",
+                                        "value": "${AWS_NONPROD_LOGIN_URL}"
+                                    },
+                                    {
+                                        "name": "AWS_PROD_LOGIN_URL",
+                                        "value": "${AWS_PROD_LOGIN_URL}"
+                                    },
+                                    {
                                         "name": "NFS_API_URL",
                                         "value": "${NFS_API_URL}"
                                     },
@@ -166,6 +186,26 @@
                                     {
                                         "name": "NFS_PROXY",
                                         "value": "${NFS_PROXY}"
+                                    },
+                                    {
+                                        "name": "NEWRELIC_API_TOKEN",
+                                        "value": "${NEWRELIC_API_TOKEN}"
+                                    },
+                                    {
+                                        "name": "NEWRELIC_API_ACCOUNT",
+                                        "value": "${NEWRELIC_API_ACCOUNT}"
+                                    },
+                                    {
+                                        "name": "OPENSHIFT_CHARGEBACK_SENDER",
+                                        "value": "${OPENSHIFT_CHARGEBACK_SENDER}"
+                                    },
+                                    {
+                                        "name": "OPENSHIFT_CHARGEBACK_ART",
+                                        "value": "${OPENSHIFT_CHARGEBACK_ART}"
+                                    },
+                                    {
+                                        "name": "OPENSHIFT_CHARGEBACK_CURRENCY",
+                                        "value": "${OPENSHIFT_CHARGEBACK_CURRENCY}"
                                     }
                                 ],
                                 "livenessProbe": {
@@ -398,6 +438,29 @@
             "description": "Password for SEC_API users basic auth login",
             "generate": "expression",
             "from": "[a-zA-Z0-9]{30}"
+        },
+        {
+            "name": "JENKINS_URL",
+            "description": "The url (with protocol) of the Jenkins server",
+            "required": true,
+        },
+        {
+            "name": "WZUBACKEND_URL",
+            "description": "The url (with protocol) of the WZU Backend",
+            "required": true,
+        },
+        {
+            "name": "WZUBACKEND_SECRET",
+            "description": "The secret (password) of the WZU Backend",
+            "required": true,
+        },
+        {
+            "name": "AWS_NONPROD_LOGIN_URL",
+            "description": "The console url (with protocol) of the AWS nonprod account"
+        },
+        {
+            "name": "AWS_PROD_LOGIN_URL",
+            "description": "The console url (with protocol) of the AWS prod account"
         },
         {
             "name": "NFS_API_URL",
