@@ -269,7 +269,7 @@
         },
         {
             "name": "OPENSHIFT_TOKEN",
-            "description": "The openshift token",
+            "description": "The token from the openshift serviceaccount",
             "required": true
         },
         {
