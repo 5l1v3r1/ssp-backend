@@ -344,28 +344,27 @@ func createGlusterVolume(project string, size string, username string) (*common.
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode == http.StatusOK {
-		log.Printf("%v created a gluster volume. Project: %v, size: %v", username, project, size)
-
-		respJson, err := gabs.ParseJSONBuffer(resp.Body)
-		if err != nil {
-			log.Println("Error parsing respJson from gluster-api response", err.Error())
-			return nil, errors.New(genericAPIError)
-		}
-		message := respJson.Path("message").Data().(string)
-
-		return &common.NewVolumeResponse{
-			// Add gl- to pvName because of conflicting PVs on other storage technology
-			// The Volume will use _ in the name, OpenShift can't, so we change it to -
-			PvName: fmt.Sprintf("gl-%v", strings.Replace(message, "_", "-", 1)),
-			Path:   fmt.Sprintf("vol_%v", message),
-		}, nil
+	if resp.StatusCode != http.StatusOK {
+		errMsg, _ := ioutil.ReadAll(resp.Body)
+		log.Printf("Error creating gluster volume: %v %v", resp.StatusCode, string(errMsg))
+		return nil, fmt.Errorf("Fehlerhafte Antwort vom Gluster-API: %v", string(errMsg))
 	}
 
-	errMsg, _ := ioutil.ReadAll(resp.Body)
-	log.Println("Error creating gluster volume:", err, resp.StatusCode, string(errMsg))
+	log.Printf("%v created a gluster volume. Project: %v, size: %v", username, project, size)
 
-	return nil, fmt.Errorf("Fehlerhafte Antwort vom Gluster-API: %v", string(errMsg))
+	respJson, err := gabs.ParseJSONBuffer(resp.Body)
+	if err != nil {
+		log.Println("Error parsing respJson from gluster-api response", err.Error())
+		return nil, errors.New(genericAPIError)
+	}
+	message := respJson.Path("message").Data().(string)
+
+	return &common.NewVolumeResponse{
+		// Add gl- to pvName because of conflicting PVs on other storage technology
+		// The Volume will use _ in the name, OpenShift can't, so we change it to -
+		PvName: fmt.Sprintf("gl-%v", strings.Replace(message, "_", "-", 1)),
+		Path:   fmt.Sprintf("vol_%v", message),
+	}, nil
 }
 
 func createNfsVolume(project string, pvcName string, size string, username string) (*common.NewVolumeResponse, error) {
@@ -398,55 +397,55 @@ func createNfsVolume(project string, pvcName string, size string, username strin
 	defer resp.Body.Close()
 
 	job := &common.WorkflowJob{}
-	if resp.StatusCode == http.StatusCreated {
-		log.Printf("%v is creating an nfs volume. Project: %v, size: %v", username, project, size)
-		bodyBytes, _ := ioutil.ReadAll(resp.Body)
 
-		if err := json.Unmarshal(bodyBytes, job); err != nil {
+	if resp.StatusCode != http.StatusCreated {
+		errMsg, _ := ioutil.ReadAll(resp.Body)
+		log.Printf("Error creating nfs volume: %v %v", resp.StatusCode, string(errMsg))
+		return nil, errors.New(genericAPIError)
+	}
+
+	log.Printf("%v is creating an nfs volume. Project: %v, size: %v", username, project, size)
+	bodyBytes, _ := ioutil.ReadAll(resp.Body)
+
+	if err := json.Unmarshal(bodyBytes, job); err != nil {
+		log.Println("Error unmarshalling workflow job", err.Error())
+		return nil, errors.New(genericAPIError)
+	}
+
+	// wait until job is executing
+	for {
+		job, err = getJob(job.JobId)
+		if err != nil {
 			log.Println("Error unmarshalling workflow job", err.Error())
 			return nil, errors.New(genericAPIError)
 		}
-
-		// wait until job is executing
-		for {
-			job, err = getJob(job.JobId)
-			if err != nil {
-				log.Println("Error unmarshalling workflow job", err.Error())
-				return nil, errors.New(genericAPIError)
-			}
-			if job.JobStatus.JobStatus == "EXECUTING" {
-				break
-			}
-			time.Sleep(time.Second)
+		if job.JobStatus.JobStatus == "EXECUTING" {
+			break
 		}
-
-		server := ""
-		path := ""
-		for _, parameter := range job.JobStatus.ReturnParameters {
-			if parameter.Key == "'Server' + $Projectname" {
-				s := strings.Split(parameter.Value, ":")
-				server, path = s[0], s[1]
-				break
-			}
-		}
-		if server == "" || path == "" {
-			log.Println("Couldn't parse nfs server or path")
-			return nil, errors.New(genericAPIError)
-		}
-
-		// Add nfs_ to pvName because of conflicting PVs on other storage technology
-		return &common.NewVolumeResponse{
-			PvName: fmt.Sprintf("nfs-%v-%v", project, pvcName),
-			Server: server,
-			Path:   path,
-			JobId:  job.JobId,
-		}, nil
+		time.Sleep(time.Second)
 	}
 
-	errMsg, _ := ioutil.ReadAll(resp.Body)
-	log.Println("Error creating nfs volume:", err, resp.StatusCode, string(errMsg))
+	server := ""
+	path := ""
+	for _, parameter := range job.JobStatus.ReturnParameters {
+		if parameter.Key == "'Server' + $Projectname" {
+			s := strings.Split(parameter.Value, ":")
+			server, path = s[0], s[1]
+			break
+		}
+	}
+	if server == "" || path == "" {
+		log.Println("Couldn't parse nfs server or path")
+		return nil, errors.New(genericAPIError)
+	}
 
-	return nil, fmt.Errorf("Fehlerhafte Antwort vom nfs-api: %v", string(errMsg))
+	// Add nfs_ to pvName because of conflicting PVs on other storage technology
+	return &common.NewVolumeResponse{
+		PvName: fmt.Sprintf("nfs-%v-%v", project, pvcName),
+		Server: server,
+		Path:   path,
+		JobId:  job.JobId,
+	}, nil
 }
 
 func getOpenshiftPV(pvName string) (*gabs.Container, error) {
@@ -454,14 +453,19 @@ func getOpenshiftPV(pvName string) (*gabs.Container, error) {
 
 	resp, err := client.Do(req)
 	if err != nil {
-		log.Println("Error from server while getting pv: ", err.Error())
+		log.Printf("Error from server while getting pv: %v", err.Error())
 		return nil, errors.New(genericAPIError)
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		errMsg, _ := ioutil.ReadAll(resp.Body)
+		log.Printf("Error getting openshift pv: %v %v", resp.StatusCode, string(errMsg))
+		return nil, errors.New(genericAPIError)
+	}
 
 	json, err := gabs.ParseJSONBuffer(resp.Body)
 	if err != nil {
-		log.Println("error parsing body of response:", err)
+		log.Printf("Error parsing body of response in getOpenshiftPV(): %v", err.Error())
 		return nil, errors.New(genericAPIError)
 	}
 	return json, nil
@@ -477,20 +481,23 @@ func getJob(jobId int) (*common.WorkflowJob, error) {
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode == http.StatusOK {
-		var body common.WorkflowJob
-		bodyBytes, _ := ioutil.ReadAll(resp.Body)
-		if err := json.Unmarshal(bodyBytes, &body); err != nil {
-			log.Println("Error unmarshalling workflow job", err.Error())
-			return nil, errors.New(genericAPIError)
-		}
-		if body.JobStatus.JobStatus == "FAILED" {
-			log.Println("Workflow job failed: ", body.JobStatus.ErrorMessage)
-			return nil, errors.New(genericAPIError)
-		}
-		return &body, nil
+	if resp.StatusCode != http.StatusOK {
+		errMsg, _ := ioutil.ReadAll(resp.Body)
+		log.Printf("Error getting job: %v %v", resp.StatusCode, string(errMsg))
+		return nil, errors.New(genericAPIError)
 	}
-	return nil, errors.New(genericAPIError)
+
+	var body common.WorkflowJob
+	bodyBytes, _ := ioutil.ReadAll(resp.Body)
+	if err := json.Unmarshal(bodyBytes, &body); err != nil {
+		log.Println("Error unmarshalling workflow job", err.Error())
+		return nil, errors.New(genericAPIError)
+	}
+	if body.JobStatus.JobStatus == "FAILED" {
+		log.Println("Workflow job failed: ", body.JobStatus.ErrorMessage)
+		return nil, errors.New(genericAPIError)
+	}
+	return &body, nil
 }
 
 func getJobProgress(job common.WorkflowJob) float64 {
@@ -557,31 +564,34 @@ func growNfsVolume(pv *gabs.Container, newSize string, username string) error {
 	}
 	defer resp.Body.Close()
 
-	job := &common.WorkflowJob{}
-	if resp.StatusCode == http.StatusCreated {
-		log.Printf("%v grew nfs volume. pv: %v, size: %v", username, pvName, newSize)
-		bodyBytes, _ := ioutil.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusCreated {
+		errMsg, _ := ioutil.ReadAll(resp.Body)
+		log.Printf("Error getting job: %v %v", resp.StatusCode, string(errMsg))
+		return errors.New(genericAPIError)
+	}
 
-		if err := json.Unmarshal(bodyBytes, job); err != nil {
+	job := &common.WorkflowJob{}
+	log.Printf("%v grew nfs volume. pv: %v, size: %v", username, pvName, newSize)
+	bodyBytes, _ := ioutil.ReadAll(resp.Body)
+
+	if err := json.Unmarshal(bodyBytes, job); err != nil {
+		log.Println("Error unmarshalling workflow job", err.Error())
+		return errors.New(genericAPIError)
+	}
+
+	// wait until job is executing
+	for {
+		job, err = getJob(job.JobId)
+		if err != nil {
 			log.Println("Error unmarshalling workflow job", err.Error())
 			return errors.New(genericAPIError)
 		}
-
-		// wait until job is executing
-		for {
-			job, err = getJob(job.JobId)
-			if err != nil {
-				log.Println("Error unmarshalling workflow job", err.Error())
-				return errors.New(genericAPIError)
-			}
-			if job.JobStatus.JobStatus == "COMPLETED" {
-				break
-			}
-			time.Sleep(time.Second)
+		if job.JobStatus.JobStatus == "COMPLETED" {
+			break
 		}
-		return nil
+		time.Sleep(time.Second)
 	}
-	return errors.New(genericAPIError)
+    return nil
 }
 
 func growGlusterVolume(pv *gabs.Container, newSize string, username string) error {
@@ -615,15 +625,14 @@ func growGlusterVolume(pv *gabs.Container, newSize string, username string) erro
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode == http.StatusOK {
-		log.Printf("%v grew gluster volume. pv: %v, newSize: %v", username, pvName, newSize)
-		return nil
+	if resp.StatusCode != http.StatusOK {
+		errMsg, _ := ioutil.ReadAll(resp.Body)
+		log.Printf("Error growing gluster volume: %v %v", resp.StatusCode, string(errMsg))
+		return fmt.Errorf("Fehlerhafte Antwort vom Gluster-API: %v", string(errMsg))
 	}
 
-	errMsg, _ := ioutil.ReadAll(resp.Body)
-	log.Println("Error growing gluster volume:", err, resp.StatusCode, string(errMsg))
-
-	return fmt.Errorf("Fehlerhafte Antwort vom Gluster-API: %v", string(errMsg))
+	log.Printf("%v grew gluster volume. pv: %v, newSize: %v", username, pvName, newSize)
+	return nil
 }
 
 func createOpenShiftPV(size string, pvName string, server string, path string, mode string, technology string, username string) error {
@@ -654,15 +663,14 @@ func createOpenShiftPV(size string, pvName string, server string, path string, m
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode == http.StatusCreated {
-		log.Printf("Created the pv %v based on the request of %v", pvName, username)
-		return nil
+	if resp.StatusCode != http.StatusCreated {
+		errMsg, _ := ioutil.ReadAll(resp.Body)
+		log.Printf("Error creating new PV: %v %v", resp.StatusCode, string(errMsg))
+		return errors.New(genericAPIError)
 	}
 
-	errMsg, _ := ioutil.ReadAll(resp.Body)
-	log.Println("Error creating new PV:", err, resp.StatusCode, string(errMsg))
-
-	return errors.New(genericAPIError)
+	log.Printf("Created the pv %v based on the request of %v", pvName, username)
+	return nil
 }
 
 func createOpenShiftPVC(project string, size string, pvcName string, mode string, username string) error {
@@ -683,15 +691,14 @@ func createOpenShiftPVC(project string, size string, pvcName string, mode string
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode == http.StatusCreated {
-		log.Printf("Created the pvc %v based on the request of %v", pvcName, username)
-		return nil
+	if resp.StatusCode != http.StatusCreated {
+		errMsg, _ := ioutil.ReadAll(resp.Body)
+		log.Printf("Error creating new PVC: %v %v", resp.StatusCode, string(errMsg))
+		return errors.New(genericAPIError)
 	}
 
-	errMsg, _ := ioutil.ReadAll(resp.Body)
-	log.Println("Error creating new PVC:", err, resp.StatusCode, string(errMsg))
-
-	return errors.New(genericAPIError)
+	log.Printf("Created the pvc %v based on the request of %v", pvcName, username)
+	return nil
 }
 
 func recreateGlusterObjects(project string, username string) error {
@@ -726,20 +733,19 @@ func createOpenShiftGlusterService(project string, username string) error {
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode == http.StatusCreated {
-		log.Printf("Created the gluster service based on the request of %v", username)
-		return nil
-	}
-
 	if resp.StatusCode == http.StatusConflict {
 		log.Println("Gluster service already existed, skipping")
 		return nil
 	}
 
-	errMsg, _ := ioutil.ReadAll(resp.Body)
-	log.Println("Error creating gluster service:", err, resp.StatusCode, string(errMsg))
+	if resp.StatusCode != http.StatusCreated {
+		errMsg, _ := ioutil.ReadAll(resp.Body)
+		log.Printf("Error creating gluster service: %v %v", resp.StatusCode, string(errMsg))
+		return errors.New(genericAPIError)
+	}
 
-	return errors.New(genericAPIError)
+	log.Printf("Created the gluster service based on the request of %v", username)
+	return nil
 }
 
 func createOpenShiftGlusterEndpoint(project string, username string) error {
@@ -759,20 +765,19 @@ func createOpenShiftGlusterEndpoint(project string, username string) error {
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode == http.StatusCreated {
-		log.Printf("Created the gluster endpoints based on the request of %v", username)
-		return nil
-	}
-
 	if resp.StatusCode == http.StatusConflict {
 		log.Println("Gluster endpoints already existed, skipping")
 		return nil
 	}
 
-	errMsg, _ := ioutil.ReadAll(resp.Body)
-	log.Println("Error creating gluster endpoints:", err, resp.StatusCode, string(errMsg))
+	if resp.StatusCode != http.StatusCreated {
+		errMsg, _ := ioutil.ReadAll(resp.Body)
+		log.Printf("Error creating gluster endpoints: %v %v", resp.StatusCode, string(errMsg))
+		return errors.New(genericAPIError)
+	}
 
-	return errors.New(genericAPIError)
+	log.Printf("Created the gluster endpoints based on the request of %v", username)
+	return nil
 }
 
 func getGlusterEndpointsContainer() (*gabs.Container, error) {
