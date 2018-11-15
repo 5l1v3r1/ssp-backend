@@ -181,7 +181,7 @@ func chargebackHandler(c *gin.Context) {
 	normalizedResourceUsage(resourceMap, float64(len(queries.usageQueries)))
 	computeResourcePrices(resourceMap, unitprices, managementFee)
 
-	report := createCSVReport(resourceMap)
+	report := createCSVReport(resourceMap, data.End)
 
 	v := make([]Resources, 0, len(resourceMap))
 	for _, value := range resourceMap {
@@ -386,7 +386,8 @@ func getConsolidatedPrice(value Resources) string {
 	return strconv.FormatFloat(s, 'g', 6, 64)
 }
 
-func createCSVReport(resourceMap map[string]Resources) string {
+func createCSVReport(resourceMap map[string]Resources, date time.Time) string {
+	LMDateFormat := "0601"
 	sender := os.Getenv("OPENSHIFT_CHARGEBACK_SENDER")
 	if len(sender) == 0 {
 		log.Print("Env variable 'OPENSHIFT_CHARGEBACK_SENDER' should be specified")
@@ -418,7 +419,7 @@ func createCSVReport(resourceMap map[string]Resources) string {
 
 		row := []string{"", sender, "", "", "", "", "", art, price, currency,
 			value.ReceptionAssignment, value.OrderReception, value.PspElement,
-			"", "", "", "", "1", "ST", "", "LM1704 NCS " + key}
+			"", "", "", "", "1", "ST", "", "LM" + date.Format(LMDateFormat) + " NCS " + key}
 
 		wr.Write(row)
 	}
