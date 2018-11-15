@@ -49,43 +49,7 @@ oc adm policy add-cluster-role-to-user ose:selfservice system:serviceaccount:ose
 Just create a 'oc new-app' from the dockerfile.
 
 ### Parameters
-**Param**|**Description**|**Example**
-:-----:|:-----:|:-----:
-GIN\_MODE|Mode of the Webframework|debug/release
-LDAP\_URL|Your LDAP|ldap.xzw.ch
-LDAP\_BIND\_DN|LDAP Bind|cn=root
-LDAP\_BIND\_CRED|LDAP Credentials|secret
-LDAP\_SEARCH\_BASE|LDAP Search Base|ou=passport-ldapauth
-LDAP\_FILTER|LDAP Filter|(uid=%s)
-SESSION\_KEY|A secret password to encrypt session information|secret
-OPENSHIFT\_API\_URL|Your OpenShift API Url|https://master01.ch:8443
-OPENSHIFT\_TOKEN|The token from the service-account|
-MAX\_QUOTA\_CPU|How many CPU can a user assign to his project|30
-MAX\_QUOTA\_MEMORY|How many GB memory can a user assign to his project|50
-GLUSTER\_API\_URL|The URL of your Gluster-API|http://glusterserver01:80
-GLUSTER\_SECRET|The basic auth password you configured on the gluster api|secret
-GLUSTER\_IPS|IP addresses of the gluster endpoints|192.168.1.1,192.168.1.2
-MAX\_VOLUME\_GB|How many GB storage can a user order|100
-DDC\_API|URL of the DDC Billing API|http://ddc-api.ch
-AWS\_PROD\_ACCESS\_KEY\_ID|AWS Access Key ID to manage AWS ressources for production buckets|AKIAIOSFODNN7EXAMPLE
-AWS\_PROD\_SECRET\_ACCESS\_KEY|AWS Secret Access Key to manage AWS ressources for production buckets|wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
-AWS\_NONPROD\_ACCESS\_KEY\_ID|AWS Access Key ID to manage AWS ressources for development buckets|AKIAIOSFODNN7EXAMPLE
-AWS\_NONPROD\_SECRET\_ACCESS\_KEY|AWS Secret Access Key to manage AWS ressources for development buckets|wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
-AWS\_S3\_BUCKET\_PREFIX|Prefix for all generated S3 buckets|mycompany
-AWS\_REGION|Region for all the aws artifacts|eu-central-1
-SEMATEXT\_API\_TOKEN|Admin token for Sematext Logsene Apps|mytoken
-SEMATEXT\_BASE\_URL|Base url for Sematext|for EU: https://apps.eu.sematext.com/
-LOGSENE\_DISCOUNTCODE|Discount code for Sematext (optional)|yourcode
-SEC\_API\_PASSWORD|Password for basic auth login of SEC\_API user (optional)|pass
-NFS\_API\_URL|The URL of your NFS-API (optional)|https://somenfsapi.ch
-NFS\_API\_SECRET|The password of the NFS-API (optional)|somesecret
-NFS\_PROXY|The proxy to access the NFS-API (optional)|https://someproxy.ch:1234
-NEWRELIC\_API\_TOKEN|Token to access the Newrelic-API|sometokenxyz
-NEWRELIC\_API\_ACCOUNT|Account to access the Newrelic-API|1234567
-OPENSHIFT\_CHARGEBACK\_SENDER|Value for Sender in Openshift chargeback reports|70022222
-OPENSHIFT\_CHARGEBACK\_ART|Value for Kostenart in Openshift chargeback reports|876543
-OPENSHIFT\_CHARGEBACK\_CURRENCY|Value for Währung in Openshift chargeback reports (optional)|CHF
-
+https://github.com/SchweizerischeBundesbahnen/ssp-backend/blob/master/openshift/ssp-backend-template.json#L254
 
 ### Route timeout
 The `api/aws/ec2` endpoints wait until VMs have the desired state.
