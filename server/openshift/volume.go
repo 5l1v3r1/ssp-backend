@@ -465,6 +465,10 @@ func getOpenshiftPV(pvName string) (*gabs.Container, error) {
 		return nil, errors.New(genericAPIError)
 	}
 	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, errors.New("Persistent Volume not found")
+	}
 	if resp.StatusCode != http.StatusOK {
 		errMsg, _ := ioutil.ReadAll(resp.Body)
 		log.Printf("Error getting openshift pv: %v %v", resp.StatusCode, string(errMsg))
