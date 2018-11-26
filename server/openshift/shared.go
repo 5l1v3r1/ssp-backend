@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/Jeffail/gabs"
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/common"
@@ -299,4 +300,23 @@ func newObjectRequest(kind string, name string) *gabs.Container {
 	json.SetP(name, "metadata.name")
 
 	return json
+}
+
+func generateID() string {
+	var result string
+	// All the possible characters in the ID
+	chrs := "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	len := int64(len(chrs))
+	// Constant to subtract so the generated ID is shorter
+	// Value is Unix timestamp at release of this function
+	subtract := int64(1543222754)
+	// We use unix timestamp because it increments each second
+	// The time is not important
+	unix := time.Now().Unix() - subtract
+	for unix > 0 {
+		result = string(chrs[unix%len]) + result
+		// division without remainder
+		unix = unix / len
+	}
+	return result
 }
