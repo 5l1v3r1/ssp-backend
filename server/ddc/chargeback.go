@@ -4,7 +4,6 @@ import (
 	"crypto/tls"
 	"log"
 	"net/http"
-	"os"
 
 	"encoding/csv"
 	"errors"
@@ -14,6 +13,7 @@ import (
 	"bytes"
 
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/common"
+	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/config"
 	"github.com/gin-gonic/gin"
 	"time"
 )
@@ -147,8 +147,8 @@ func calculateDDCBilling() ([]common.DDCBillingRow, error) {
 }
 
 func getDDCClient() (*http.Client, *http.Request) {
-	api := os.Getenv("DDC_API")
-	if len(api) == 0 {
+	api := config.Config().GetString("ddc_api")
+	if api == "" {
 		log.Fatal("Env variable 'DDC_API' must be specified")
 	}
 

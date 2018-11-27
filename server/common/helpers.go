@@ -1,35 +1,11 @@
 package common
 
 import (
-	"log"
-	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
 	"gopkg.in/appleboy/gin-jwt.v2"
-
-	"errors"
-	"fmt"
 )
-
-// ValidateIntInput checks if a the value is bigger than the specified maxValue
-func ValidateIntInput(maxValue string, input string) error {
-	maxInt, err := strconv.Atoi(maxValue)
-	if err != nil {
-		log.Fatal("Could not parse 'MAX' value of", maxValue)
-	}
-
-	inputInt, err := strconv.Atoi(input)
-	if err != nil {
-		return errors.New("Bitte eine gültige Zahl eintragen")
-	}
-
-	if inputInt > maxInt {
-		return fmt.Errorf("Der Maximalwert für diese Eingabe ist: %v", maxValue)
-	}
-
-	return nil
-}
 
 // GetUserName returns the username based of the gin.Context
 func GetUserName(c *gin.Context) string {

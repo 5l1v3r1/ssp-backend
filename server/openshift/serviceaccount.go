@@ -13,13 +13,11 @@ import (
 	"encoding/json"
 	"github.com/Jeffail/gabs"
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/common"
+	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/config"
 	"github.com/gin-gonic/gin"
-	"os"
 	"strings"
 	"time"
 )
-
-var jenkinsUrl string
 
 type newJenkinsCredentialsCommand struct {
 	OrganizationKey string `json:"organizationKey"`
@@ -27,15 +25,12 @@ type newJenkinsCredentialsCommand struct {
 	Description     string `json:"description"`
 }
 
-func init() {
-	jenkinsUrl = os.Getenv("JENKINS_URL")
-
-	if len(jenkinsUrl) == 0 {
+func newServiceAccountHandler(c *gin.Context) {
+	jenkinsUrl := config.Config().GetString("jenkins_url")
+	if jenkinsUrl == "" {
 		log.Fatal("Env variable 'JENKINS_URL' must be specified")
 	}
-}
 
-func newServiceAccountHandler(c *gin.Context) {
 	username := common.GetUserName(c)
 
 	var data common.NewServiceAccountCommand

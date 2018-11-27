@@ -1,11 +1,8 @@
 package aws
 
 import (
-	"os"
-
-	"log"
-
 	"errors"
+	"log"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
@@ -14,6 +11,9 @@ import (
 	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/secretsmanager"
+
+	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/common"
+	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/config"
 
 	"github.com/gin-gonic/gin"
 )
@@ -120,14 +120,17 @@ func GetSecretsmanagerClient(stage string) (*secretsmanager.SecretsManager, erro
 }
 
 func getAwsSession(account string) (*session.Session, error) {
+	cfg := config.Config()
 	// Validate necessary env variables
-	region := os.Getenv("AWS_REGION")
-	if len(region) == 0 {
-		log.Fatal("Env variable 'AWS_REGION' must be specified")
+	region := cfg.GetString("aws_region")
+	if region == "" {
+		log.Println("WARNING: Env variable 'AWS_REGION' must be specified")
+		return nil, errors.New(common.ConfigNotSetError)
 	}
-	bucketPrefix := os.Getenv("AWS_S3_BUCKET_PREFIX")
-	if len(bucketPrefix) == 0 {
-		log.Fatal("Env variable 'AWS_S3_BUCKET_PREFIX' must be specified")
+	bucketPrefix := cfg.GetString("aws_s3_bucket_prefix")
+	if bucketPrefix == "" {
+		log.Println("WARNING: Env variable 'AWS_S3_BUCKET_PREFIX' must be specified")
+		return nil, errors.New(common.ConfigNotSetError)
 	}
 
 	// Create AWS session based on account
@@ -136,11 +139,11 @@ func getAwsSession(account string) (*session.Session, error) {
 
 	switch account {
 	case accountProd:
-		accessKeyID = os.Getenv("AWS_PROD_ACCESS_KEY_ID")
-		accessSecret = os.Getenv("AWS_PROD_SECRET_ACCESS_KEY")
+		accessKeyID = cfg.GetString("aws_prod_access_key_id")
+		accessSecret = cfg.GetString("aws_prod_secret_access_key")
 	case accountNonProd:
-		accessKeyID = os.Getenv("AWS_NONPROD_ACCESS_KEY_ID")
-		accessSecret = os.Getenv("AWS_NONPROD_SECRET_ACCESS_KEY")
+		accessKeyID = cfg.GetString("aws_nonprod_access_key_id")
+		accessSecret = cfg.GetString("aws_nonprod_secret_access_key")
 	default:
 		log.Println("Invalid account: " + account)
 	}

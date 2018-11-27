@@ -274,7 +274,7 @@ func listEC2InstancesByUsernameForAccount(username string, account string) ([]co
 
 	svc, err := GetEC2ClientForAccount(account)
 	if err != nil {
-		return nil, errors.New(ec2ListError)
+		return nil, err
 	}
 
 	result, err := svc.DescribeInstances(filters)
