@@ -253,12 +253,9 @@ func validateSize(size string) error {
 }
 
 func checkPvcName(project string, pvcName string) error {
-	client, req := getOseHTTPClient("GET", fmt.Sprintf("api/v1/namespaces/%v/persistentvolumeclaims", project), nil)
-
-	resp, err := client.Do(req)
+	resp, err := getOseHTTPClient("GET", fmt.Sprintf("api/v1/namespaces/%v/persistentvolumeclaims", project), nil)
 	if err != nil {
-		log.Println("Error from server while getting pvc-list: ", err.Error())
-		return errors.New(genericAPIError)
+		return err
 	}
 	defer resp.Body.Close()
 
@@ -340,12 +337,9 @@ func createGlusterVolume(project string, size string, username string) (*common.
 		return nil, errors.New(genericAPIError)
 	}
 
-	client, req := getGlusterHTTPClient("sec/volume", b)
-
-	resp, err := client.Do(req)
+	resp, err := getGlusterHTTPClient("sec/volume", b)
 	if err != nil {
-		log.Println("Error calling gluster-api", err.Error())
-		return nil, errors.New(genericAPIError)
+		return nil, err
 	}
 	defer resp.Body.Close()
 
@@ -392,12 +386,9 @@ func createNfsVolume(project string, pvcName string, size string, username strin
 		return nil, errors.New(genericAPIError)
 	}
 
-	client, req := getNfsHTTPClient("POST", fmt.Sprintf("workflows/%v/jobs", apiCreateWorkflowUuid), body)
-
-	resp, err := client.Do(req)
+	resp, err := getNfsHTTPClient("POST", fmt.Sprintf("workflows/%v/jobs", apiCreateWorkflowUuid), body)
 	if err != nil {
-		log.Println("Error calling nfs-api", err.Error())
-		return nil, errors.New(genericAPIError)
+		return nil, err
 	}
 	defer resp.Body.Close()
 
@@ -457,12 +448,9 @@ func getOpenshiftPV(pvName string) (*gabs.Container, error) {
 	if len(pvName) == 0 {
 		return nil, errors.New(genericAPIError)
 	}
-	client, req := getOseHTTPClient("GET", fmt.Sprintf("api/v1/persistentvolumes/%v", pvName), nil)
-
-	resp, err := client.Do(req)
+	resp, err := getOseHTTPClient("GET", fmt.Sprintf("api/v1/persistentvolumes/%v", pvName), nil)
 	if err != nil {
-		log.Printf("Error from server while getting pv: %v", err.Error())
-		return nil, errors.New(genericAPIError)
+		return nil, err
 	}
 	defer resp.Body.Close()
 
@@ -484,12 +472,9 @@ func getOpenshiftPV(pvName string) (*gabs.Container, error) {
 }
 
 func getJob(jobId int) (*common.WorkflowJob, error) {
-	client, req := getNfsHTTPClient("GET", fmt.Sprintf("workflows/jobs/%v", jobId), nil)
-
-	resp, err := client.Do(req)
+	resp, err := getNfsHTTPClient("GET", fmt.Sprintf("workflows/jobs/%v", jobId), nil)
 	if err != nil {
-		log.Println("Error calling nfs-api", err.Error())
-		return nil, errors.New(genericAPIError)
+		return nil, err
 	}
 	defer resp.Body.Close()
 
@@ -567,12 +552,9 @@ func growNfsVolume(pv *gabs.Container, newSize string, username string) error {
 		return errors.New(genericAPIError)
 	}
 
-	client, req := getNfsHTTPClient("POST", fmt.Sprintf("workflows/%v/jobs", apiChangeWorkflowUuid), body)
-
-	resp, err := client.Do(req)
+	resp, err := getNfsHTTPClient("POST", fmt.Sprintf("workflows/%v/jobs", apiChangeWorkflowUuid), body)
 	if err != nil {
-		log.Println("Error calling nfs-api", err.Error())
-		return errors.New(genericAPIError)
+		return err
 	}
 	defer resp.Body.Close()
 
@@ -628,12 +610,9 @@ func growGlusterVolume(pv *gabs.Container, newSize string, username string) erro
 		return errors.New(genericAPIError)
 	}
 
-	client, req := getGlusterHTTPClient("sec/volume/grow", b)
-
-	resp, err := client.Do(req)
+	resp, err := getGlusterHTTPClient("sec/volume/grow", b)
 	if err != nil {
-		log.Println("Error calling gluster-api", err.Error())
-		return errors.New(genericAPIError)
+		return err
 	}
 	defer resp.Body.Close()
 
@@ -664,14 +643,11 @@ func createOpenShiftPV(size string, pvName string, server string, path string, m
 	p.ArrayP("spec.accessModes")
 	p.ArrayAppend(mode, "spec", "accessModes")
 
-	client, req := getOseHTTPClient("POST",
+	resp, err := getOseHTTPClient("POST",
 		"api/v1/persistentvolumes",
 		bytes.NewReader(p.Bytes()))
-
-	resp, err := client.Do(req)
 	if err != nil {
-		log.Println("Error creating Openshift PV", err.Error())
-		return errors.New(genericAPIError)
+		return err
 	}
 	defer resp.Body.Close()
 
@@ -692,14 +668,11 @@ func createOpenShiftPVC(project string, size string, pvcName string, mode string
 	p.ArrayP("spec.accessModes")
 	p.ArrayAppend(mode, "spec", "accessModes")
 
-	client, req := getOseHTTPClient("POST",
+	resp, err := getOseHTTPClient("POST",
 		"api/v1/namespaces/"+project+"/persistentvolumeclaims",
 		bytes.NewReader(p.Bytes()))
-
-	resp, err := client.Do(req)
 	if err != nil {
-		log.Println("Error creating Openshift PVC", err.Error())
-		return errors.New(genericAPIError)
+		return err
 	}
 	defer resp.Body.Close()
 
@@ -734,14 +707,11 @@ func createOpenShiftGlusterService(project string, username string) error {
 	p.ArrayP("spec.ports")
 	p.ArrayAppendP(port.Data(), "spec.ports")
 
-	client, req := getOseHTTPClient("POST",
+	resp, err := getOseHTTPClient("POST",
 		"api/v1/namespaces/"+project+"/services",
 		bytes.NewReader(p.Bytes()))
-
-	resp, err := client.Do(req)
 	if err != nil {
-		log.Println("Error creating Openshift Gluster service", err.Error())
-		return errors.New(genericAPIError)
+		return err
 	}
 	defer resp.Body.Close()
 
@@ -766,14 +736,11 @@ func createOpenShiftGlusterEndpoint(project string, username string) error {
 		return err
 	}
 
-	client, req := getOseHTTPClient("POST",
+	resp, err := getOseHTTPClient("POST",
 		"api/v1/namespaces/"+project+"/endpoints",
 		bytes.NewReader(p.Bytes()))
-
-	resp, err := client.Do(req)
 	if err != nil {
-		log.Println("Error creating Openshift Gluster endpoint", err.Error())
-		return errors.New(genericAPIError)
+		return err
 	}
 	defer resp.Body.Close()
 

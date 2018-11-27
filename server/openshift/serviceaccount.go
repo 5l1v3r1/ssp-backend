@@ -80,14 +80,15 @@ func validateNewServiceAccount(username string, project string, serviceAccountNa
 func createNewServiceAccount(username string, project string, serviceaccount string, organizationKey string) error {
 	p := newObjectRequest("ServiceAccount", serviceaccount)
 
-	client, req := getOseHTTPClient("POST",
+	resp, err := getOseHTTPClient("POST",
 		"api/v1/namespaces/"+project+"/serviceaccounts",
 		bytes.NewReader(p.Bytes()))
-
-	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusCreated {
-		resp.Body.Close()
 		log.Print(username + " created a new service account: " + serviceaccount + " on project " + project)
 
 		if len(organizationKey) > 0 {
@@ -114,10 +115,9 @@ func createJenkinsCredential(project string, serviceaccount string, organization
 	time.Sleep(400 * time.Millisecond)
 
 	// Get the created service-account
-	client, saRequest := getOseHTTPClient("GET", "api/v1/namespaces/"+project+"/serviceaccounts/"+serviceaccount, nil)
-	saResponse, err := client.Do(saRequest)
+	saResponse, err := getOseHTTPClient("GET", "api/v1/namespaces/"+project+"/serviceaccounts/"+serviceaccount, nil)
 	if err != nil {
-		return errors.New(genericAPIError)
+		return err
 	}
 	defer saResponse.Body.Close()
 
@@ -137,11 +137,9 @@ func createJenkinsCredential(project string, serviceaccount string, organization
 	}
 
 	// Get the secret & token for the service-account
-	client, secretRequest := getOseHTTPClient("GET", "api/v1/namespaces/"+project+"/secrets/"+secretName, nil)
-	secretResponse, err := client.Do(secretRequest)
+	secretResponse, err := getOseHTTPClient("GET", "api/v1/namespaces/"+project+"/secrets/"+secretName, nil)
 	if err != nil {
-		log.Println(err.Error())
-		return errors.New(genericAPIError)
+		return err
 	}
 	defer secretResponse.Body.Close()
 
@@ -171,11 +169,9 @@ func createJenkinsCredential(project string, serviceaccount string, organization
 		return errors.New(genericAPIError)
 	}
 
-	client, wzuRequest := getWZUBackendClient("POST", "sec/jenkins/credentials", bytes.NewReader(byteJson))
-	wzuResponse, err := client.Do(wzuRequest)
+	wzuResponse, err := getWZUBackendClient("POST", "sec/jenkins/credentials", bytes.NewReader(byteJson))
 	if err != nil {
-		log.Println(err.Error())
-		return errors.New(genericAPIError)
+		return err
 	}
 	defer saResponse.Body.Close()
 

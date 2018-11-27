@@ -70,9 +70,7 @@ func validateEditQuotas(username string, project string, cpu string, memory stri
 }
 
 func GetQuotas(project string) (int, int) {
-	client, req := getOseHTTPClient("GET", "api/v1/namespaces/"+project+"/resourcequotas", nil)
-	resp, err := client.Do(req)
-
+	resp, err := getOseHTTPClient("GET", "api/v1/namespaces/"+project+"/resourcequotas", nil)
 	if err != nil {
 		log.Fatalf(getQuotasApiError, err.Error())
 	}
@@ -101,12 +99,9 @@ func GetQuotas(project string) (int, int) {
 }
 
 func updateQuotas(username string, project string, cpu string, memory string) error {
-	client, req := getOseHTTPClient("GET", "api/v1/namespaces/"+project+"/resourcequotas", nil)
-	resp, err := client.Do(req)
-
+	resp, err := getOseHTTPClient("GET", "api/v1/namespaces/"+project+"/resourcequotas", nil)
 	if err != nil {
-		log.Printf(getQuotasApiError, err.Error())
-		return errors.New(genericAPIError)
+		return err
 	}
 	defer resp.Body.Close()
 
@@ -121,19 +116,19 @@ func updateQuotas(username string, project string, cpu string, memory string) er
 	firstQuota.SetP(cpu, "spec.hard.cpu")
 	firstQuota.SetP(memory+"Gi", "spec.hard.memory")
 
-	client, req = getOseHTTPClient("PUT",
+	resp, err = getOseHTTPClient("PUT",
 		"api/v1/namespaces/"+project+"/resourcequotas/"+firstQuota.Path("metadata.name").Data().(string),
 		bytes.NewReader(firstQuota.Bytes()))
-
-	resp, err = client.Do(req)
-	if err == nil && resp.StatusCode == http.StatusOK {
-		defer resp.Body.Close()
-		log.Println("User "+username+" changed quotas for the project "+project+". CPU: "+cpu, ", Mem: "+memory)
-		return nil
+	if err != nil {
+		return err
 	}
+	defer resp.Body.Close()
 
-	errMsg, _ := ioutil.ReadAll(resp.Body)
-	log.Println("Error updating resourceQuota:", err.Error(), resp.StatusCode, string(errMsg))
-
-	return errors.New(genericAPIError)
+	if resp.StatusCode != http.StatusOK {
+		errMsg, _ := ioutil.ReadAll(resp.Body)
+		log.Println("Error updating resourceQuota:", resp.StatusCode, string(errMsg))
+		return errors.New(genericAPIError)
+	}
+	log.Println("User "+username+" changed quotas for the project "+project+". CPU: "+cpu, ", Mem: "+memory)
+	return nil
 }
