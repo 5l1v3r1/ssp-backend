@@ -110,21 +110,65 @@ func createNewServiceAccount(username string, project string, serviceaccount str
 	return errors.New(genericAPIError)
 }
 
+func getServiceAccount(namespace string, serviceaccount string) (*gabs.Container, error) {
+	url := fmt.Sprintf("api/v1/namespaces/%v/serviceaccounts/%v", namespace, serviceaccount)
+	resp, err := getOseHTTPClient("GET", url, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	json, err := gabs.ParseJSONBuffer(resp.Body)
+	if err != nil {
+		log.Println(err.Error())
+		return nil, errors.New(genericAPIError)
+	}
+	return json, nil
+}
+
+func getSecret(namespace string, secret string) (*gabs.Container, error) {
+	url := fmt.Sprintf("api/v1/namespaces/%v/secrets/%v", namespace, secret)
+	resp, err := getOseHTTPClient("GET", url, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	json, err := gabs.ParseJSONBuffer(resp.Body)
+	if err != nil {
+		log.Println(err.Error())
+		return nil, errors.New(genericAPIError)
+	}
+	return json, nil
+}
+
+func callWZUBackend(command newJenkinsCredentialsCommand) error {
+	byteJson, err := json.Marshal(command)
+	if err != nil {
+		log.Println(err.Error())
+		return errors.New(genericAPIError)
+	}
+
+	resp, err := getWZUBackendClient("POST", "sec/jenkins/credentials", bytes.NewReader(byteJson))
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		bodyBytes, _ := ioutil.ReadAll(resp.Body)
+		return fmt.Errorf("Fehler vom WZU-Backend: StatusCode: %v, Nachricht: %v", resp.StatusCode, string(bodyBytes))
+	}
+	return nil
+}
+
 func createJenkinsCredential(project string, serviceaccount string, organizationKey string) error {
 	//Sleep which ensures that the serviceaccount is created completely before we take the Secret out of it.
 	time.Sleep(400 * time.Millisecond)
 
-	// Get the created service-account
-	saResponse, err := getOseHTTPClient("GET", "api/v1/namespaces/"+project+"/serviceaccounts/"+serviceaccount, nil)
+	saJson, err := getServiceAccount(project, serviceaccount)
 	if err != nil {
 		return err
-	}
-	defer saResponse.Body.Close()
-
-	saJson, err := gabs.ParseJSONBuffer(saResponse.Body)
-	if err != nil {
-		log.Println(err.Error())
-		return errors.New(genericAPIError)
 	}
 
 	secret := saJson.S("secrets").Index(0)
@@ -136,17 +180,9 @@ func createJenkinsCredential(project string, serviceaccount string, organization
 		secretName = strings.Trim(secret.Path("name").String(), "\"")
 	}
 
-	// Get the secret & token for the service-account
-	secretResponse, err := getOseHTTPClient("GET", "api/v1/namespaces/"+project+"/secrets/"+secretName, nil)
+	secretJson, err := getSecret(project, secretName)
 	if err != nil {
 		return err
-	}
-	defer secretResponse.Body.Close()
-
-	secretJson, err := gabs.ParseJSONBuffer(secretResponse.Body)
-	if err != nil {
-		log.Println(err.Error())
-		return errors.New(genericAPIError)
 	}
 
 	tokenEncoded := strings.Trim(secretJson.Path("data.token").String(), "\"")
@@ -163,21 +199,8 @@ func createJenkinsCredential(project string, serviceaccount string, organization
 		Description:     fmt.Sprintf("OpenShift Deployer - project: %v, service-account: %v", project, serviceaccount),
 		Secret:          string(encodedTokenData),
 	}
-	byteJson, err := json.Marshal(command)
-	if err != nil {
-		log.Println(err.Error())
-		return errors.New(genericAPIError)
-	}
-
-	wzuResponse, err := getWZUBackendClient("POST", "sec/jenkins/credentials", bytes.NewReader(byteJson))
-	if err != nil {
+	if err := callWZUBackend(command); err != nil {
 		return err
-	}
-	defer saResponse.Body.Close()
-
-	if wzuResponse.StatusCode != http.StatusOK {
-		bodyBytes, _ := ioutil.ReadAll(wzuResponse.Body)
-		return fmt.Errorf("Fehler vom WZU-Backend: StatusCode: %v, Nachricht: %v", wzuResponse.StatusCode, string(bodyBytes))
 	}
 
 	return nil
