@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/common"
 	"github.com/gin-gonic/gin"
+	"github.com/jinzhu/now"
 	"log"
 	"math"
 	"net/http"
@@ -19,8 +20,7 @@ import (
 )
 
 type OpenshiftChargebackCommand struct {
-	Start           time.Time
-	End             time.Time
+	Date            time.Time
 	Cluster         Cluster
 	ProjectContains string
 }
@@ -161,8 +161,10 @@ func chargebackHandler(c *gin.Context) {
 	quota := new(Quota)
 	usage := new(Usage)
 	assignment := new(Assignment)
+	start := now.New(data.Date).BeginningOfMonth()
+	end := now.New(data.Date).EndOfMonth()
 
-	queries := computeQueries(data.Start, data.End, data.ProjectContains, data.Cluster)
+	queries := computeQueries(start, end, data.ProjectContains, data.Cluster)
 
 	/* fmt.Println(queries.assignmentQuery)
 	fmt.Println(queries.quotaQuery)
@@ -181,7 +183,7 @@ func chargebackHandler(c *gin.Context) {
 	normalizedResourceUsage(resourceMap, float64(len(queries.usageQueries)))
 	computeResourcePrices(resourceMap, unitprices, managementFee)
 
-	report := createCSVReport(resourceMap, data.End)
+	report := createCSVReport(resourceMap, data.Date)
 
 	v := make([]Resources, 0, len(resourceMap))
 	for _, value := range resourceMap {
