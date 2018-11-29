@@ -355,6 +355,9 @@ func getDeviceName(volumeId string, account string) (*string, error) {
 		log.Println("Error getting EC2 volumes (DescribeVolumes API call): " + err.Error())
 		return nil, errors.New(ec2StartError)
 	}
+	if describeVolumesOutput.Volumes[0].Attachments == nil {
+		return describeVolumesOutput.Volumes[0].VolumeId, nil
+	}
 	return describeVolumesOutput.Volumes[0].Attachments[0].Device, nil
 }
 
