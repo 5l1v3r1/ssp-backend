@@ -72,7 +72,7 @@ func validateEditQuotas(username string, project string, cpu int, memory int) er
 }
 
 func updateQuotas(username string, project string, cpu int, memory int) error {
-  resp, err := getOseHTTPClient("GET", "api/v1/namespaces/"+project+"/resourcequotas", nil)
+	resp, err := getOseHTTPClient("GET", "api/v1/namespaces/"+project+"/resourcequotas", nil)
 	if err != nil {
 		return err
 	}
@@ -102,6 +102,6 @@ func updateQuotas(username string, project string, cpu int, memory int) error {
 		log.Println("Error updating resourceQuota:", resp.StatusCode, string(errMsg))
 		return errors.New(genericAPIError)
 	}
-	log.Println("User "+username+" changed quotas for the project "+project+". CPU: "+cpu, ", Mem: "+memory)
+	log.Printf("User %v changed quotas for the project %v. CPU: %v Mem: %v", username, project, cpu, memory)
 	return nil
 }
