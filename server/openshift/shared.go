@@ -132,14 +132,10 @@ func checkAdminPermissions(username string, project string) error {
 }
 
 func getOperatorGroup() (*gabs.Container, error) {
-	client, req := getOseHTTPClient("GET", "oapi/v1/groups/operator", nil)
-	resp, err := client.Do(req)
-
+	resp, err := getOseHTTPClient("GET", "oapi/v1/groups/operator", nil)
 	if err != nil {
-		log.Println("Error from OpenShift API: ", err.Error())
-		return nil, errors.New(genericAPIError)
+		return nil, err
 	}
-
 	defer resp.Body.Close()
 
 	json, err := gabs.ParseJSONBuffer(resp.Body)
@@ -152,14 +148,10 @@ func getOperatorGroup() (*gabs.Container, error) {
 }
 
 func getAdminRoleBinding(project string) (*gabs.Container, error) {
-	client, req := getOseHTTPClient("GET", "oapi/v1/namespaces/"+project+"/rolebindings/admin", nil)
-	resp, err := client.Do(req)
-
+	resp, err := getOseHTTPClient("GET", "oapi/v1/namespaces/"+project+"/rolebindings/admin", nil)
 	if err != nil {
-		log.Println("Error from OpenShift API: ", err.Error())
-		return nil, errors.New(genericAPIError)
+		return nil, err
 	}
-
 	defer resp.Body.Close()
 
 	if resp.StatusCode == 404 {
@@ -189,7 +181,7 @@ func getOseAddress(end string) string {
 	return base + "/" + end
 }
 
-func getOseHTTPClient(method string, endURL string, body io.Reader) (*http.Client, *http.Request) {
+func getOseHTTPClient(method string, endURL string, body io.Reader) (*http.Response, error) {
 	token := config.Config().GetString("openshift_token")
 	if token == "" {
 		log.Fatal("Env variable 'OPENSHIFT_TOKEN' must be specified")
@@ -208,10 +200,15 @@ func getOseHTTPClient(method string, endURL string, body io.Reader) (*http.Clien
 
 	req.Header.Add("Authorization", "Bearer "+token)
 
-	return client, req
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Println("Error from server: ", err.Error())
+		return nil, errors.New(genericAPIError)
+	}
+	return resp, nil
 }
 
-func getWZUBackendClient(method string, endUrl string, body io.Reader) (*http.Client, *http.Request) {
+func getWZUBackendClient(method string, endUrl string, body io.Reader) (*http.Response, error) {
 	cfg := config.Config()
 	wzuBackendUrl := cfg.GetString("wzubackend_url")
 	wzuBackendSecret := cfg.GetString("wzubackend_secret")
@@ -231,10 +228,16 @@ func getWZUBackendClient(method string, endUrl string, body io.Reader) (*http.Cl
 
 	req.SetBasicAuth("CLOUD_SSP", wzuBackendSecret)
 
-	return client, req
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Println("Error from server: ", err.Error())
+		return nil, errors.New(genericAPIError)
+	}
+
+	return resp, nil
 }
 
-func getGlusterHTTPClient(url string, body io.Reader) (*http.Client, *http.Request) {
+func getGlusterHTTPClient(url string, body io.Reader) (*http.Response, error) {
 	cfg := config.Config()
 	apiUrl := cfg.GetString("gluster_api_url")
 	apiSecret := cfg.GetString("gluster_secret")
@@ -252,10 +255,16 @@ func getGlusterHTTPClient(url string, body io.Reader) (*http.Client, *http.Reque
 
 	req.SetBasicAuth("GLUSTER_API", apiSecret)
 
-	return client, req
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Println("Error from server: ", err.Error())
+		return nil, errors.New(genericAPIError)
+	}
+
+	return resp, nil
 }
 
-func getNfsHTTPClient(method string, apiPath string, body io.Reader) (*http.Client, *http.Request) {
+func getNfsHTTPClient(method string, apiPath string, body io.Reader) (*http.Response, error) {
 	cfg := config.Config()
 	apiUrl := cfg.GetString("nfs_api_url")
 	apiSecret := cfg.GetString("nfs_api_secret")
@@ -291,7 +300,13 @@ func getNfsHTTPClient(method string, apiPath string, body io.Reader) (*http.Clie
 	req.Header.Set("Accept", "application/json")
 	req.SetBasicAuth("sbb_openshift", apiSecret)
 
-	return client, req
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Println("Error from server: ", err.Error())
+		return nil, errors.New(genericAPIError)
+	}
+
+	return resp, err
 }
 
 func newObjectRequest(kind string, name string) *gabs.Container {

@@ -164,14 +164,11 @@ func createNewProject(project string, username string, billing string, megaid st
 	project = strings.ToLower(project)
 	p := newObjectRequest("ProjectRequest", project)
 
-	client, req := getOseHTTPClient("POST",
-		"oapi/v1/projectrequests",
-		bytes.NewReader(p.Bytes()))
-
-	resp, err := client.Do(req)
-	if err == nil {
-		defer resp.Body.Close()
+	resp, err := getOseHTTPClient("POST", "oapi/v1/projectrequests", bytes.NewReader(p.Bytes()))
+	if err != nil {
+		return err
 	}
+	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusCreated {
 		log.Printf("%v created a new project: %v", username, project)
@@ -205,14 +202,11 @@ func changeProjectPermission(project string, username string) error {
 	adminRoleBinding.ArrayAppend(strings.ToUpper(username), "userNames")
 
 	// Update the policyBindings on the api
-	client, req := getOseHTTPClient("PUT",
+	resp, err := getOseHTTPClient("PUT",
 		"oapi/v1/namespaces/"+project+"/rolebindings/admin",
 		bytes.NewReader(adminRoleBinding.Bytes()))
-
-	resp, err := client.Do(req)
 	if err != nil {
-		log.Println("Error from server: ", err.Error())
-		return errors.New(genericAPIError)
+		return err
 	}
 
 	defer resp.Body.Close()
@@ -228,11 +222,9 @@ func changeProjectPermission(project string, username string) error {
 }
 
 func getProjectBillingInformation(project string) (string, error) {
-	client, req := getOseHTTPClient("GET", "api/v1/namespaces/"+project, nil)
-	resp, err := client.Do(req)
+	resp, err := getOseHTTPClient("GET", "api/v1/namespaces/"+project, nil)
 	if err != nil {
-		log.Println("Error from server: ", err.Error())
-		return "", errors.New(genericAPIError)
+		return "", err
 	}
 
 	defer resp.Body.Close()
@@ -252,11 +244,9 @@ func getProjectBillingInformation(project string) (string, error) {
 }
 
 func createOrUpdateMetadata(project string, billing string, megaid string, username string, testProject bool) error {
-	client, req := getOseHTTPClient("GET", "api/v1/namespaces/"+project, nil)
-	resp, err := client.Do(req)
+	resp, err := getOseHTTPClient("GET", "api/v1/namespaces/"+project, nil)
 	if err != nil {
-		log.Println("Error from server: ", err.Error())
-		return errors.New(genericAPIError)
+		return err
 	}
 
 	defer resp.Body.Close()
@@ -280,11 +270,10 @@ func createOrUpdateMetadata(project string, billing string, megaid string, usern
 		annotations.Set(megaid, "openshift.io/MEGAID")
 	}
 
-	client, req = getOseHTTPClient("PUT",
-		"api/v1/namespaces/"+project,
-		bytes.NewReader(json.Bytes()))
-
-	resp, err = client.Do(req)
+	resp, err = getOseHTTPClient("PUT", "api/v1/namespaces/"+project, bytes.NewReader(json.Bytes()))
+	if err != nil {
+		return err
+	}
 
 	if resp.StatusCode == http.StatusOK {
 		resp.Body.Close()

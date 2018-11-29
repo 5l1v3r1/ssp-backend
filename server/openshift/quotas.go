@@ -72,12 +72,9 @@ func validateEditQuotas(username string, project string, cpu int, memory int) er
 }
 
 func updateQuotas(username string, project string, cpu int, memory int) error {
-	client, req := getOseHTTPClient("GET", "api/v1/namespaces/"+project+"/resourcequotas", nil)
-	resp, err := client.Do(req)
-
+	resp, err := getOseHTTPClient("GET", "api/v1/namespaces/"+project+"/resourcequotas", nil)
 	if err != nil {
-		log.Printf(getQuotasApiError, err.Error())
-		return errors.New(genericAPIError)
+		return err
 	}
 	defer resp.Body.Close()
 
@@ -92,19 +89,19 @@ func updateQuotas(username string, project string, cpu int, memory int) error {
 	firstQuota.SetP(cpu, "spec.hard.cpu")
 	firstQuota.SetP(fmt.Sprintf("%vGi", memory), "spec.hard.memory")
 
-	client, req = getOseHTTPClient("PUT",
+	resp, err = getOseHTTPClient("PUT",
 		"api/v1/namespaces/"+project+"/resourcequotas/"+firstQuota.Path("metadata.name").Data().(string),
 		bytes.NewReader(firstQuota.Bytes()))
-
-	resp, err = client.Do(req)
-	if err == nil && resp.StatusCode == http.StatusOK {
-		defer resp.Body.Close()
-		log.Printf("User %v changed quotas for the project %v. CPU: %v Mem: %v", username, project, cpu, memory)
-		return nil
+	if err != nil {
+		return err
 	}
+	defer resp.Body.Close()
 
-	errMsg, _ := ioutil.ReadAll(resp.Body)
-	log.Println("Error updating resourceQuota:", err.Error(), resp.StatusCode, string(errMsg))
-
-	return errors.New(genericAPIError)
+	if resp.StatusCode != http.StatusOK {
+		errMsg, _ := ioutil.ReadAll(resp.Body)
+		log.Println("Error updating resourceQuota:", resp.StatusCode, string(errMsg))
+		return errors.New(genericAPIError)
+	}
+	log.Printf("User %v changed quotas for the project %v. CPU: %v Mem: %v", username, project, cpu, memory)
+	return nil
 }
