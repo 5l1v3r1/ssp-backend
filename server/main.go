@@ -15,6 +15,7 @@ import (
 
 func main() {
 	config.Init("bla")
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
 	router := gin.New()
 	router.Use(gin.Recovery())
 
