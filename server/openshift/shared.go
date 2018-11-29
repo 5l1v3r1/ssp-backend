@@ -49,8 +49,7 @@ func RegisterSecRoutes(r *gin.RouterGroup) {
 func getProjectAdminsAndOperators(project string) ([]string, []string, error) {
 	adminRoleBinding, err := getAdminRoleBinding(project)
 	if err != nil {
-		log.Println("Unable to get admin roleBinding", err.Error())
-		return nil, nil, errors.New(genericAPIError)
+		return nil, nil, err
 	}
 
 	var admins []string
