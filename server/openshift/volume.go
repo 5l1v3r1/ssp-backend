@@ -365,7 +365,7 @@ func createGlusterVolume(project string, size string, username string) (*common.
 
 func createNfsVolume(project string, pvcName string, size string, username string) (*common.NewVolumeResponse, error) {
 	ID := generateID()
-	pvName := fmt.Sprintf("%v-pv%v", project, ID)
+	pvName := fmt.Sprintf("%v-%v", project, ID)
 	cmd := common.WorkflowCommand{
 		UserInputValues: []common.WorkflowKeyValue{
 			{
