@@ -2,10 +2,10 @@ package main
 
 import (
 	"log"
-	"os"
 
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/aws"
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/common"
+	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/config"
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/ddc"
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/openshift"
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/sematext"
@@ -14,6 +14,7 @@ import (
 )
 
 func main() {
+	config.Init("bla")
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 	router := gin.New()
 	router.Use(gin.Recovery())
@@ -47,8 +48,8 @@ func main() {
 		sematext.RegisterRoutes(auth)
 	}
 
-	secApiPassword, ok := os.LookupEnv("SEC_API_PASSWORD")
-	if ok {
+	secApiPassword := config.Config().GetString("sec_api_password")
+	if secApiPassword != "" {
 		log.Println("Activating secure api (basic auth)")
 		sec := router.Group("/sec", gin.BasicAuth(gin.Accounts{"SEC_API": secApiPassword}))
 		openshift.RegisterSecRoutes(sec)

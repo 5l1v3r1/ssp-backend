@@ -1,16 +1,17 @@
 package common
 
 import (
+	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/config"
 	"net/http"
-	"os"
 
 	"github.com/gin-gonic/gin"
 )
 
 func ConfigHandler(c *gin.Context) {
-	glusterApi := os.Getenv("GLUSTER_API_URL")
-	nfsApi := os.Getenv("NFS_API_URL")
-	ddcApi := os.Getenv("DDC_API")
+	cfg := config.Config()
+	glusterApi := cfg.GetString("gluster_api_url")
+	nfsApi := cfg.GetString("nfs_api_url")
+	ddcApi := cfg.GetString("ddc_api")
 
 	c.JSON(http.StatusOK, FeatureToggleResponse{
 		DDC:     ddcApi != "",

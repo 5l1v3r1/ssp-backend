@@ -4,9 +4,9 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"os"
 
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/common"
+	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/config"
 	"github.com/gin-gonic/gin"
 	"strings"
 )
@@ -25,9 +25,10 @@ func RegisterRoutes(r *gin.RouterGroup) {
 }
 
 func getSematextHTTPClient(method string, urlPart string, body io.Reader) (*http.Client, *http.Request) {
-	token := os.Getenv("SEMATEXT_API_TOKEN")
-	baseUrl := os.Getenv("SEMATEXT_BASE_URL")
-	if len(token) == 0 || len(baseUrl) == 0 {
+	cfg := config.Config()
+	token := cfg.GetString("sematext_api_token")
+	baseUrl := cfg.GetString("sematext_base_url")
+	if token == "" || baseUrl == "" {
 		log.Fatal("Env variables 'SEMATEXT_API_TOKEN' and 'SEMATEXT_BASE_URL' must be specified")
 	}
 

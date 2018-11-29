@@ -6,13 +6,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/common"
+	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/config"
 	"github.com/gin-gonic/gin"
 	"github.com/jinzhu/now"
 	"log"
 	"math"
 	"net/http"
 	"net/url"
-	"os"
 	"strconv"
 	"strings"
 	"text/template"
@@ -240,12 +240,13 @@ func computeQueries(start time.Time, end time.Time, searchString string, cluster
 }
 
 func getJson(client *http.Client, query string, target interface{}) error {
-	newrelic_api_token := os.Getenv("NEWRELIC_API_TOKEN")
-	if len(newrelic_api_token) == 0 {
+	cfg := config.Config()
+	newrelic_api_token := cfg.GetString("newrelic_api_token")
+	if newrelic_api_token == "" {
 		log.Fatal("Env variable 'NEWRELIC_API_TOKEN' must be specified")
 	}
-	newrelic_api_account := os.Getenv("NEWRELIC_API_ACCOUNT")
-	if len(newrelic_api_account) == 0 {
+	newrelic_api_account := cfg.GetString("newrelic_api_account")
+	if newrelic_api_account == "" {
 		log.Fatal("Env variable 'NEWRELIC_API_ACCOUNT' must be specified")
 	}
 
@@ -390,16 +391,17 @@ func getConsolidatedPrice(value Resources) string {
 
 func createCSVReport(resourceMap map[string]Resources, date time.Time) string {
 	LMDateFormat := "0601"
-	sender := os.Getenv("OPENSHIFT_CHARGEBACK_SENDER")
-	if len(sender) == 0 {
+	cfg := config.Config()
+	sender := cfg.GetString("openshift_chargeback_sender")
+	if sender == "" {
 		log.Print("Env variable 'OPENSHIFT_CHARGEBACK_SENDER' should be specified")
 	}
-	art := os.Getenv("OPENSHIFT_CHARGEBACK_ART")
-	if len(art) == 0 {
+	art := cfg.GetString("openshift_chargeback_art")
+	if art == "" {
 		log.Print("Env variable 'OPENSHIFT_CHARGEBACK_ART' should be specified")
 	}
-	currency := os.Getenv("OPENSHIFT_CHARGEBACK_CURRENCY")
-	if len(currency) == 0 {
+	currency := cfg.GetString("openshift_chargeback_currency")
+	if currency == "" {
 		currency = "CHF"
 	}
 

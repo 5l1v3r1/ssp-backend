@@ -8,12 +8,12 @@ import (
 	"log"
 	"net/http"
 	"net/url"
-	"os"
 	"strings"
 	"time"
 
 	"github.com/Jeffail/gabs"
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/common"
+	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/config"
 	"github.com/gin-gonic/gin"
 )
 
@@ -180,9 +180,9 @@ func getAdminRoleBinding(project string) (*gabs.Container, error) {
 }
 
 func getOseAddress(end string) string {
-	base := os.Getenv("OPENSHIFT_API")
+	base := config.Config().GetString("openshift_api")
 
-	if len(base) == 0 {
+	if base == "" {
 		log.Fatal("Env variable 'OPENSHIFT_API' must be specified")
 	}
 
@@ -190,8 +190,8 @@ func getOseAddress(end string) string {
 }
 
 func getOseHTTPClient(method string, endURL string, body io.Reader) (*http.Client, *http.Request) {
-	token := os.Getenv("OPENSHIFT_TOKEN")
-	if len(token) == 0 {
+	token := config.Config().GetString("openshift_token")
+	if token == "" {
 		log.Fatal("Env variable 'OPENSHIFT_TOKEN' must be specified")
 	}
 
@@ -212,9 +212,10 @@ func getOseHTTPClient(method string, endURL string, body io.Reader) (*http.Clien
 }
 
 func getWZUBackendClient(method string, endUrl string, body io.Reader) (*http.Client, *http.Request) {
-	wzuBackendUrl := os.Getenv("WZUBACKEND_URL")
-	wzuBackendSecret := os.Getenv("WZUBACKEND_SECRET")
-	if len(wzuBackendUrl) == 0 || len(wzuBackendSecret) == 0 {
+	cfg := config.Config()
+	wzuBackendUrl := cfg.GetString("wzubackend_url")
+	wzuBackendSecret := cfg.GetString("wzubackend_secret")
+	if wzuBackendUrl == "" || wzuBackendSecret == "" {
 		log.Fatal("Env variable 'wzuBackendUrl' and 'WZUBACKEND_SECRET' must be specified")
 	}
 
@@ -234,10 +235,11 @@ func getWZUBackendClient(method string, endUrl string, body io.Reader) (*http.Cl
 }
 
 func getGlusterHTTPClient(url string, body io.Reader) (*http.Client, *http.Request) {
-	apiUrl := os.Getenv("GLUSTER_API_URL")
-	apiSecret := os.Getenv("GLUSTER_SECRET")
+	cfg := config.Config()
+	apiUrl := cfg.GetString("gluster_api_url")
+	apiSecret := cfg.GetString("gluster_secret")
 
-	if len(apiUrl) == 0 || len(apiSecret) == 0 {
+	if apiUrl == "" || apiSecret == "" {
 		log.Fatal("Env variables 'GLUSTER_API_URL' and 'GLUSTER_SECRET' must be specified")
 	}
 
@@ -254,11 +256,12 @@ func getGlusterHTTPClient(url string, body io.Reader) (*http.Client, *http.Reque
 }
 
 func getNfsHTTPClient(method string, apiPath string, body io.Reader) (*http.Client, *http.Request) {
-	apiUrl := os.Getenv("NFS_API_URL")
-	apiSecret := os.Getenv("NFS_API_SECRET")
-	nfsProxy := os.Getenv("NFS_PROXY")
+	cfg := config.Config()
+	apiUrl := cfg.GetString("nfs_api_url")
+	apiSecret := cfg.GetString("nfs_api_secret")
+	nfsProxy := cfg.GetString("nfs_proxy")
 
-	if len(apiUrl) == 0 || len(apiSecret) == 0 || len(nfsProxy) == 0 {
+	if apiUrl == "" || apiSecret == "" || nfsProxy == "" {
 		log.Fatal("Env variables 'NFS_PROXY', 'NFS_API_URL' and 'NFS_API_SECRET' must be specified")
 	}
 

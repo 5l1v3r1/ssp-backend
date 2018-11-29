@@ -13,12 +13,12 @@ import (
 
 	"encoding/json"
 
-	"os"
 	"strconv"
 
 	"github.com/Jeffail/gabs"
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/glusterapi/models"
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/common"
+	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/config"
 	"github.com/gin-gonic/gin"
 )
 
@@ -28,7 +28,6 @@ const (
 	wrongSizeLimitError     = "Grösse nicht erlaubt. Mindestgrösse: 500M (1G für NFS). Maximale Grössen sind: M: %v, G: %v"
 	apiCreateWorkflowUuid   = "64b3b95b-0d79-4563-8b88-f8c4486b40a0"
 	apiChangeWorkflowUuid   = "186b1295-1b82-42e4-b04d-477da967e1d4"
-	apiDeleteWorkflowUuid   = "06090103-2313-4ad5-8e89-36d872349eaa"
 )
 
 func newVolumeHandler(c *gin.Context) {
@@ -217,10 +216,8 @@ func validateSizeFormat(size string, technology string) error {
 func validateSize(size string) error {
 	minMB := 500
 	maxMB := 1024
-	maxGB := os.Getenv("MAX_VOLUME_GB")
-
-	maxGBInt, errGB := strconv.Atoi(maxGB)
-	if errGB != nil || maxGBInt <= 0 {
+	maxGB := config.Config().GetInt("max_volume_gb")
+	if maxGB <= 0 {
 		log.Fatal("Env variable 'MAX_VOLUME_GB' must be specified and a valid integer")
 	}
 
@@ -244,7 +241,7 @@ func validateSize(size string) error {
 			return errors.New(wrongSizeFormatError)
 		}
 
-		if sizeInt > maxGBInt {
+		if sizeInt > maxGB {
 			return fmt.Errorf(wrongSizeLimitError, maxMB, maxGB)
 		}
 	}
@@ -799,8 +796,8 @@ func getGlusterEndpointsContainer() (*gabs.Container, error) {
 	p.Array("subsets")
 
 	// Add gluster endpoints
-	glusterIPs := os.Getenv("GLUSTER_IPS")
-	if len(glusterIPs) == 0 {
+	glusterIPs := config.Config().GetString("gluster_ips")
+	if glusterIPs == "" {
 		log.Println("Wrong configuration. Missing env variable 'GLUSTER_IPS'")
 		return nil, errors.New(genericAPIError)
 	}

@@ -3,6 +3,8 @@ package common
 import "time"
 import "github.com/aws/aws-sdk-go/service/ec2"
 
+const ConfigNotSetError = "Funktion deaktiviert oder falsch konfiguriert. Kontaktieren Sie bitte das CLP Team"
+
 type ProjectName struct {
 	Project string `json:"project"`
 }
@@ -53,8 +55,8 @@ type EditSematextPlanCommand struct {
 
 type EditQuotasCommand struct {
 	ProjectName
-	CPU    string `json:"cpu"`
-	Memory string `json:"memory"`
+	CPU    int `json:"cpu"`
+	Memory int `json:"memory"`
 }
 
 type NewServiceAccountCommand struct {

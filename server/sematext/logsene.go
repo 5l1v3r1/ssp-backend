@@ -6,11 +6,11 @@ import (
 	"fmt"
 	"github.com/Jeffail/gabs"
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/common"
+	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/config"
 	"github.com/gin-gonic/gin"
 	"io/ioutil"
 	"log"
 	"net/http"
-	"os"
 	"strconv"
 	"strings"
 )
@@ -36,7 +36,7 @@ func getLogseneAppsHandler(c *gin.Context) {
 }
 
 func getLogseneDiscountcodeHandler(c *gin.Context) {
-	c.JSON(http.StatusOK, os.Getenv("LOGSENE_DISCOUNTCODE"))
+	c.JSON(http.StatusOK, config.Config().GetString("logsene_discountcode"))
 }
 
 func getLogsenePlansHandler(c *gin.Context) {

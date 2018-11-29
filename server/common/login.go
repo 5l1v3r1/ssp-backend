@@ -2,9 +2,9 @@ package common
 
 import (
 	"log"
-	"os"
 	"time"
 
+	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/config"
 	"github.com/gin-gonic/gin"
 
 	"github.com/jtblin/go-ldap-client"
@@ -23,9 +23,8 @@ type User struct {
 
 // GetAuthMiddleware returns a gin middleware for JWT with cookie based auth
 func GetAuthMiddleware() *jwt.GinJWTMiddleware {
-	key := os.Getenv("SESSION_KEY")
-
-	if len(key) == 0 {
+	key := config.Config().GetString("session_key")
+	if key == "" {
 		log.Fatal("Env variable 'SESSION_KEY' must be specified")
 	}
 
@@ -62,11 +61,12 @@ func userPayloadFunc(data interface{}) jwt.MapClaims {
 }
 
 func ldapAuthenticator(c *gin.Context) (interface{}, error) {
-	ldapHost := os.Getenv("LDAP_URL")
-	ldapBind := os.Getenv("LDAP_BIND_DN")
-	ldapBindPw := os.Getenv("LDAP_BIND_CRED")
-	ldapFilter := os.Getenv("LDAP_FILTER")
-	ldapSearchBase := os.Getenv("LDAP_SEARCH_BASE")
+	cfg := config.Config()
+	ldapHost := cfg.GetString("ldap_url")
+	ldapBind := cfg.GetString("ldap_bind_dn")
+	ldapBindPw := cfg.GetString("ldap_bind_cred")
+	ldapFilter := cfg.GetString("ldap_filter")
+	ldapSearchBase := cfg.GetString("ldap_search_base")
 
 	client := &ldap.LDAPClient{
 		Attributes:   []string{"givenName", "sn", "mail", "uid"},
