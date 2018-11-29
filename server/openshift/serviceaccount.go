@@ -96,6 +96,12 @@ func createNewServiceAccount(username string, project string, serviceaccount str
 		return nil
 	}
 
+	if resp.StatusCode == http.StatusForbidden {
+		bodyBytes, _ := ioutil.ReadAll(resp.Body)
+		log.Printf("Error creating service account: StatusCode: %v, Nachricht: %v", resp.StatusCode, string(bodyBytes))
+		return errors.New(genericAPIError)
+	}
+
 	if resp.StatusCode == http.StatusConflict {
 		return errors.New("Der Service-Account existiert bereits.")
 	}
@@ -113,6 +119,12 @@ func getServiceAccount(namespace string, serviceaccount string) (*gabs.Container
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode == http.StatusForbidden {
+		bodyBytes, _ := ioutil.ReadAll(resp.Body)
+		log.Printf("Error getting service account: StatusCode: %v, Nachricht: %v", resp.StatusCode, string(bodyBytes))
+		return nil, errors.New(genericAPIError)
+	}
+
 	json, err := gabs.ParseJSONBuffer(resp.Body)
 	if err != nil {
 		log.Println(err.Error())
@@ -128,6 +140,12 @@ func getSecret(namespace string, secret string) (*gabs.Container, error) {
 		return nil, err
 	}
 	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusForbidden {
+		bodyBytes, _ := ioutil.ReadAll(resp.Body)
+		log.Printf("Error getting secret: StatusCode: %v, Nachricht: %v", resp.StatusCode, string(bodyBytes))
+		return nil, errors.New(genericAPIError)
+	}
 
 	json, err := gabs.ParseJSONBuffer(resp.Body)
 	if err != nil {
