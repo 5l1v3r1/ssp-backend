@@ -322,7 +322,7 @@ func newObjectRequest(kind string, name string) *gabs.Container {
 func generateID() string {
 	var result string
 	// All the possible characters in the ID
-	chrs := "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	chrs := "0123456789abcdefghijklmnopqrstuvwxyz"
 	len := int64(len(chrs))
 	// Constant to subtract so the generated ID is shorter
 	// Value is Unix timestamp at release of this function
