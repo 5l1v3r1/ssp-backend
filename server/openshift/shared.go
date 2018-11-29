@@ -8,11 +8,12 @@ import (
 	"log"
 	"net/http"
 	"net/url"
-	"os"
 	"strings"
+	"time"
 
 	"github.com/Jeffail/gabs"
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/common"
+	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/config"
 	"github.com/gin-gonic/gin"
 )
 
@@ -49,8 +50,7 @@ func RegisterSecRoutes(r *gin.RouterGroup) {
 func getProjectAdminsAndOperators(project string) ([]string, []string, error) {
 	adminRoleBinding, err := getAdminRoleBinding(project)
 	if err != nil {
-		log.Println("Unable to get admin roleBinding", err.Error())
-		return nil, nil, errors.New(genericAPIError)
+		return nil, nil, err
 	}
 
 	var admins []string
@@ -172,9 +172,9 @@ func getAdminRoleBinding(project string) (*gabs.Container, error) {
 }
 
 func getOseAddress(end string) string {
-	base := os.Getenv("OPENSHIFT_API")
+	base := config.Config().GetString("openshift_api")
 
-	if len(base) == 0 {
+	if base == "" {
 		log.Fatal("Env variable 'OPENSHIFT_API' must be specified")
 	}
 
@@ -182,8 +182,8 @@ func getOseAddress(end string) string {
 }
 
 func getOseHTTPClient(method string, endURL string, body io.Reader) (*http.Response, error) {
-	token := os.Getenv("OPENSHIFT_TOKEN")
-	if len(token) == 0 {
+	token := config.Config().GetString("openshift_token")
+	if token == "" {
 		log.Fatal("Env variable 'OPENSHIFT_TOKEN' must be specified")
 	}
 
@@ -209,9 +209,10 @@ func getOseHTTPClient(method string, endURL string, body io.Reader) (*http.Respo
 }
 
 func getWZUBackendClient(method string, endUrl string, body io.Reader) (*http.Response, error) {
-	wzuBackendUrl := os.Getenv("WZUBACKEND_URL")
-	wzuBackendSecret := os.Getenv("WZUBACKEND_SECRET")
-	if len(wzuBackendUrl) == 0 || len(wzuBackendSecret) == 0 {
+	cfg := config.Config()
+	wzuBackendUrl := cfg.GetString("wzubackend_url")
+	wzuBackendSecret := cfg.GetString("wzubackend_secret")
+	if wzuBackendUrl == "" || wzuBackendSecret == "" {
 		log.Fatal("Env variable 'wzuBackendUrl' and 'WZUBACKEND_SECRET' must be specified")
 	}
 
@@ -237,10 +238,11 @@ func getWZUBackendClient(method string, endUrl string, body io.Reader) (*http.Re
 }
 
 func getGlusterHTTPClient(url string, body io.Reader) (*http.Response, error) {
-	apiUrl := os.Getenv("GLUSTER_API_URL")
-	apiSecret := os.Getenv("GLUSTER_SECRET")
+	cfg := config.Config()
+	apiUrl := cfg.GetString("gluster_api_url")
+	apiSecret := cfg.GetString("gluster_secret")
 
-	if len(apiUrl) == 0 || len(apiSecret) == 0 {
+	if apiUrl == "" || apiSecret == "" {
 		log.Fatal("Env variables 'GLUSTER_API_URL' and 'GLUSTER_SECRET' must be specified")
 	}
 
@@ -263,11 +265,12 @@ func getGlusterHTTPClient(url string, body io.Reader) (*http.Response, error) {
 }
 
 func getNfsHTTPClient(method string, apiPath string, body io.Reader) (*http.Response, error) {
-	apiUrl := os.Getenv("NFS_API_URL")
-	apiSecret := os.Getenv("NFS_API_SECRET")
-	nfsProxy := os.Getenv("NFS_PROXY")
+	cfg := config.Config()
+	apiUrl := cfg.GetString("nfs_api_url")
+	apiSecret := cfg.GetString("nfs_api_secret")
+	nfsProxy := cfg.GetString("nfs_proxy")
 
-	if len(apiUrl) == 0 || len(apiSecret) == 0 || len(nfsProxy) == 0 {
+	if apiUrl == "" || apiSecret == "" || nfsProxy == "" {
 		log.Fatal("Env variables 'NFS_PROXY', 'NFS_API_URL' and 'NFS_API_SECRET' must be specified")
 	}
 
@@ -314,4 +317,23 @@ func newObjectRequest(kind string, name string) *gabs.Container {
 	json.SetP(name, "metadata.name")
 
 	return json
+}
+
+func generateID() string {
+	var result string
+	// All the possible characters in the ID
+	chrs := "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	len := int64(len(chrs))
+	// Constant to subtract so the generated ID is shorter
+	// Value is Unix timestamp at release of this function
+	subtract := int64(1543222754)
+	// We use unix timestamp because it increments each second
+	// The time is not important
+	unix := time.Now().Unix() - subtract
+	for unix > 0 {
+		result = string(chrs[unix%len]) + result
+		// division without remainder
+		unix = unix / len
+	}
+	return result
 }

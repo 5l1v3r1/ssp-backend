@@ -6,14 +6,12 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
-	"os"
 
 	"fmt"
-	"strconv"
-	"strings"
 
 	"github.com/Jeffail/gabs"
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/common"
+	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/config"
 	"github.com/gin-gonic/gin"
 )
 
@@ -45,23 +43,27 @@ func editQuotasHandler(c *gin.Context) {
 	}
 }
 
-func validateEditQuotas(username string, project string, cpu string, memory string) error {
-	maxCPU := os.Getenv("MAX_QUOTA_CPU")
-	maxMemory := os.Getenv("MAX_QUOTA_MEMORY")
+func validateEditQuotas(username string, project string, cpu int, memory int) error {
+	cfg := config.Config()
+	maxCPU := cfg.GetInt("max_quota_cpu")
+	maxMemory := cfg.GetInt("max_quota_memory")
 
-	if len(maxCPU) == 0 || len(maxMemory) == 0 {
-		log.Fatal("Env variables 'MAX_QUOTA_MEMORY' and 'MAX_QUOTA_CPU' must be specified")
+	if maxCPU == 0 || maxMemory == 0 {
+		log.Println("WARNING: Env variables 'MAX_QUOTA_MEMORY' and 'MAX_QUOTA_CPU' must be specified and valid integers")
+		return errors.New(common.ConfigNotSetError)
 	}
 
 	// Validate user input
-	if len(project) == 0 {
+	if project == "" {
 		return errors.New("Projekt muss angegeben werden")
 	}
-	if err := common.ValidateIntInput(maxCPU, cpu); err != nil {
-		return err
+
+	if cpu > maxCPU {
+		return fmt.Errorf("Der Maximalwert für CPU ist: %v", maxCPU)
 	}
-	if err := common.ValidateIntInput(maxMemory, memory); err != nil {
-		return err
+
+	if memory > maxMemory {
+		return fmt.Errorf("Der Maximalwert für Memory ist: %v", maxMemory)
 	}
 
 	// Validate permissions
@@ -69,37 +71,8 @@ func validateEditQuotas(username string, project string, cpu string, memory stri
 	return resp
 }
 
-func GetQuotas(project string) (int, int) {
-	resp, err := getOseHTTPClient("GET", "api/v1/namespaces/"+project+"/resourcequotas", nil)
-	if err != nil {
-		log.Fatalf(getQuotasApiError, err.Error())
-	}
-	defer resp.Body.Close()
-
-	json, err := gabs.ParseJSONBuffer(resp.Body)
-	if err != nil {
-		log.Fatalf(jsonDecodingError, err)
-	}
-
-	firstQuota := json.S("items").Index(0)
-
-	cpu := firstQuota.Path("spec.hard.cpu").String()
-	mem := strings.Replace(firstQuota.Path("spec.hard.memory").String(), "Gi", "", 1)
-
-	cpuInt, err := strconv.Atoi(cpu)
-	if err != nil {
-		log.Fatalf("Error parsing cpu quota. value: %v, err: %v", cpu, err.Error())
-	}
-	memInt, err := strconv.Atoi(mem)
-	if err != nil {
-		log.Fatalf("Error parsing memory quota. value: %v, err: %v", mem, err.Error())
-	}
-
-	return cpuInt, memInt
-}
-
-func updateQuotas(username string, project string, cpu string, memory string) error {
-	resp, err := getOseHTTPClient("GET", "api/v1/namespaces/"+project+"/resourcequotas", nil)
+func updateQuotas(username string, project string, cpu int, memory int) error {
+  resp, err := getOseHTTPClient("GET", "api/v1/namespaces/"+project+"/resourcequotas", nil)
 	if err != nil {
 		return err
 	}
@@ -114,7 +87,7 @@ func updateQuotas(username string, project string, cpu string, memory string) er
 	firstQuota := json.S("items").Index(0)
 
 	firstQuota.SetP(cpu, "spec.hard.cpu")
-	firstQuota.SetP(memory+"Gi", "spec.hard.memory")
+	firstQuota.SetP(fmt.Sprintf("%vGi", memory), "spec.hard.memory")
 
 	resp, err = getOseHTTPClient("PUT",
 		"api/v1/namespaces/"+project+"/resourcequotas/"+firstQuota.Path("metadata.name").Data().(string),

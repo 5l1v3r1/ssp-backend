@@ -6,7 +6,6 @@ import (
 	"html"
 	"log"
 	"net/http"
-	"os"
 	"regexp"
 	"strings"
 
@@ -15,6 +14,7 @@ import (
 	"fmt"
 
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/common"
+	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/config"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/aws/aws-sdk-go/service/s3"
@@ -118,6 +118,7 @@ func newS3BucketHandler(c *gin.Context) {
 func newS3UserHandler(c *gin.Context) {
 	username := common.GetUserName(c)
 	bucketName := c.Param("bucketname")
+	cfg := config.Config()
 
 	var data common.NewS3UserCommand
 	if c.BindJSON(&data) != nil {
@@ -130,10 +131,10 @@ func newS3UserHandler(c *gin.Context) {
 	var loginURL string
 	if isNonProd {
 		stage = stageDev
-		loginURL = os.Getenv("AWS_NONPROD_LOGIN_URL")
+		loginURL = cfg.GetString("aws_nonprod_login_url")
 	} else {
 		stage = stageProd
-		loginURL = os.Getenv("AWS_PROD_LOGIN_URL")
+		loginURL = cfg.GetString("aws_prod_login_url")
 	}
 	if err := validateNewS3User(username, bucketName, data.UserName, stage); err != nil {
 		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: err.Error()})
@@ -280,7 +281,7 @@ func createNewS3Bucket(username string, projectname string, bucketname string, b
 
 func generateS3Bucketname(bucketname string, stage string) (string, error) {
 	// Generate bucketname: <prefix>-<bucketname>-<stage_suffix>
-	bucketPrefix := os.Getenv("AWS_S3_BUCKET_PREFIX")
+	bucketPrefix := config.Config().GetString("aws_s3_bucket_prefix")
 
 	account, err := getAccountForStage(stage)
 	if err != nil {
