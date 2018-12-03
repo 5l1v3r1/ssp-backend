@@ -171,20 +171,16 @@ func getAdminRoleBinding(project string) (*gabs.Container, error) {
 	return json, nil
 }
 
-func getOseAddress(end string) string {
-	base := config.Config().GetString("openshift_api")
-
-	if base == "" {
-		log.Fatal("Env variable 'OPENSHIFT_API' must be specified")
-	}
-
-	return base + "/" + end
-}
-
 func getOseHTTPClient(method string, endURL string, body io.Reader) (*http.Response, error) {
 	token := config.Config().GetString("openshift_token")
 	if token == "" {
-		log.Fatal("Env variable 'OPENSHIFT_TOKEN' must be specified")
+		log.Println("Env variable 'OPENSHIFT_TOKEN' must be specified")
+		return nil, errors.New(common.ConfigNotSetError)
+	}
+	base := config.Config().GetString("openshift_api")
+	if base == "" {
+		log.Println("Env variable 'OPENSHIFT_API' must be specified")
+		return nil, errors.New(common.ConfigNotSetError)
 	}
 
 	tr := &http.Transport{
@@ -192,7 +188,7 @@ func getOseHTTPClient(method string, endURL string, body io.Reader) (*http.Respo
 	}
 	client := &http.Client{Transport: tr}
 
-	req, _ := http.NewRequest(method, getOseAddress(endURL), body)
+	req, _ := http.NewRequest(method, base+"/"+endURL, body)
 
 	if common.DebugMode() {
 		log.Print("Calling ", req.URL.String())
@@ -213,7 +209,8 @@ func getWZUBackendClient(method string, endUrl string, body io.Reader) (*http.Re
 	wzuBackendUrl := cfg.GetString("wzubackend_url")
 	wzuBackendSecret := cfg.GetString("wzubackend_secret")
 	if wzuBackendUrl == "" || wzuBackendSecret == "" {
-		log.Fatal("Env variable 'wzuBackendUrl' and 'WZUBACKEND_SECRET' must be specified")
+		log.Println("Env variable 'wzuBackendUrl' and 'WZUBACKEND_SECRET' must be specified")
+		return nil, errors.New(common.ConfigNotSetError)
 	}
 
 	tr := &http.Transport{
@@ -243,7 +240,8 @@ func getGlusterHTTPClient(url string, body io.Reader) (*http.Response, error) {
 	apiSecret := cfg.GetString("gluster_secret")
 
 	if apiUrl == "" || apiSecret == "" {
-		log.Fatal("Env variables 'GLUSTER_API_URL' and 'GLUSTER_SECRET' must be specified")
+		log.Println("Env variables 'GLUSTER_API_URL' and 'GLUSTER_SECRET' must be specified")
+		return nil, errors.New(common.ConfigNotSetError)
 	}
 
 	client := &http.Client{}
@@ -271,7 +269,8 @@ func getNfsHTTPClient(method string, apiPath string, body io.Reader) (*http.Resp
 	nfsProxy := cfg.GetString("nfs_proxy")
 
 	if apiUrl == "" || apiSecret == "" || nfsProxy == "" {
-		log.Fatal("Env variables 'NFS_PROXY', 'NFS_API_URL' and 'NFS_API_SECRET' must be specified")
+		log.Println("Env variables 'NFS_PROXY', 'NFS_API_URL' and 'NFS_API_SECRET' must be specified")
+		return nil, errors.New(common.ConfigNotSetError)
 	}
 
 	// Create http client with proxy:

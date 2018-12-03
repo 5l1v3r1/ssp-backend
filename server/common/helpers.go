@@ -1,6 +1,9 @@
 package common
 
 import (
+	"crypto/rand"
+	"fmt"
+	"log"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -29,6 +32,24 @@ func DebugMode() bool {
 	mode := gin.Mode()
 
 	return mode != gin.ReleaseMode
+}
+
+func RandomString(length int) string {
+	key := make([]byte, length)
+	_, err := rand.Read(key)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return fmt.Sprintf("%x", key)
+}
+
+func ContainsEmptyString(ss ...string) bool {
+	for _, s := range ss {
+		if s == "" {
+			return true
+		}
+	}
+	return false
 }
 
 func RemoveDuplicates(elements []string) []string {
