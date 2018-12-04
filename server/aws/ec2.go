@@ -107,13 +107,18 @@ func deleteSnapshot(snapshotid string, account string) error {
 	return nil
 }
 
-func createSnapshot(volumeid string, instanceid string, description string, account string) (*common.Snapshot, error) {
+func createSnapshot(volumeid string, instanceid string, description string, account string) (*ec2.Snapshot, error) {
 	tags, err := getTags(volumeid, account)
 	if err != nil {
 		log.Println("Error getting tags: " + err.Error())
 		return nil, err
 	}
-	tags = addInstanceidTag(tags, instanceid)
+	deviceName, err := getDeviceName(volumeid, account)
+	if err != nil {
+		return nil, err
+	}
+	tags = appendTag(tags, "instance_id", instanceid)
+	tags = appendTag(tags, "devicename", deviceName)
 	input := &ec2.CreateSnapshotInput{
 		Description: aws.String(description),
 		VolumeId:    aws.String(volumeid),
@@ -136,9 +141,7 @@ func createSnapshot(volumeid string, instanceid string, description string, acco
 		log.Println("Error creating snapshot (CreateSnapshot API call): " + err.Error())
 		return nil, err
 	}
-	deviceName, _ := getDeviceName(*snapshot.VolumeId, account)
-	csnapshot := getSnapshotStruct(snapshot, *deviceName)
-	return &csnapshot, nil
+	return snapshot, nil
 }
 
 func getInstance(instanceid string, username string) (*common.Instance, error) {
@@ -293,7 +296,7 @@ func listEC2InstancesByUsernameForAccount(username string, account string) ([]co
 	return instances, nil
 }
 
-func listSnapshots(instance *ec2.Instance, account string) ([]common.Snapshot, error) {
+func listSnapshots(instance *ec2.Instance, account string) ([]*ec2.Snapshot, error) {
 	svc, err := GetEC2ClientForAccount(account)
 	if err != nil {
 		return nil, errors.New(ec2ListError)
@@ -314,12 +317,37 @@ func listSnapshots(instance *ec2.Instance, account string) ([]common.Snapshot, e
 	if err != nil {
 		return nil, err
 	}
-	snapshots := []common.Snapshot{}
+
+	// Backward compatibility for snapshots before devicename tag
+	// Use devicename from attachment if available or output error
 	for _, snapshot := range snapshotsOutput.Snapshots {
-		deviceName, _ := getDeviceName(*snapshot.VolumeId, account)
-		snapshots = append(snapshots, getSnapshotStruct(snapshot, *deviceName))
+		// tag doesn't exist if the snapshot was created before this commit
+		if !hasTag(snapshot.Tags, "devicename") {
+			// try and get devicename. this works if the original volume
+			// is still attached to an ec2 instance.
+			// If the device name cannot be found return an error to the user
+			devicename, err := getDeviceName(*snapshot.VolumeId, account)
+			if err != nil {
+				devicename = "Diskname unbekannt"
+			}
+			// Append to tag list, so the frontend can display it
+			// Snapshots that are created after this change
+			// should already contain this tag!
+			snapshot.Tags = appendTag(snapshot.Tags, "devicename", devicename)
+		}
 	}
-	return snapshots, nil
+
+	return snapshotsOutput.Snapshots, nil
+}
+
+// Returns true if tag exists in list
+func hasTag(tags []*ec2.Tag, name string) bool {
+	for _, tag := range tags {
+		if *tag.Key == name {
+			return true
+		}
+	}
+	return false
 }
 
 func listVolumes(instance *ec2.Instance) []common.Volume {
@@ -337,7 +365,7 @@ func getVolumeStruct(volume *ec2.InstanceBlockDeviceMapping) common.Volume {
 	}
 }
 
-func getDeviceName(volumeId string, account string) (*string, error) {
+func getDeviceName(volumeId string, account string) (string, error) {
 	input := &ec2.DescribeVolumesInput{
 		VolumeIds: []*string{
 			aws.String(volumeId),
@@ -347,37 +375,25 @@ func getDeviceName(volumeId string, account string) (*string, error) {
 	svc, err := GetEC2ClientForAccount(account)
 	if err != nil {
 		log.Println("Error getting EC2 client: " + err.Error())
-		return nil, errors.New(ec2StartError)
+		return "", errors.New(ec2StartError)
 	}
 
 	describeVolumesOutput, err := svc.DescribeVolumes(input)
 	if err != nil {
 		log.Println("Error getting EC2 volumes (DescribeVolumes API call): " + err.Error())
-		return nil, errors.New(ec2StartError)
+		return "", errors.New(ec2StartError)
 	}
 	if describeVolumesOutput.Volumes[0].Attachments == nil {
-		return describeVolumesOutput.Volumes[0].VolumeId, nil
+		return "", errors.New("Der Diskname konnte nicht gefunden werden")
 	}
-	return describeVolumesOutput.Volumes[0].Attachments[0].Device, nil
+	return *describeVolumesOutput.Volumes[0].Attachments[0].Device, nil
 }
 
-func getSnapshotStruct(snapshot *ec2.Snapshot, deviceName string) common.Snapshot {
-	return common.Snapshot{
-		SnapshotId:  *snapshot.SnapshotId,
-		Description: *snapshot.Description,
-		StartTime:   *snapshot.StartTime,
-		DeviceName:  deviceName,
+func appendTag(tags []*ec2.Tag, name string, value string) []*ec2.Tag {
+	if hasTag(tags, name) {
+		return tags
 	}
-}
-
-func addInstanceidTag(tags []*ec2.Tag, instanceid string) []*ec2.Tag {
-	// check if instance_id tag already exists, if not add it
-	for _, tag := range tags {
-		if *tag.Key == "instance_id" {
-			return tags
-		}
-	}
-	tags = append(tags, &ec2.Tag{Key: aws.String("instance_id"), Value: aws.String(instanceid)})
+	tags = append(tags, &ec2.Tag{Key: aws.String(name), Value: aws.String(value)})
 	return tags
 }
 
@@ -437,7 +453,7 @@ func getImageName(imageId string, account string) (*string, error) {
 	return describeImagesOutput.Images[0].Name, nil
 }
 
-func getInstanceStruct(instance *ec2.Instance, account string, snapshots []common.Snapshot, volumes []common.Volume) common.Instance {
+func getInstanceStruct(instance *ec2.Instance, account string, snapshots []*ec2.Snapshot, volumes []common.Volume) common.Instance {
 	var name string
 	for _, tag := range instance.Tags {
 		if *tag.Key == "Name" {

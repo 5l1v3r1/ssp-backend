@@ -109,8 +109,8 @@ type ApiResponse struct {
 }
 
 type SnapshotApiResponse struct {
-	Message  string   `json:"message"`
-	Snapshot Snapshot `json:"snapshot"`
+	Message  string       `json:"message"`
+	Snapshot ec2.Snapshot `json:"snapshot"`
 }
 
 type NewVolumeApiResponse struct {
@@ -139,25 +139,18 @@ type InstanceListResponse struct {
 }
 
 type Instance struct {
-	Name             string     `json:"name"`
-	InstanceId       string     `json:"instanceId"`
-	InstanceType     string     `json:"instanceType"`
-	ImageId          string     `json:"imageId"`
-	ImageName        string     `json:"imageName"`
-	LaunchTime       *time.Time `json:"launchTime"`
-	State            string     `json:"state"`
-	PrivateIpAddress string     `json:"privateIpAddress"`
-	Account          string     `json:"account"`
-	Snapshots        []Snapshot `json:"snapshots"`
-	Volumes          []Volume   `json:"volumes"`
-	Tags             []*ec2.Tag `json:"tags"`
-}
-
-type Snapshot struct {
-	SnapshotId  string    `json:"snapshotId"`
-	DeviceName  string    `json:"deviceName"`
-	Description string    `json:"description"`
-	StartTime   time.Time `json:"startTime"`
+	Name             string          `json:"name"`
+	InstanceId       string          `json:"instanceId"`
+	InstanceType     string          `json:"instanceType"`
+	ImageId          string          `json:"imageId"`
+	ImageName        string          `json:"imageName"`
+	LaunchTime       *time.Time      `json:"launchTime"`
+	State            string          `json:"state"`
+	PrivateIpAddress string          `json:"privateIpAddress"`
+	Account          string          `json:"account"`
+	Snapshots        []*ec2.Snapshot `json:"snapshots"`
+	Volumes          []Volume        `json:"volumes"`
+	Tags             []*ec2.Tag      `json:"tags"`
 }
 
 type Volume struct {
