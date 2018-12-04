@@ -65,6 +65,13 @@ type NewServiceAccountCommand struct {
 	OrganizationKey string `json:"organizationKey"`
 }
 
+type NewPullSecretCommand struct {
+	ProjectName
+	Repository string
+	Username   string
+	Password   string
+}
+
 type CreateSnapshotCommand struct {
 	InstanceId  string `json:"instanceId"`
 	VolumeId    string `json:"volumeId"`
@@ -225,4 +232,10 @@ type NewS3BucketCommand struct {
 type NewS3UserCommand struct {
 	UserName   string `json:"username"`
 	IsReadonly bool   `json:"isReadonly"`
+}
+
+type JsonPatch struct {
+	Operation string      `json:"op"`
+	Path      string      `json:"path"`
+	Value     interface{} `json:"value"`
 }

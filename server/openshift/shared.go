@@ -34,6 +34,7 @@ func RegisterRoutes(r *gin.RouterGroup) {
 	r.POST("/ose/billing", updateBillingHandler)
 	r.POST("/ose/quotas", editQuotasHandler)
 	r.POST("/ose/chargeback", chargebackHandler)
+	r.POST("/ose/secret/pull", newPullSecretHandler)
 
 	// Volumes (Gluster and NFS)
 	r.POST("/ose/volume", newVolumeHandler)
@@ -195,6 +196,10 @@ func getOseHTTPClient(method string, endURL string, body io.Reader) (*http.Respo
 	}
 
 	req.Header.Add("Authorization", "Bearer "+token)
+
+	if method == "PATCH" {
+		req.Header.Set("Content-Type", "application/json-patch+json")
+	}
 
 	resp, err := client.Do(req)
 	if err != nil {
