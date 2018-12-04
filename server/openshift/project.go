@@ -175,14 +175,14 @@ func sendNewProjectMail(projectName string, userName string, megaID string) erro
 		return errors.New("Error looking up MAIL_SERVER from environment.")
 	}
 
-	fromMail, ok := os.LookupEnv("MAIL_FROM_MAIL")
+	fromMail, ok := os.LookupEnv("MAIL_ADMIN_SENDER")
 	if !ok {
-		return errors.New("Error looking up MAIL_FROM_MAIL from environment.")
+		return errors.New("Error looking up MAIL_ADMIN_SENDER from environment.")
 	}
 
-	newProjectMail, ok := os.LookupEnv("MAIL_NEW_PROJECT_MAIL")
+	newProjectMail, ok := os.LookupEnv("MAIL_NEW_PROJECT_RECIPIENT")
 	if !ok {
-		return errors.New("Error looking up MAIL_NEW_PROJECT_MAIL from environment.")
+		return errors.New("Error looking up MAIL_NEW_PROJECT_RECIPIENT from environment.")
 	}
 
 	m := gomail.NewMessage()
