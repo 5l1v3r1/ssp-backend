@@ -31,7 +31,10 @@ func newProjectHandler(c *gin.Context) {
 		if err := createNewProject(data.Project, username, data.Billing, data.MegaId, false); err != nil {
 			c.JSON(http.StatusBadRequest, common.ApiResponse{Message: err.Error()})
 		} else {
-			sendNewProjectMail(data.Project, username, data.MegaId)
+			err := sendNewProjectMail(data.Project, username, data.MegaId)
+			if err != nil {
+				log.Printf("Can't send e-mail about new project (%v).", err)
+			}
 
 			c.JSON(http.StatusOK, common.ApiResponse{
 				Message: fmt.Sprintf("Das Projekt %v wurde erstellt", data.Project),
@@ -165,24 +168,21 @@ func validateBillingInformation(project string, billing string, username string)
 	return nil
 }
 
-func sendNewProjectMail(projectName string, userName string, megaID string) {
+func sendNewProjectMail(projectName string, userName string, megaID string) error {
 
 	mailServer, ok := os.LookupEnv("MAIL_SERVER")
 	if !ok {
-		log.Println("Error looking up MAILSERVER from environment.")
-		return
+		return errors.New("Error looking up MAIL_SERVER from environment.")
 	}
 
-	fromMail, ok := os.LookupEnv("FROM_MAIL")
+	fromMail, ok := os.LookupEnv("MAIL_FROM_MAIL")
 	if !ok {
-		log.Println("Error looking up FROM_MAIL from environment.")
-		return
+		return errors.New("Error looking up MAIL_FROM_MAIL from environment.")
 	}
 
-	newProjectMail, ok := os.LookupEnv("NEW_PROJECT_MAIL")
+	newProjectMail, ok := os.LookupEnv("MAIL_NEW_PROJECT_MAIL")
 	if !ok {
-		log.Println("Error looking up NEW_PROJECT_MAIL from environment.")
-		return
+		return errors.New("Error looking up MAIL_NEW_PROJECT_MAIL from environment.")
 	}
 
 	m := gomail.NewMessage()
@@ -210,8 +210,10 @@ func sendNewProjectMail(projectName string, userName string, megaID string) {
 	err := d.DialAndSend(m)
 
 	if err != nil {
-		log.Println("Can't send e-mail about new project.", err.Error())
+		return err
 	}
+
+	return nil
 }
 
 func createNewProject(project string, username string, billing string, megaid string, testProject bool) error {
