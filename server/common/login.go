@@ -1,6 +1,7 @@
 package common
 
 import (
+	"errors"
 	"log"
 	"time"
 
@@ -25,7 +26,7 @@ type User struct {
 func GetAuthMiddleware() *jwt.GinJWTMiddleware {
 	key := config.Config().GetString("session_key")
 	if key == "" {
-		log.Fatal("Env variable 'SESSION_KEY' must be specified")
+		key = RandomString(64)
 	}
 
 	return &jwt.GinJWTMiddleware{
@@ -66,6 +67,11 @@ func ldapAuthenticator(c *gin.Context) (interface{}, error) {
 	ldapBind := cfg.GetString("ldap_bind_dn")
 	ldapBindPw := cfg.GetString("ldap_bind_cred")
 	ldapFilter := cfg.GetString("ldap_filter")
+	if ContainsEmptyString(ldapHost, ldapBind, ldapBindPw, ldapFilter) {
+		log.Println("WARNING: The LDAP config contains empty value. ENV vars: LDAP_URL, LDAP_BIND_DN, LDAP_BIND_CRED, LDAP_FILTER")
+		return nil, errors.New(ConfigNotSetError)
+	}
+	// may be empty
 	ldapSearchBase := cfg.GetString("ldap_search_base")
 
 	client := &ldap.LDAPClient{
