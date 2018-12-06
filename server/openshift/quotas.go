@@ -54,6 +54,10 @@ func validateEditQuotas(clusterId, username, project string, cpu int, memory int
 	}
 
 	// Validate user input
+	if clusterId == "" {
+		return errors.New("Cluster muss angegeben werden")
+	}
+
 	if project == "" {
 		return errors.New("Projekt muss angegeben werden")
 	}

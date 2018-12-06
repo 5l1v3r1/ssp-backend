@@ -23,20 +23,14 @@ const (
 	testProjectDeletionDays = "30"
 )
 
-type OpenshiftCluster struct {
-	Name  string
-	Token string
-	URL   string
-}
-
 // RegisterRoutes registers the routes for OpenShift
 func RegisterRoutes(r *gin.RouterGroup) {
 	// OpenShift
 	r.POST("/ose/project", newProjectHandler)
-	r.GET("/ose/project/:project/admins", getProjectAdminsHandler)
+	r.GET("/ose/project/admins", getProjectAdminsHandler)
 	r.POST("/ose/testproject", newTestProjectHandler)
 	r.POST("/ose/serviceaccount", newServiceAccountHandler)
-	r.GET("/ose/billing/:project", getBillingHandler)
+	r.GET("/ose/billing", getBillingHandler)
 	r.POST("/ose/billing", updateBillingHandler)
 	r.POST("/ose/quotas", editQuotasHandler)
 	r.POST("/ose/chargeback", chargebackHandler)
@@ -48,6 +42,7 @@ func RegisterRoutes(r *gin.RouterGroup) {
 	r.POST("/ose/volume/gluster/fix", fixVolumeHandler)
 	// Get job status for NFS volumes because it takes a while
 	r.GET("/ose/volume/jobs/:job", jobStatusHandler)
+	r.GET("/ose/clusters", clustersHandler)
 }
 
 func RegisterSecRoutes(r *gin.RouterGroup) {
@@ -218,23 +213,6 @@ func getOseHTTPClient(method string, clusterId string, endURL string, body io.Re
 		return nil, errors.New(genericAPIError)
 	}
 	return resp, nil
-}
-
-func getOpenshiftClusters() []OpenshiftCluster {
-	clusters := []OpenshiftCluster{}
-	config.Config().UnmarshalKey("openshift", &clusters)
-	return clusters
-}
-
-func getOpenshiftCluster(clusterId string) (OpenshiftCluster, error) {
-	cfg := config.Config()
-	cluster := OpenshiftCluster{}
-	err := cfg.UnmarshalKey(fmt.Sprintf("openshift.%v", clusterId), &cluster)
-	if err != nil {
-		log.Println(err)
-		return cluster, errors.New("Die Konfiguration von dem Openshift Cluster konnte nicht gefunden werden")
-	}
-	return cluster, nil
 }
 
 func getWZUBackendClient(method string, endUrl string, body io.Reader) (*http.Response, error) {

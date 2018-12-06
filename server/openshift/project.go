@@ -65,10 +65,12 @@ func newTestProjectHandler(c *gin.Context) {
 
 func getProjectAdminsHandler(c *gin.Context) {
 	username := common.GetUserName(c)
-	project := c.Param("project")
-	clusterId := c.Param("clusterid")
 
-	if project == "" || clusterId == "" {
+	params := c.Request.URL.Query()
+	clusterId := params.Get("clusterid")
+	project := params.Get("project")
+
+	if clusterId == "" || project == "" {
 		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: wrongAPIUsageError})
 		return
 	}
@@ -86,16 +88,13 @@ func getProjectAdminsHandler(c *gin.Context) {
 
 func getBillingHandler(c *gin.Context) {
 	username := common.GetUserName(c)
-	project := c.Param("project")
-	clusterId := c.Param("clusterid")
 
-	if project == "" || clusterId == "" {
+	params := c.Request.URL.Query()
+	clusterId := params.Get("clusterid")
+	project := params.Get("project")
+
+	if clusterId == "" || project == "" {
 		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: wrongAPIUsageError})
-		return
-	}
-
-	if err := validateAdminAccess(clusterId, username, project); err != nil {
-		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: err.Error()})
 		return
 	}
 
@@ -143,7 +142,7 @@ func validateNewProject(project string, billing string, testProject bool) error 
 }
 
 func validateAdminAccess(clusterId, username, project string) error {
-	if len(project) == 0 {
+	if clusterId == "" || project == "" {
 		return errors.New("Projektname muss angegeben werden")
 	}
 
@@ -156,6 +155,10 @@ func validateAdminAccess(clusterId, username, project string) error {
 }
 
 func validateBillingInformation(clusterId, project, billing, username string) error {
+	if len(clusterId) == 0 {
+		return errors.New("Cluster muss angegeben werden")
+	}
+
 	if len(project) == 0 {
 		return errors.New("Projektname muss angegeben werden")
 	}
