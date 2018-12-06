@@ -35,12 +35,12 @@ func newVolumeHandler(c *gin.Context) {
 
 	var data common.NewVolumeCommand
 	if c.BindJSON(&data) == nil {
-		if err := validateNewVolume(data.Project, data.Size, data.PvcName, data.Mode, data.Technology, username); err != nil {
+		if err := validateNewVolume(data.ClusterId, data.Project, data.Size, data.PvcName, data.Mode, data.Technology, username); err != nil {
 			c.JSON(http.StatusBadRequest, common.ApiResponse{Message: err.Error()})
 			return
 		}
 
-		newVolumeResponse, err := createNewVolume(data.Project, data.Size, data.PvcName, data.Mode, data.Technology, username)
+		newVolumeResponse, err := createNewVolume(data.ClusterId, data.Project, data.Size, data.PvcName, data.Mode, data.Technology, username)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, common.ApiResponse{Message: err.Error()})
 			return
@@ -83,12 +83,12 @@ func fixVolumeHandler(c *gin.Context) {
 
 	var data common.FixVolumeCommand
 	if c.BindJSON(&data) == nil {
-		if err := validateFixVolume(data.Project, username); err != nil {
+		if err := validateFixVolume(data.ClusterId, data.Project, username); err != nil {
 			c.JSON(http.StatusBadRequest, common.ApiResponse{Message: err.Error()})
 			return
 		}
 
-		if err := recreateGlusterObjects(data.Project, username); err != nil {
+		if err := recreateGlusterObjects(data.ClusterId, data.Project, username); err != nil {
 			c.JSON(http.StatusBadRequest, common.ApiResponse{Message: err.Error()})
 		} else {
 			c.JSON(http.StatusOK, common.ApiResponse{
@@ -109,12 +109,12 @@ func growVolumeHandler(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: wrongAPIUsageError})
 		return
 	}
-	pv, err := getOpenshiftPV(data.PvName)
+	pv, err := getOpenshiftPV(data.ClusterId, data.PvName)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: err.Error()})
 		return
 	}
-	if err := validateGrowVolume(pv, data.NewSize, username); err != nil {
+	if err := validateGrowVolume(data.ClusterId, pv, data.NewSize, username); err != nil {
 		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: err.Error()})
 		return
 	}
@@ -126,7 +126,7 @@ func growVolumeHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, common.ApiResponse{Message: "Das Volume wurde vergrössert."})
 }
 
-func validateNewVolume(project string, size string, pvcName string, mode string, technology string, username string) error {
+func validateNewVolume(clusterId, project, size, pvcName, mode, technology, username string) error {
 	// Required fields
 	if len(project) == 0 || len(pvcName) == 0 || len(size) == 0 || len(mode) == 0 {
 		return errors.New("Es müssen alle Felder ausgefüllt werden")
@@ -141,12 +141,12 @@ func validateNewVolume(project string, size string, pvcName string, mode string,
 	}
 
 	// Permissions on project
-	if err := checkAdminPermissions(username, project); err != nil {
+	if err := checkAdminPermissions(clusterId, username, project); err != nil {
 		return err
 	}
 
 	// Check if pvc name already taken
-	if err := checkPvcName(project, pvcName); err != nil {
+	if err := checkPvcName(clusterId, project, pvcName); err != nil {
 		return err
 	}
 
@@ -158,7 +158,7 @@ func validateNewVolume(project string, size string, pvcName string, mode string,
 	return nil
 }
 
-func validateGrowVolume(pv *gabs.Container, newSize string, username string) error {
+func validateGrowVolume(clusterId string, pv *gabs.Container, newSize string, username string) error {
 	// Required fields
 	if len(newSize) == 0 {
 		return errors.New("Es müssen alle Felder ausgefüllt werden")
@@ -179,20 +179,20 @@ func validateGrowVolume(pv *gabs.Container, newSize string, username string) err
 		log.Println("metadata.claimRef.namespace not found in pv: validateGrowVolume()")
 		return errors.New(genericAPIError)
 	}
-	if err := checkAdminPermissions(username, project); err != nil {
+	if err := checkAdminPermissions(clusterId, username, project); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func validateFixVolume(project string, username string) error {
+func validateFixVolume(clusterId, project string, username string) error {
 	if len(project) == 0 {
 		return errors.New("Projekt muss angegeben werden")
 	}
 
 	// Permissions on project
-	if err := checkAdminPermissions(username, project); err != nil {
+	if err := checkAdminPermissions(clusterId, username, project); err != nil {
 		return err
 	}
 
@@ -249,8 +249,8 @@ func validateSize(size string) error {
 	return nil
 }
 
-func checkPvcName(project string, pvcName string) error {
-	resp, err := getOseHTTPClient("GET", fmt.Sprintf("api/v1/namespaces/%v/persistentvolumeclaims", project), nil)
+func checkPvcName(clusterId, project, pvcName string) error {
+	resp, err := getOseHTTPClient("GET", clusterId, fmt.Sprintf("api/v1/namespaces/%v/persistentvolumeclaims", project), nil)
 	if err != nil {
 		return err
 	}
@@ -287,7 +287,7 @@ func checkTechnology(technology string) error {
 	return errors.New("Invalid technology. Must be either nfs or gluster")
 }
 
-func createNewVolume(project string, size string, pvcName string, mode string, technology string, username string) (*common.NewVolumeResponse, error) {
+func createNewVolume(clusterId, project, size, pvcName, mode, technology, username string) (*common.NewVolumeResponse, error) {
 	var newVolumeResponse *common.NewVolumeResponse
 	var err error
 	if technology == "nfs" {
@@ -302,20 +302,20 @@ func createNewVolume(project string, size string, pvcName string, mode string, t
 		}
 
 		// Create Gluster Service & Endpoints in user project
-		if err := createOpenShiftGlusterService(project, username); err != nil {
+		if err := createOpenShiftGlusterService(clusterId, project, username); err != nil {
 			return nil, err
 		}
 
-		if err := createOpenShiftGlusterEndpoint(project, username); err != nil {
+		if err := createOpenShiftGlusterEndpoint(clusterId, project, username); err != nil {
 			return nil, err
 		}
 	}
 
-	if err := createOpenShiftPV(size, newVolumeResponse.PvName, newVolumeResponse.Server, newVolumeResponse.Path, mode, technology, username); err != nil {
+	if err := createOpenShiftPV(clusterId, size, newVolumeResponse.PvName, newVolumeResponse.Server, newVolumeResponse.Path, mode, technology, username); err != nil {
 		return nil, err
 	}
 
-	if err := createOpenShiftPVC(project, size, pvcName, mode, username); err != nil {
+	if err := createOpenShiftPVC(clusterId, project, size, pvcName, mode, username); err != nil {
 		return nil, err
 	}
 
@@ -443,11 +443,11 @@ func createNfsVolume(project string, pvcName string, size string, username strin
 	}, nil
 }
 
-func getOpenshiftPV(pvName string) (*gabs.Container, error) {
+func getOpenshiftPV(clusterId, pvName string) (*gabs.Container, error) {
 	if len(pvName) == 0 {
 		return nil, errors.New(genericAPIError)
 	}
-	resp, err := getOseHTTPClient("GET", fmt.Sprintf("api/v1/persistentvolumes/%v", pvName), nil)
+	resp, err := getOseHTTPClient("GET", clusterId, fmt.Sprintf("api/v1/persistentvolumes/%v", pvName), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -625,7 +625,7 @@ func growGlusterVolume(pv *gabs.Container, newSize string, username string) erro
 	return nil
 }
 
-func createOpenShiftPV(size string, pvName string, server string, path string, mode string, technology string, username string) error {
+func createOpenShiftPV(clusterId, size, pvName, server, path, mode, technology, username string) error {
 	p := newObjectRequest("PersistentVolume", pvName)
 	p.SetP(size, "spec.capacity.storage")
 
@@ -643,6 +643,7 @@ func createOpenShiftPV(size string, pvName string, server string, path string, m
 	p.ArrayAppend(mode, "spec", "accessModes")
 
 	resp, err := getOseHTTPClient("POST",
+		clusterId,
 		"api/v1/persistentvolumes",
 		bytes.NewReader(p.Bytes()))
 	if err != nil {
@@ -660,7 +661,7 @@ func createOpenShiftPV(size string, pvName string, server string, path string, m
 	return nil
 }
 
-func createOpenShiftPVC(project string, size string, pvcName string, mode string, username string) error {
+func createOpenShiftPVC(clusterId, project, size, pvcName, mode, username string) error {
 	p := newObjectRequest("PersistentVolumeClaim", pvcName)
 
 	p.SetP(size, "spec.resources.requests.storage")
@@ -668,6 +669,7 @@ func createOpenShiftPVC(project string, size string, pvcName string, mode string
 	p.ArrayAppend(mode, "spec", "accessModes")
 
 	resp, err := getOseHTTPClient("POST",
+		clusterId,
 		"api/v1/namespaces/"+project+"/persistentvolumeclaims",
 		bytes.NewReader(p.Bytes()))
 	if err != nil {
@@ -685,19 +687,19 @@ func createOpenShiftPVC(project string, size string, pvcName string, mode string
 	return nil
 }
 
-func recreateGlusterObjects(project string, username string) error {
-	if err := createOpenShiftGlusterService(project, username); err != nil {
+func recreateGlusterObjects(clusterId, project, username string) error {
+	if err := createOpenShiftGlusterService(clusterId, project, username); err != nil {
 		return err
 	}
 
-	if err := createOpenShiftGlusterEndpoint(project, username); err != nil {
+	if err := createOpenShiftGlusterEndpoint(clusterId, project, username); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func createOpenShiftGlusterService(project string, username string) error {
+func createOpenShiftGlusterService(clusterId, project string, username string) error {
 	p := newObjectRequest("Service", "glusterfs-cluster")
 
 	port := gabs.New()
@@ -707,6 +709,7 @@ func createOpenShiftGlusterService(project string, username string) error {
 	p.ArrayAppendP(port.Data(), "spec.ports")
 
 	resp, err := getOseHTTPClient("POST",
+		clusterId,
 		"api/v1/namespaces/"+project+"/services",
 		bytes.NewReader(p.Bytes()))
 	if err != nil {
@@ -729,13 +732,14 @@ func createOpenShiftGlusterService(project string, username string) error {
 	return nil
 }
 
-func createOpenShiftGlusterEndpoint(project string, username string) error {
+func createOpenShiftGlusterEndpoint(clusterId, project, username string) error {
 	p, err := getGlusterEndpointsContainer()
 	if err != nil {
 		return err
 	}
 
 	resp, err := getOseHTTPClient("POST",
+		clusterId,
 		"api/v1/namespaces/"+project+"/endpoints",
 		bytes.NewReader(p.Bytes()))
 	if err != nil {

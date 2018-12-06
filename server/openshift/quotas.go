@@ -25,12 +25,12 @@ func editQuotasHandler(c *gin.Context) {
 
 	var data common.EditQuotasCommand
 	if c.BindJSON(&data) == nil {
-		if err := validateEditQuotas(username, data.Project, data.CPU, data.Memory); err != nil {
+		if err := validateEditQuotas(data.ClusterId, username, data.Project, data.CPU, data.Memory); err != nil {
 			c.JSON(http.StatusBadRequest, common.ApiResponse{Message: err.Error()})
 			return
 		}
 
-		if err := updateQuotas(username, data.Project, data.CPU, data.Memory); err != nil {
+		if err := updateQuotas(data.ClusterId, username, data.Project, data.CPU, data.Memory); err != nil {
 			c.JSON(http.StatusBadRequest, common.ApiResponse{Message: err.Error()})
 		} else {
 			c.JSON(http.StatusOK, common.ApiResponse{
@@ -43,7 +43,7 @@ func editQuotasHandler(c *gin.Context) {
 	}
 }
 
-func validateEditQuotas(username string, project string, cpu int, memory int) error {
+func validateEditQuotas(clusterId, username, project string, cpu int, memory int) error {
 	cfg := config.Config()
 	maxCPU := cfg.GetInt("max_quota_cpu")
 	maxMemory := cfg.GetInt("max_quota_memory")
@@ -67,12 +67,12 @@ func validateEditQuotas(username string, project string, cpu int, memory int) er
 	}
 
 	// Validate permissions
-	resp := checkAdminPermissions(username, project)
+	resp := checkAdminPermissions(clusterId, username, project)
 	return resp
 }
 
-func updateQuotas(username string, project string, cpu int, memory int) error {
-	resp, err := getOseHTTPClient("GET", "api/v1/namespaces/"+project+"/resourcequotas", nil)
+func updateQuotas(clusterId, username, project string, cpu int, memory int) error {
+	resp, err := getOseHTTPClient("GET", clusterId, "api/v1/namespaces/"+project+"/resourcequotas", nil)
 	if err != nil {
 		return err
 	}
@@ -90,6 +90,7 @@ func updateQuotas(username string, project string, cpu int, memory int) error {
 	firstQuota.SetP(fmt.Sprintf("%vGi", memory), "spec.hard.memory")
 
 	resp, err = getOseHTTPClient("PUT",
+		clusterId,
 		"api/v1/namespaces/"+project+"/resourcequotas/"+firstQuota.Path("metadata.name").Data().(string),
 		bytes.NewReader(firstQuota.Bytes()))
 	if err != nil {

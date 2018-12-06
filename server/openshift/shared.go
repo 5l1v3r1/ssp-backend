@@ -23,6 +23,12 @@ const (
 	testProjectDeletionDays = "30"
 )
 
+type OpenshiftCluster struct {
+	Name  string
+	Token string
+	URL   string
+}
+
 // RegisterRoutes registers the routes for OpenShift
 func RegisterRoutes(r *gin.RouterGroup) {
 	// OpenShift
@@ -48,8 +54,8 @@ func RegisterSecRoutes(r *gin.RouterGroup) {
 	r.POST("/gluster/volume/fix", fixVolumeHandler)
 }
 
-func getProjectAdminsAndOperators(project string) ([]string, []string, error) {
-	adminRoleBinding, err := getAdminRoleBinding(project)
+func getProjectAdminsAndOperators(clusterId, project string) ([]string, []string, error) {
+	adminRoleBinding, err := getAdminRoleBinding(clusterId, project)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -76,7 +82,7 @@ func getProjectAdminsAndOperators(project string) ([]string, []string, error) {
 	var operators []string
 	if hasOperatorGroup {
 		// Going to add the operator group to the admins
-		json, err := getOperatorGroup()
+		json, err := getOperatorGroup(clusterId)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -96,10 +102,10 @@ func getProjectAdminsAndOperators(project string) ([]string, []string, error) {
 	return common.RemoveDuplicates(admins), operators, nil
 }
 
-func checkAdminPermissions(username string, project string) error {
+func checkAdminPermissions(clusterId, username, project string) error {
 	// Check if user has admin-access
 	hasAccess := false
-	admins, operators, err := getProjectAdminsAndOperators(project)
+	admins, operators, err := getProjectAdminsAndOperators(clusterId, project)
 	if err != nil {
 		return err
 	}
@@ -132,8 +138,8 @@ func checkAdminPermissions(username string, project string) error {
 	return fmt.Errorf("Du hast keine Admin Rechte auf dem Projekt. Bestehende Admins sind folgende Benutzer: %v", strings.Join(admins, ", "))
 }
 
-func getOperatorGroup() (*gabs.Container, error) {
-	resp, err := getOseHTTPClient("GET", "oapi/v1/groups/operator", nil)
+func getOperatorGroup(clusterId string) (*gabs.Container, error) {
+	resp, err := getOseHTTPClient("GET", clusterId, "oapi/v1/groups/operator", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -148,8 +154,8 @@ func getOperatorGroup() (*gabs.Container, error) {
 	return json, nil
 }
 
-func getAdminRoleBinding(project string) (*gabs.Container, error) {
-	resp, err := getOseHTTPClient("GET", "oapi/v1/namespaces/"+project+"/rolebindings/admin", nil)
+func getAdminRoleBinding(clusterId, project string) (*gabs.Container, error) {
+	resp, err := getOseHTTPClient("GET", clusterId, "oapi/v1/namespaces/"+project+"/rolebindings/admin", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -172,15 +178,20 @@ func getAdminRoleBinding(project string) (*gabs.Container, error) {
 	return json, nil
 }
 
-func getOseHTTPClient(method string, endURL string, body io.Reader) (*http.Response, error) {
-	token := config.Config().GetString("openshift_token")
+func getOseHTTPClient(method string, clusterId string, endURL string, body io.Reader) (*http.Response, error) {
+	cluster, err := getOpenshiftCluster(clusterId)
+	if err != nil {
+		return nil, err
+	}
+
+	token := cluster.Token
 	if token == "" {
-		log.Println("Env variable 'OPENSHIFT_TOKEN' must be specified")
+		log.Printf("WARNING: Cluster token not found. Please see README for more details. ClusterId: %v", clusterId)
 		return nil, errors.New(common.ConfigNotSetError)
 	}
-	base := config.Config().GetString("openshift_api")
+	base := cluster.URL
 	if base == "" {
-		log.Println("Env variable 'OPENSHIFT_API' must be specified")
+		log.Printf("WARNING: Cluster URL not found. Please see README for more details. ClusterId: %v", clusterId)
 		return nil, errors.New(common.ConfigNotSetError)
 	}
 
@@ -207,6 +218,23 @@ func getOseHTTPClient(method string, endURL string, body io.Reader) (*http.Respo
 		return nil, errors.New(genericAPIError)
 	}
 	return resp, nil
+}
+
+func getOpenshiftClusters() []OpenshiftCluster {
+	clusters := []OpenshiftCluster{}
+	config.Config().UnmarshalKey("openshift", &clusters)
+	return clusters
+}
+
+func getOpenshiftCluster(clusterId string) (OpenshiftCluster, error) {
+	cfg := config.Config()
+	cluster := OpenshiftCluster{}
+	err := cfg.UnmarshalKey(fmt.Sprintf("openshift.%v", clusterId), &cluster)
+	if err != nil {
+		log.Println(err)
+		return cluster, errors.New("Die Konfiguration von dem Openshift Cluster konnte nicht gefunden werden")
+	}
+	return cluster, nil
 }
 
 func getWZUBackendClient(method string, endUrl string, body io.Reader) (*http.Response, error) {

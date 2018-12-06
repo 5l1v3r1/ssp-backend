@@ -35,12 +35,12 @@ func newServiceAccountHandler(c *gin.Context) {
 
 	var data common.NewServiceAccountCommand
 	if c.BindJSON(&data) == nil {
-		if err := validateNewServiceAccount(username, data.Project, data.ServiceAccount); err != nil {
+		if err := validateNewServiceAccount(data.ClusterId, username, data.Project, data.ServiceAccount); err != nil {
 			c.JSON(http.StatusBadRequest, common.ApiResponse{Message: err.Error()})
 			return
 		}
 
-		if err := createNewServiceAccount(username, data.Project, data.ServiceAccount, data.OrganizationKey); err != nil {
+		if err := createNewServiceAccount(data.ClusterId, username, data.Project, data.ServiceAccount, data.OrganizationKey); err != nil {
 			c.JSON(http.StatusBadRequest, common.ApiResponse{Message: err.Error()})
 		} else {
 
@@ -59,23 +59,24 @@ func newServiceAccountHandler(c *gin.Context) {
 	}
 }
 
-func validateNewServiceAccount(username string, project string, serviceAccountName string) error {
+func validateNewServiceAccount(clusterId, username string, project string, serviceAccountName string) error {
 	if len(serviceAccountName) == 0 {
 		return errors.New("Service Account muss angegeben werden")
 	}
 
 	// Validate permissions
-	if err := checkAdminPermissions(username, project); err != nil {
+	if err := checkAdminPermissions(clusterId, username, project); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func createNewServiceAccount(username string, project string, serviceaccount string, organizationKey string) error {
+func createNewServiceAccount(clusterId, username, project, serviceaccount, organizationKey string) error {
 	p := newObjectRequest("ServiceAccount", serviceaccount)
 
 	resp, err := getOseHTTPClient("POST",
+		clusterId,
 		"api/v1/namespaces/"+project+"/serviceaccounts",
 		bytes.NewReader(p.Bytes()))
 	if err != nil {
@@ -87,7 +88,7 @@ func createNewServiceAccount(username string, project string, serviceaccount str
 		log.Print(username + " created a new service account: " + serviceaccount + " on project " + project)
 
 		if len(organizationKey) > 0 {
-			if err = createJenkinsCredential(project, serviceaccount, organizationKey); err != nil {
+			if err = createJenkinsCredential(clusterId, project, serviceaccount, organizationKey); err != nil {
 				log.Println("error creating jenkins credential for service-account", err.Error())
 				return err
 			}
@@ -111,9 +112,9 @@ func createNewServiceAccount(username string, project string, serviceaccount str
 	return errors.New(genericAPIError)
 }
 
-func getServiceAccount(namespace string, serviceaccount string) (*gabs.Container, error) {
+func getServiceAccount(clusterId, namespace, serviceaccount string) (*gabs.Container, error) {
 	url := fmt.Sprintf("api/v1/namespaces/%v/serviceaccounts/%v", namespace, serviceaccount)
-	resp, err := getOseHTTPClient("GET", url, nil)
+	resp, err := getOseHTTPClient("GET", clusterId, url, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -133,9 +134,9 @@ func getServiceAccount(namespace string, serviceaccount string) (*gabs.Container
 	return json, nil
 }
 
-func getSecret(namespace string, secret string) (*gabs.Container, error) {
+func getSecret(clusterId, namespace, secret string) (*gabs.Container, error) {
 	url := fmt.Sprintf("api/v1/namespaces/%v/secrets/%v", namespace, secret)
-	resp, err := getOseHTTPClient("GET", url, nil)
+	resp, err := getOseHTTPClient("GET", clusterId, url, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -175,11 +176,11 @@ func callWZUBackend(command newJenkinsCredentialsCommand) error {
 	return nil
 }
 
-func createJenkinsCredential(project string, serviceaccount string, organizationKey string) error {
+func createJenkinsCredential(clusterId, project, serviceaccount, organizationKey string) error {
 	//Sleep which ensures that the serviceaccount is created completely before we take the Secret out of it.
 	time.Sleep(400 * time.Millisecond)
 
-	saJson, err := getServiceAccount(project, serviceaccount)
+	saJson, err := getServiceAccount(clusterId, project, serviceaccount)
 	if err != nil {
 		return err
 	}
@@ -193,7 +194,7 @@ func createJenkinsCredential(project string, serviceaccount string, organization
 		secretName = strings.Trim(secret.Path("name").String(), "\"")
 	}
 
-	secretJson, err := getSecret(project, secretName)
+	secretJson, err := getSecret(clusterId, project, secretName)
 	if err != nil {
 		return err
 	}
