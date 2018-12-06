@@ -93,8 +93,8 @@ func getBillingHandler(c *gin.Context) {
 	clusterId := params.Get("clusterid")
 	project := params.Get("project")
 
-	if clusterId == "" || project == "" {
-		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: wrongAPIUsageError})
+	if err := validateAdminAccess(clusterId, username, project); err != nil {
+		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: err.Error()})
 		return
 	}
 
@@ -142,7 +142,11 @@ func validateNewProject(project string, billing string, testProject bool) error 
 }
 
 func validateAdminAccess(clusterId, username, project string) error {
-	if clusterId == "" || project == "" {
+	if clusterId == "" {
+		return errors.New("Cluster muss angegeben werden")
+	}
+
+	if project == "" {
 		return errors.New("Projektname muss angegeben werden")
 	}
 

@@ -111,12 +111,6 @@ type WorkflowExecutionProgress struct {
 	CommandsNumber      float64 `json:"commands-number"`
 }
 
-type FeatureToggleResponse struct {
-	Gluster bool `json:"gluster"`
-	DDC     bool `json:"ddc"`
-	Nfs     bool `json:"nfs"`
-}
-
 type ApiResponse struct {
 	Message string `json:"message"`
 }

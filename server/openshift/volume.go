@@ -118,7 +118,7 @@ func growVolumeHandler(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: err.Error()})
 		return
 	}
-	if err := growExistingVolume(pv, data.NewSize, username); err != nil {
+	if err := growExistingVolume(data.ClusterId, pv, data.NewSize, username); err != nil {
 		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: err.Error()})
 		return
 	}
@@ -296,7 +296,7 @@ func createNewVolume(clusterId, project, size, pvcName, mode, technology, userna
 			return nil, err
 		}
 	} else {
-		newVolumeResponse, err = createGlusterVolume(project, size, username)
+		newVolumeResponse, err = createGlusterVolume(clusterId, project, size, username)
 		if err != nil {
 			return nil, err
 		}
@@ -322,7 +322,7 @@ func createNewVolume(clusterId, project, size, pvcName, mode, technology, userna
 	return newVolumeResponse, nil
 }
 
-func createGlusterVolume(project string, size string, username string) (*common.NewVolumeResponse, error) {
+func createGlusterVolume(clusterId, project string, size string, username string) (*common.NewVolumeResponse, error) {
 	cmd := models.CreateVolumeCommand{
 		Project: project,
 		Size:    size,
@@ -334,7 +334,7 @@ func createGlusterVolume(project string, size string, username string) (*common.
 		return nil, errors.New(genericAPIError)
 	}
 
-	resp, err := getGlusterHTTPClient("sec/volume", b)
+	resp, err := getGlusterHTTPClient(clusterId, "sec/volume", b)
 	if err != nil {
 		return nil, err
 	}
@@ -505,9 +505,9 @@ func getJobProgress(job common.WorkflowJob) float64 {
 	return 100.0 / maxProgress * currentProgress
 }
 
-func growExistingVolume(pv *gabs.Container, newSize string, username string) error {
+func growExistingVolume(clusterId string, pv *gabs.Container, newSize string, username string) error {
 	if pv.ExistsP("spec.glusterfs") {
-		if err := growGlusterVolume(pv, newSize, username); err != nil {
+		if err := growGlusterVolume(clusterId, pv, newSize, username); err != nil {
 			return err
 		}
 		return nil
@@ -587,7 +587,7 @@ func growNfsVolume(pv *gabs.Container, newSize string, username string) error {
 	return nil
 }
 
-func growGlusterVolume(pv *gabs.Container, newSize string, username string) error {
+func growGlusterVolume(clusterId string, pv *gabs.Container, newSize string, username string) error {
 	glusterfsPath, ok := pv.Path("spec.glusterfs.path").Data().(string)
 	if !ok {
 		log.Println("spec.glusterfs.path not found in pv: growGlusterVolume()")
@@ -609,7 +609,7 @@ func growGlusterVolume(pv *gabs.Container, newSize string, username string) erro
 		return errors.New(genericAPIError)
 	}
 
-	resp, err := getGlusterHTTPClient("sec/volume/grow", b)
+	resp, err := getGlusterHTTPClient(clusterId, "sec/volume/grow", b)
 	if err != nil {
 		return err
 	}

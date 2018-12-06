@@ -245,13 +245,22 @@ func getWZUBackendClient(method string, endUrl string, body io.Reader) (*http.Re
 	return resp, nil
 }
 
-func getGlusterHTTPClient(url string, body io.Reader) (*http.Response, error) {
-	cfg := config.Config()
-	apiUrl := cfg.GetString("gluster_api_url")
-	apiSecret := cfg.GetString("gluster_secret")
+func getGlusterHTTPClient(clusterId string, url string, body io.Reader) (*http.Response, error) {
+	cluster, err := getOpenshiftCluster(clusterId)
+	if err != nil {
+		return nil, err
+	}
+
+	if cluster.GlusterApi == nil {
+		log.Printf("WARNING: GlusterApi is not configured for cluster %v", clusterId)
+		return nil, errors.New(common.ConfigNotSetError)
+	}
+
+	apiUrl := cluster.GlusterApi.URL
+	apiSecret := cluster.GlusterApi.Secret
 
 	if apiUrl == "" || apiSecret == "" {
-		log.Println("Env variables 'GLUSTER_API_URL' and 'GLUSTER_SECRET' must be specified")
+		log.Printf("WARNING: Gluster url or secret not found. Please see README for more details. ClusterId: %v", clusterId)
 		return nil, errors.New(common.ConfigNotSetError)
 	}
 
