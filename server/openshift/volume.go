@@ -737,7 +737,7 @@ func createOpenShiftGlusterService(clusterId, project string, username string) e
 }
 
 func createOpenShiftGlusterEndpoint(clusterId, project, username string) error {
-	p, err := getGlusterEndpointsContainer()
+	p, err := getGlusterEndpointsContainer(clusterId)
 	if err != nil {
 		return err
 	}
@@ -766,16 +766,20 @@ func createOpenShiftGlusterEndpoint(clusterId, project, username string) error {
 	return nil
 }
 
-func getGlusterEndpointsContainer() (*gabs.Container, error) {
+func getGlusterEndpointsContainer(clusterId string) (*gabs.Container, error) {
+	cluster, err := getOpenshiftCluster(clusterId)
+	if err != nil {
+		return nil, err
+	}
+
+	glusterIPs := cluster.GlusterApi.IPs
+	if glusterIPs == "" {
+		log.Printf("WARNING: Glusterapi ips not found. Please see README for more details. ClusterId: %v", clusterId)
+		return nil, errors.New(common.ConfigNotSetError)
+	}
+
 	p := newObjectRequest("Endpoints", "glusterfs-cluster")
 	p.Array("subsets")
-
-	// Add gluster endpoints
-	glusterIPs := config.Config().GetString("gluster_ips")
-	if glusterIPs == "" {
-		log.Println("Wrong configuration. Missing env variable 'GLUSTER_IPS'")
-		return nil, errors.New(genericAPIError)
-	}
 
 	addresses := gabs.New()
 	addresses.Array("addresses")

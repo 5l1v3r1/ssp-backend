@@ -22,6 +22,7 @@ type OpenshiftCluster struct {
 type GlusterApi struct {
 	URL    string `json:"url"`
 	Secret string `json:"-"`
+	IPs    string `json:"-"`
 }
 
 type NfsApi struct {
