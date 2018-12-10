@@ -63,12 +63,16 @@ func newVolumeHandler(c *gin.Context) {
 }
 
 func jobStatusHandler(c *gin.Context) {
-	jobId, err := strconv.Atoi(c.Param("job"))
+	params := c.Request.URL.Query()
+	clusterId := params.Get("clusterid")
+	jobIdStr := params.Get("job")
+
+	jobId, err := strconv.Atoi(jobIdStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericAPIError})
 		return
 	}
-	job, err := getJob(jobId)
+	job, err := getJob(clusterId, jobId)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: err.Error()})
 		return
@@ -291,7 +295,7 @@ func createNewVolume(clusterId, project, size, pvcName, mode, technology, userna
 	var newVolumeResponse *common.NewVolumeResponse
 	var err error
 	if technology == "nfs" {
-		newVolumeResponse, err = createNfsVolume(project, pvcName, size, username)
+		newVolumeResponse, err = createNfsVolume(clusterId, project, pvcName, size, username)
 		if err != nil {
 			return nil, err
 		}
@@ -363,7 +367,7 @@ func createGlusterVolume(clusterId, project string, size string, username string
 	}, nil
 }
 
-func createNfsVolume(project string, pvcName string, size string, username string) (*common.NewVolumeResponse, error) {
+func createNfsVolume(clusterId, project, pvcName, size, username string) (*common.NewVolumeResponse, error) {
 	ID := generateID()
 	pvName := fmt.Sprintf("%v-%v", project, ID)
 	cmd := common.WorkflowCommand{
@@ -385,7 +389,7 @@ func createNfsVolume(project string, pvcName string, size string, username strin
 		return nil, errors.New(genericAPIError)
 	}
 
-	resp, err := getNfsHTTPClient("POST", fmt.Sprintf("workflows/%v/jobs", apiCreateWorkflowUuid), body)
+	resp, err := getNfsHTTPClient("POST", clusterId, fmt.Sprintf("workflows/%v/jobs", apiCreateWorkflowUuid), body)
 	if err != nil {
 		return nil, err
 	}
@@ -409,7 +413,7 @@ func createNfsVolume(project string, pvcName string, size string, username strin
 
 	// wait until job is executing
 	for {
-		job, err = getJob(job.JobId)
+		job, err = getJob(clusterId, job.JobId)
 		if err != nil {
 			log.Println("Error unmarshalling workflow job", err.Error())
 			return nil, errors.New(genericAPIError)
@@ -470,8 +474,8 @@ func getOpenshiftPV(clusterId, pvName string) (*gabs.Container, error) {
 	return json, nil
 }
 
-func getJob(jobId int) (*common.WorkflowJob, error) {
-	resp, err := getNfsHTTPClient("GET", fmt.Sprintf("workflows/jobs/%v", jobId), nil)
+func getJob(clusterId string, jobId int) (*common.WorkflowJob, error) {
+	resp, err := getNfsHTTPClient("GET", clusterId, fmt.Sprintf("workflows/jobs/%v", jobId), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -513,7 +517,7 @@ func growExistingVolume(clusterId string, pv *gabs.Container, newSize string, us
 		return nil
 	}
 	if pv.ExistsP("spec.nfs") {
-		if err := growNfsVolume(pv, newSize, username); err != nil {
+		if err := growNfsVolume(clusterId, pv, newSize, username); err != nil {
 			return err
 		}
 		return nil
@@ -521,7 +525,7 @@ func growExistingVolume(clusterId string, pv *gabs.Container, newSize string, us
 	return errors.New("Wrong pv name")
 }
 
-func growNfsVolume(pv *gabs.Container, newSize string, username string) error {
+func growNfsVolume(clusterId string, pv *gabs.Container, newSize string, username string) error {
 	nfsPath, ok := pv.Path("spec.nfs.path").Data().(string)
 	if !ok {
 		log.Println("spec.nfs.path not found in pv: growNfsVolume()")
@@ -551,7 +555,7 @@ func growNfsVolume(pv *gabs.Container, newSize string, username string) error {
 		return errors.New(genericAPIError)
 	}
 
-	resp, err := getNfsHTTPClient("POST", fmt.Sprintf("workflows/%v/jobs", apiChangeWorkflowUuid), body)
+	resp, err := getNfsHTTPClient("POST", clusterId, fmt.Sprintf("workflows/%v/jobs", apiChangeWorkflowUuid), body)
 	if err != nil {
 		return err
 	}
@@ -574,7 +578,7 @@ func growNfsVolume(pv *gabs.Container, newSize string, username string) error {
 
 	// wait until job is executing
 	for {
-		job, err = getJob(job.JobId)
+		job, err = getJob(clusterId, job.JobId)
 		if err != nil {
 			log.Println("Error unmarshalling workflow job", err.Error())
 			return errors.New(genericAPIError)

@@ -27,6 +27,7 @@ type GlusterApi struct {
 type NfsApi struct {
 	URL    string `json:"url"`
 	Secret string `json:"-"`
+	Proxy  string `json:"-"`
 }
 
 func clustersHandler(c *gin.Context) {

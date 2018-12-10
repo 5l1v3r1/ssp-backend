@@ -41,7 +41,7 @@ func RegisterRoutes(r *gin.RouterGroup) {
 	r.POST("/ose/volume/grow", growVolumeHandler)
 	r.POST("/ose/volume/gluster/fix", fixVolumeHandler)
 	// Get job status for NFS volumes because it takes a while
-	r.GET("/ose/volume/jobs/:job", jobStatusHandler)
+	r.GET("/ose/volume/jobs", jobStatusHandler)
 	r.GET("/ose/clusters", clustersHandler)
 }
 
@@ -282,14 +282,22 @@ func getGlusterHTTPClient(clusterId string, url string, body io.Reader) (*http.R
 	return resp, nil
 }
 
-func getNfsHTTPClient(method string, apiPath string, body io.Reader) (*http.Response, error) {
-	cfg := config.Config()
-	apiUrl := cfg.GetString("nfs_api_url")
-	apiSecret := cfg.GetString("nfs_api_secret")
-	nfsProxy := cfg.GetString("nfs_proxy")
+func getNfsHTTPClient(method, clusterId, apiPath string, body io.Reader) (*http.Response, error) {
+	cluster, err := getOpenshiftCluster(clusterId)
+	if err != nil {
+		return nil, err
+	}
+
+	if cluster.NfsApi == nil {
+		log.Printf("WARNING: NfsApi is not configured for cluster %v", clusterId)
+		return nil, errors.New(common.ConfigNotSetError)
+	}
+	apiUrl := cluster.NfsApi.URL
+	apiSecret := cluster.NfsApi.Secret
+	nfsProxy := cluster.NfsApi.Proxy
 
 	if apiUrl == "" || apiSecret == "" || nfsProxy == "" {
-		log.Println("Env variables 'NFS_PROXY', 'NFS_API_URL' and 'NFS_API_SECRET' must be specified")
+		log.Printf("WARNING: incorrect NFS config. Please see README for more details. ClusterId: %v", clusterId)
 		return nil, errors.New(common.ConfigNotSetError)
 	}
 
