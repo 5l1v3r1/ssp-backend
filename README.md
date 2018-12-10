@@ -62,8 +62,11 @@ openshift:
     glusterapi:
       url: http://glusterapi.com:2601
       secret: someverysecuresecret
+      ips: 10.10.10.10, 10.10.10.11
   - id: awsprod
     name: AWS Prod
+    url: https://master.example-prod.com
+    token: aeiaiesatehantehinartehinatenhiat
     nfsapi:
       url: https://nfsapi.com
       secret: s3Cr3T
