@@ -66,8 +66,8 @@ func createLvOnPool(size string, mountPoint string, lvName string) error {
 			lvName,
 			mountPoint),
 
-		// Mount
-		fmt.Sprintf("mount -o rw,inode64,noatime,nouuid /dev/%v/%v %v", VgName, lvName, mountPoint),
+		// Mount using mountpoint defined in fstab
+		fmt.Sprintf("mount %v", mountPoint),
 
 		// Create brick folder
 		fmt.Sprintf("mkdir %v/brick", mountPoint),
