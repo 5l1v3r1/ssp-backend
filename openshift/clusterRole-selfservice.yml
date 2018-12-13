@@ -36,6 +36,7 @@ rules:
   verbs:
   - create
   - get
+  - patch
 - apiGroups: null
   attributeRestrictions: null
   resources:
@@ -71,3 +72,4 @@ rules:
   - secrets
   verbs:
   - get
+  - create
