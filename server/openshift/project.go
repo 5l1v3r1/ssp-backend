@@ -10,9 +10,12 @@ import (
 
 	"fmt"
 
+	"crypto/tls"
 	"github.com/Jeffail/gabs"
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/common"
 	"github.com/gin-gonic/gin"
+	"gopkg.in/gomail.v2"
+	"os"
 )
 
 func newProjectHandler(c *gin.Context) {
@@ -28,6 +31,11 @@ func newProjectHandler(c *gin.Context) {
 		if err := createNewProject(data.ClusterId, data.Project, username, data.Billing, data.MegaId, false); err != nil {
 			c.JSON(http.StatusBadRequest, common.ApiResponse{Message: err.Error()})
 		} else {
+			err := sendNewProjectMail(data.Project, username, data.MegaId)
+			if err != nil {
+				log.Printf("Can't send e-mail about new project (%v).", err)
+			}
+
 			c.JSON(http.StatusOK, common.ApiResponse{
 				Message: fmt.Sprintf("Das Projekt %v wurde erstellt", data.Project),
 			})
@@ -173,6 +181,54 @@ func validateBillingInformation(clusterId, project, billing, username string) er
 
 	// Validate permissions
 	if err := checkAdminPermissions(clusterId, username, project); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func sendNewProjectMail(projectName string, userName string, megaID string) error {
+
+	mailServer, ok := os.LookupEnv("MAIL_SERVER")
+	if !ok {
+		return errors.New("Error looking up MAIL_SERVER from environment.")
+	}
+
+	fromMail, ok := os.LookupEnv("MAIL_ADMIN_SENDER")
+	if !ok {
+		return errors.New("Error looking up MAIL_ADMIN_SENDER from environment.")
+	}
+
+	newProjectMail, ok := os.LookupEnv("MAIL_NEW_PROJECT_RECIPIENT")
+	if !ok {
+		return errors.New("Error looking up MAIL_NEW_PROJECT_RECIPIENT from environment.")
+	}
+
+	m := gomail.NewMessage()
+	m.SetHeader("From", fromMail)
+
+	m.SetHeader("To", newProjectMail)
+	m.SetHeader("Subject", fmt.Sprintf("Neues Projekt '%v' auf OpenShift", projectName))
+
+	m.SetBody("text/html", fmt.Sprintf(`
+	Sehr geehrte Damen und Herren,
+	<br><br>
+	das folgende Projekte wurde auf OpenShift erstellt.
+	<br><br>
+	Projektname:	%v<br>
+	Ersteller:		%v<br>
+	Mega ID:		%v
+	<br><br>
+	Mit freundlichen Grüssen<br>
+	Euer Cloud Platforms Team<br>
+	IT-OM-SDL-CLP
+	`, projectName, userName, megaID))
+
+	d := gomail.Dialer{Host: mailServer, Port: 25}
+	d.TLSConfig = &tls.Config{InsecureSkipVerify: true}
+	err := d.DialAndSend(m)
+
+	if err != nil {
 		return err
 	}
 
