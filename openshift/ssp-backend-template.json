@@ -210,6 +210,18 @@
                                     {
                                         "name": "OPENSHIFT_CHARGEBACK_CURRENCY",
                                         "value": "${OPENSHIFT_CHARGEBACK_CURRENCY}"
+                                    },
+                                    {
+                                        "name": "MAIL_SERVER",
+                                        "value": "${MAIL_SERVER}"
+                                    },
+                                    {
+                                        "name": "MAIL_ADMIN_FROM",
+                                        "value": "${MAIL_ADMIN_FROM}"
+                                    },
+                                    {
+                                        "name": "MAIL_NEW_PROJECT_RECIPIENT",
+                                        "value": "${MAIL_NEW_PROJECT_RECIPIENT}"
                                     }
                                 ],
                                 "livenessProbe": {
@@ -451,17 +463,17 @@
         {
             "name": "JENKINS_URL",
             "description": "The url (with protocol) of the Jenkins server",
-            "required": true,
+            "required": true
         },
         {
             "name": "WZUBACKEND_URL",
             "description": "The url (with protocol) of the WZU Backend",
-            "required": true,
+            "required": true
         },
         {
             "name": "WZUBACKEND_SECRET",
             "description": "The secret (password) of the WZU Backend",
-            "required": true,
+            "required": true
         },
         {
             "name": "AWS_NONPROD_LOGIN_URL",
@@ -508,6 +520,18 @@
             "description": "Value for Währung in OpenShift chargeback reports",
             "value": "CHF",
             "required": true
+        },
+        {
+            "name": "MAIL_SERVER",
+            "description": "SMTP server for sending e-mails."
+        },
+        {
+            "name": "MAIL_ADMIN_FROM",
+            "description": "E-mail address from which e-mails are sent."
+        },
+        {
+            "name": "MAIL_NEW_PROJECT_RECIPIENT",
+            "description": "E-mail address for the new project notification."
         }
     ]
 }
