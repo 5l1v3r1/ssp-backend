@@ -43,11 +43,11 @@ func newPullSecretHandler(c *gin.Context) {
 
 	secret.Set(secretData, "data", ".dockerconfigjson")
 	secret.Set("kubernetes.io/dockerconfigjson", "type")
-	if err := createSecret(data.Project, secret); err != nil {
+	if err := createSecret(data.ClusterId, data.Project, secret); err != nil {
 		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: err.Error()})
 		return
 	}
-	if err := addPullSecretToServiceaccount(data.Project, "default"); err != nil {
+	if err := addPullSecretToServiceaccount(data.ClusterId, data.Project, "default"); err != nil {
 		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: err.Error()})
 		return
 	}
@@ -55,7 +55,7 @@ func newPullSecretHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, common.ApiResponse{Message: "Das Pull-Secret wurde angelegt"})
 }
 
-func addPullSecretToServiceaccount(namespace string, serviceaccount string) error {
+func addPullSecretToServiceaccount(clusterId, namespace string, serviceaccount string) error {
 	url := fmt.Sprintf("api/v1/namespaces/%v/serviceaccounts/%v", namespace, serviceaccount)
 	patch := []common.JsonPatch{
 		{
@@ -75,7 +75,7 @@ func addPullSecretToServiceaccount(namespace string, serviceaccount string) erro
 		return errors.New(genericAPIError)
 	}
 
-	resp, err := getOseHTTPClient("PATCH", url, bytes.NewBuffer(patchBytes))
+	resp, err := getOseHTTPClient("PATCH", clusterId, url, bytes.NewBuffer(patchBytes))
 	if err != nil {
 		return err
 	}
@@ -91,10 +91,10 @@ func addPullSecretToServiceaccount(namespace string, serviceaccount string) erro
 
 }
 
-func createSecret(namespace string, secret *gabs.Container) error {
+func createSecret(clusterId, namespace string, secret *gabs.Container) error {
 	url := fmt.Sprintf("api/v1/namespaces/%v/secrets", namespace)
 
-	resp, err := getOseHTTPClient("POST", url, bytes.NewReader(secret.Bytes()))
+	resp, err := getOseHTTPClient("POST", clusterId, url, bytes.NewReader(secret.Bytes()))
 	if err != nil {
 		return err
 	}

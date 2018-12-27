@@ -60,14 +60,6 @@
                                         "value": "${TZ}"
                                     },
                                     {
-                                        "name": "OPENSHIFT_API",
-                                        "value": "${OPENSHIFT_API}"
-                                    },
-                                    {
-                                        "name": "OPENSHIFT_TOKEN",
-                                        "value": "${OPENSHIFT_TOKEN}"
-                                    },
-                                    {
                                         "name": "MAX_QUOTA_CPU",
                                         "value": "${MAX_QUOTA_CPU}"
                                     },
@@ -106,18 +98,6 @@
                                     {
                                         "name": "MAX_VOLUME_GB",
                                         "value": "${MAX_VOLUME_GB}"
-                                    },
-                                    {
-                                        "name": "GLUSTER_API_URL",
-                                        "value": "${GLUSTER_API_URL}"
-                                    },
-                                    {
-                                        "name": "GLUSTER_SECRET",
-                                        "value": "${GLUSTER_SECRET}"
-                                    },
-                                    {
-                                        "name": "GLUSTER_IPS",
-                                        "value": "${GLUSTER_IPS}"
                                     },
                                     {
                                         "name": "AWS_S3_BUCKET_PREFIX",
@@ -178,18 +158,6 @@
                                     {
                                         "name": "AWS_PROD_LOGIN_URL",
                                         "value": "${AWS_PROD_LOGIN_URL}"
-                                    },
-                                    {
-                                        "name": "NFS_API_URL",
-                                        "value": "${NFS_API_URL}"
-                                    },
-                                    {
-                                        "name": "NFS_API_SECRET",
-                                        "value": "${NFS_API_SECRET}"
-                                    },
-                                    {
-                                        "name": "NFS_PROXY",
-                                        "value": "${NFS_PROXY}"
                                     },
                                     {
                                         "name": "NEWRELIC_API_TOKEN",
@@ -324,16 +292,6 @@
             "value": "Europe/Zurich"
         },
         {
-            "name": "OPENSHIFT_API",
-            "description": "The openshift url",
-            "required": true
-        },
-        {
-            "name": "OPENSHIFT_TOKEN",
-            "description": "The token from the openshift serviceaccount",
-            "required": true
-        },
-        {
             "name": "MAX_QUOTA_CPU",
             "description": "How many CPU can a user assign to his project",
             "value": "100",
@@ -387,21 +345,6 @@
             "description": "A secret password to encrypt session information",
             "generate": "expression",
             "from": "[a-zA-Z0-9]{40}",
-            "required": true
-        },
-        {
-            "name": "GLUSTER_API_URL",
-            "description": "The URL of your Gluster-API",
-            "required": true
-        },
-        {
-            "name": "GLUSTER_SECRET",
-            "description": "The basic auth password you configured on the gluster api",
-            "required": true
-        },
-        {
-            "name": "GLUSTER_IPS",
-            "description": "IP addresses of the gluster endpoints (comma separated)",
             "required": true
         },
         {
@@ -482,18 +425,6 @@
         {
             "name": "AWS_PROD_LOGIN_URL",
             "description": "The console url (with protocol) of the AWS prod account"
-        },
-        {
-            "name": "NFS_API_URL",
-            "description": "The URL of your NFS-API"
-        },
-        {
-            "name": "NFS_API_SECRET",
-            "description": "The password of your NFS-API"
-        },
-        {
-            "name": "NFS_PROXY",
-            "description": "The proxy to access the NFS-API"
         },
         {
             "name": "NEWRELIC_API_TOKEN",

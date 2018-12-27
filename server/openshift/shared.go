@@ -27,10 +27,10 @@ const (
 func RegisterRoutes(r *gin.RouterGroup) {
 	// OpenShift
 	r.POST("/ose/project", newProjectHandler)
-	r.GET("/ose/project/:project/admins", getProjectAdminsHandler)
+	r.GET("/ose/project/admins", getProjectAdminsHandler)
 	r.POST("/ose/testproject", newTestProjectHandler)
 	r.POST("/ose/serviceaccount", newServiceAccountHandler)
-	r.GET("/ose/billing/:project", getBillingHandler)
+	r.GET("/ose/billing", getBillingHandler)
 	r.POST("/ose/billing", updateBillingHandler)
 	r.POST("/ose/quotas", editQuotasHandler)
 	r.POST("/ose/chargeback", chargebackHandler)
@@ -41,15 +41,16 @@ func RegisterRoutes(r *gin.RouterGroup) {
 	r.POST("/ose/volume/grow", growVolumeHandler)
 	r.POST("/ose/volume/gluster/fix", fixVolumeHandler)
 	// Get job status for NFS volumes because it takes a while
-	r.GET("/ose/volume/jobs/:job", jobStatusHandler)
+	r.GET("/ose/volume/jobs", jobStatusHandler)
+	r.GET("/ose/clusters", clustersHandler)
 }
 
 func RegisterSecRoutes(r *gin.RouterGroup) {
 	r.POST("/gluster/volume/fix", fixVolumeHandler)
 }
 
-func getProjectAdminsAndOperators(project string) ([]string, []string, error) {
-	adminRoleBinding, err := getAdminRoleBinding(project)
+func getProjectAdminsAndOperators(clusterId, project string) ([]string, []string, error) {
+	adminRoleBinding, err := getAdminRoleBinding(clusterId, project)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -76,7 +77,7 @@ func getProjectAdminsAndOperators(project string) ([]string, []string, error) {
 	var operators []string
 	if hasOperatorGroup {
 		// Going to add the operator group to the admins
-		json, err := getOperatorGroup()
+		json, err := getOperatorGroup(clusterId)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -96,10 +97,10 @@ func getProjectAdminsAndOperators(project string) ([]string, []string, error) {
 	return common.RemoveDuplicates(admins), operators, nil
 }
 
-func checkAdminPermissions(username string, project string) error {
+func checkAdminPermissions(clusterId, username, project string) error {
 	// Check if user has admin-access
 	hasAccess := false
-	admins, operators, err := getProjectAdminsAndOperators(project)
+	admins, operators, err := getProjectAdminsAndOperators(clusterId, project)
 	if err != nil {
 		return err
 	}
@@ -132,8 +133,8 @@ func checkAdminPermissions(username string, project string) error {
 	return fmt.Errorf("Du hast keine Admin Rechte auf dem Projekt. Bestehende Admins sind folgende Benutzer: %v", strings.Join(admins, ", "))
 }
 
-func getOperatorGroup() (*gabs.Container, error) {
-	resp, err := getOseHTTPClient("GET", "oapi/v1/groups/operator", nil)
+func getOperatorGroup(clusterId string) (*gabs.Container, error) {
+	resp, err := getOseHTTPClient("GET", clusterId, "oapi/v1/groups/operator", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -148,8 +149,8 @@ func getOperatorGroup() (*gabs.Container, error) {
 	return json, nil
 }
 
-func getAdminRoleBinding(project string) (*gabs.Container, error) {
-	resp, err := getOseHTTPClient("GET", "oapi/v1/namespaces/"+project+"/rolebindings/admin", nil)
+func getAdminRoleBinding(clusterId, project string) (*gabs.Container, error) {
+	resp, err := getOseHTTPClient("GET", clusterId, "oapi/v1/namespaces/"+project+"/rolebindings/admin", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -172,15 +173,20 @@ func getAdminRoleBinding(project string) (*gabs.Container, error) {
 	return json, nil
 }
 
-func getOseHTTPClient(method string, endURL string, body io.Reader) (*http.Response, error) {
-	token := config.Config().GetString("openshift_token")
+func getOseHTTPClient(method string, clusterId string, endURL string, body io.Reader) (*http.Response, error) {
+	cluster, err := getOpenshiftCluster(clusterId)
+	if err != nil {
+		return nil, err
+	}
+
+	token := cluster.Token
 	if token == "" {
-		log.Println("Env variable 'OPENSHIFT_TOKEN' must be specified")
+		log.Printf("WARNING: Cluster token not found. Please see README for more details. ClusterId: %v", clusterId)
 		return nil, errors.New(common.ConfigNotSetError)
 	}
-	base := config.Config().GetString("openshift_api")
+	base := cluster.URL
 	if base == "" {
-		log.Println("Env variable 'OPENSHIFT_API' must be specified")
+		log.Printf("WARNING: Cluster URL not found. Please see README for more details. ClusterId: %v", clusterId)
 		return nil, errors.New(common.ConfigNotSetError)
 	}
 
@@ -239,13 +245,22 @@ func getWZUBackendClient(method string, endUrl string, body io.Reader) (*http.Re
 	return resp, nil
 }
 
-func getGlusterHTTPClient(url string, body io.Reader) (*http.Response, error) {
-	cfg := config.Config()
-	apiUrl := cfg.GetString("gluster_api_url")
-	apiSecret := cfg.GetString("gluster_secret")
+func getGlusterHTTPClient(clusterId string, url string, body io.Reader) (*http.Response, error) {
+	cluster, err := getOpenshiftCluster(clusterId)
+	if err != nil {
+		return nil, err
+	}
+
+	if cluster.GlusterApi == nil {
+		log.Printf("WARNING: GlusterApi is not configured for cluster %v", clusterId)
+		return nil, errors.New(common.ConfigNotSetError)
+	}
+
+	apiUrl := cluster.GlusterApi.URL
+	apiSecret := cluster.GlusterApi.Secret
 
 	if apiUrl == "" || apiSecret == "" {
-		log.Println("Env variables 'GLUSTER_API_URL' and 'GLUSTER_SECRET' must be specified")
+		log.Printf("WARNING: Gluster url or secret not found. Please see README for more details. ClusterId: %v", clusterId)
 		return nil, errors.New(common.ConfigNotSetError)
 	}
 
@@ -267,14 +282,22 @@ func getGlusterHTTPClient(url string, body io.Reader) (*http.Response, error) {
 	return resp, nil
 }
 
-func getNfsHTTPClient(method string, apiPath string, body io.Reader) (*http.Response, error) {
-	cfg := config.Config()
-	apiUrl := cfg.GetString("nfs_api_url")
-	apiSecret := cfg.GetString("nfs_api_secret")
-	nfsProxy := cfg.GetString("nfs_proxy")
+func getNfsHTTPClient(method, clusterId, apiPath string, body io.Reader) (*http.Response, error) {
+	cluster, err := getOpenshiftCluster(clusterId)
+	if err != nil {
+		return nil, err
+	}
+
+	if cluster.NfsApi == nil {
+		log.Printf("WARNING: NfsApi is not configured for cluster %v", clusterId)
+		return nil, errors.New(common.ConfigNotSetError)
+	}
+	apiUrl := cluster.NfsApi.URL
+	apiSecret := cluster.NfsApi.Secret
+	nfsProxy := cluster.NfsApi.Proxy
 
 	if apiUrl == "" || apiSecret == "" || nfsProxy == "" {
-		log.Println("Env variables 'NFS_PROXY', 'NFS_API_URL' and 'NFS_API_SECRET' must be specified")
+		log.Printf("WARNING: incorrect NFS config. Please see README for more details. ClusterId: %v", clusterId)
 		return nil, errors.New(common.ConfigNotSetError)
 	}
 

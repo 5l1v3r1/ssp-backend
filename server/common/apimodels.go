@@ -9,8 +9,13 @@ type ProjectName struct {
 	Project string `json:"project"`
 }
 
+type OpenshiftBase struct {
+	Project   string `json:"project"`
+	ClusterId string `json:"clusterid"`
+}
+
 type NewVolumeCommand struct {
-	ProjectName
+	OpenshiftBase
 	Size       string `json:"size"`
 	PvcName    string `json:"pvcName"`
 	Mode       string `json:"mode"`
@@ -18,26 +23,27 @@ type NewVolumeCommand struct {
 }
 
 type FixVolumeCommand struct {
-	ProjectName
+	OpenshiftBase
 }
 
 type GrowVolumeCommand struct {
-	NewSize string `json:"newSize"`
-	PvName  string `json:"pvName"`
+	ClusterId string `json:"clusterid"`
+	NewSize   string `json:"newSize"`
+	PvName    string `json:"pvName"`
 }
 
 type NewProjectCommand struct {
-	ProjectName
+	OpenshiftBase
 	Billing string `json:"billing"`
 	MegaId  string `json:"megaId"`
 }
 
 type NewTestProjectCommand struct {
-	ProjectName
+	OpenshiftBase
 }
 
 type EditBillingDataCommand struct {
-	ProjectName
+	OpenshiftBase
 	Billing string `json:"billing"`
 }
 
@@ -54,19 +60,19 @@ type EditSematextPlanCommand struct {
 }
 
 type EditQuotasCommand struct {
-	ProjectName
+	OpenshiftBase
 	CPU    int `json:"cpu"`
 	Memory int `json:"memory"`
 }
 
 type NewServiceAccountCommand struct {
-	ProjectName
+	OpenshiftBase
 	ServiceAccount  string `json:"serviceAccount"`
 	OrganizationKey string `json:"organizationKey"`
 }
 
 type NewPullSecretCommand struct {
-	ProjectName
+	OpenshiftBase
 	Repository string
 	Username   string
 	Password   string
@@ -103,12 +109,6 @@ type WorkflowJobStatus struct {
 type WorkflowExecutionProgress struct {
 	CurrentCommandIndex float64 `json:"current-command-index"`
 	CommandsNumber      float64 `json:"commands-number"`
-}
-
-type FeatureToggleResponse struct {
-	Gluster bool `json:"gluster"`
-	DDC     bool `json:"ddc"`
-	Nfs     bool `json:"nfs"`
 }
 
 type ApiResponse struct {

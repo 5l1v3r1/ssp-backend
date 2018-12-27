@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"net/http"
 
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/aws"
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/common"
@@ -29,7 +30,7 @@ func main() {
 	// Public routes
 	authMiddleware := common.GetAuthMiddleware()
 	router.POST("/login", authMiddleware.LoginHandler)
-	router.GET("/config", common.ConfigHandler)
+	router.GET("/features", featuresHandler)
 
 	// Protected routes
 	auth := router.Group("/api/")
@@ -62,4 +63,19 @@ func main() {
 	if err != nil {
 		log.Println(err)
 	}
+}
+
+// not in common package, because that generates an import loop
+type featureToggleResponse struct {
+	Openshift openshift.Features `json:"openshift"`
+	DDC       ddc.Features       `json:"ddc"`
+}
+
+func featuresHandler(c *gin.Context) {
+	params := c.Request.URL.Query()
+	clusterId := params.Get("clusterid")
+	c.JSON(http.StatusOK, featureToggleResponse{
+		Openshift: openshift.GetFeatures(clusterId),
+		DDC:       ddc.GetFeatures(),
+	})
 }

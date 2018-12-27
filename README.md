@@ -51,6 +51,28 @@ Just create a 'oc new-app' from the dockerfile.
 ### Parameters
 [openshift/ssp-backend-template.json#L254](https://github.com/SchweizerischeBundesbahnen/ssp-backend/blob/master/openshift/ssp-backend-template.json#L254)
 
+Openshift config must be in a configmap named `config.yaml`:
+
+```
+openshift:
+  - id: awsdev
+    name: AWS Dev
+    url: https://master.example.com:8443
+    token: aeiaiesatehantehinartehinatenhiat
+    glusterapi:
+      url: http://glusterapi.com:2601
+      secret: someverysecuresecret
+      ips: 10.10.10.10, 10.10.10.11
+  - id: awsprod
+    name: AWS Prod
+    url: https://master.example-prod.com
+    token: aeiaiesatehantehinartehinatenhiat
+    nfsapi:
+      url: https://nfsapi.com
+      secret: s3Cr3T
+      proxy: http://nfsproxy.com:8000
+```
+
 ### Route timeout
 The `api/aws/ec2` endpoints wait until VMs have the desired state.
 This can exceed the default timeout and result in a 504 error on the client.

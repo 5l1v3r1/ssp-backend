@@ -16,7 +16,7 @@ func Init(env string) {
 	config.SetConfigType("yaml")
 	config.SetConfigName("config")
 	config.AddConfigPath(".")
-	config.AddConfigPath("openshift/")
+	config.AddConfigPath("/etc/")
 	config.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	config.AutomaticEnv()
 	if err := config.ReadInConfig(); err != nil {

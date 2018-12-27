@@ -28,7 +28,7 @@ func newProjectHandler(c *gin.Context) {
 			return
 		}
 
-		if err := createNewProject(data.Project, username, data.Billing, data.MegaId, false); err != nil {
+		if err := createNewProject(data.ClusterId, data.Project, username, data.Billing, data.MegaId, false); err != nil {
 			c.JSON(http.StatusBadRequest, common.ApiResponse{Message: err.Error()})
 		} else {
 			err := sendNewProjectMail(data.Project, username, data.MegaId)
@@ -59,7 +59,7 @@ func newTestProjectHandler(c *gin.Context) {
 			return
 		}
 
-		if err := createNewProject(data.Project, username, billing, "", true); err != nil {
+		if err := createNewProject(data.ClusterId, data.Project, username, billing, "", true); err != nil {
 			c.JSON(http.StatusBadRequest, common.ApiResponse{Message: err.Error()})
 		} else {
 			c.JSON(http.StatusOK, common.ApiResponse{
@@ -73,11 +73,19 @@ func newTestProjectHandler(c *gin.Context) {
 
 func getProjectAdminsHandler(c *gin.Context) {
 	username := common.GetUserName(c)
-	project := c.Param("project")
+
+	params := c.Request.URL.Query()
+	clusterId := params.Get("clusterid")
+	project := params.Get("project")
+
+	if clusterId == "" || project == "" {
+		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: wrongAPIUsageError})
+		return
+	}
 
 	log.Printf("%v has queried all the admins of project %v", username, project)
 
-	if admins, _, err := getProjectAdminsAndOperators(project); err != nil {
+	if admins, _, err := getProjectAdminsAndOperators(clusterId, project); err != nil {
 		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: err.Error()})
 	} else {
 		c.JSON(http.StatusOK, common.AdminList{
@@ -88,14 +96,17 @@ func getProjectAdminsHandler(c *gin.Context) {
 
 func getBillingHandler(c *gin.Context) {
 	username := common.GetUserName(c)
-	project := c.Param("project")
 
-	if err := validateAdminAccess(username, project); err != nil {
+	params := c.Request.URL.Query()
+	clusterId := params.Get("clusterid")
+	project := params.Get("project")
+
+	if err := validateAdminAccess(clusterId, username, project); err != nil {
 		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: err.Error()})
 		return
 	}
 
-	if billingData, err := getProjectBillingInformation(project); err != nil {
+	if billingData, err := getProjectBillingInformation(clusterId, project); err != nil {
 		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: err.Error()})
 	} else {
 		c.JSON(http.StatusOK, common.ApiResponse{
@@ -109,12 +120,12 @@ func updateBillingHandler(c *gin.Context) {
 
 	var data common.EditBillingDataCommand
 	if c.BindJSON(&data) == nil {
-		if err := validateBillingInformation(data.Project, data.Billing, username); err != nil {
+		if err := validateBillingInformation(data.ClusterId, data.Project, data.Billing, username); err != nil {
 			c.JSON(http.StatusBadRequest, common.ApiResponse{Message: err.Error()})
 			return
 		}
 
-		if err := createOrUpdateMetadata(data.Project, data.Billing, "", username, false); err != nil {
+		if err := createOrUpdateMetadata(data.ClusterId, data.Project, data.Billing, "", username, false); err != nil {
 			c.JSON(http.StatusBadRequest, common.ApiResponse{Message: err.Error()})
 		} else {
 			c.JSON(http.StatusOK, common.ApiResponse{
@@ -138,20 +149,28 @@ func validateNewProject(project string, billing string, testProject bool) error 
 	return nil
 }
 
-func validateAdminAccess(username string, project string) error {
-	if len(project) == 0 {
+func validateAdminAccess(clusterId, username, project string) error {
+	if clusterId == "" {
+		return errors.New("Cluster muss angegeben werden")
+	}
+
+	if project == "" {
 		return errors.New("Projektname muss angegeben werden")
 	}
 
 	// Validate permissions
-	if err := checkAdminPermissions(username, project); err != nil {
+	if err := checkAdminPermissions(clusterId, username, project); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func validateBillingInformation(project string, billing string, username string) error {
+func validateBillingInformation(clusterId, project, billing, username string) error {
+	if len(clusterId) == 0 {
+		return errors.New("Cluster muss angegeben werden")
+	}
+
 	if len(project) == 0 {
 		return errors.New("Projektname muss angegeben werden")
 	}
@@ -161,7 +180,7 @@ func validateBillingInformation(project string, billing string, username string)
 	}
 
 	// Validate permissions
-	if err := checkAdminPermissions(username, project); err != nil {
+	if err := checkAdminPermissions(clusterId, username, project); err != nil {
 		return err
 	}
 
@@ -216,11 +235,11 @@ func sendNewProjectMail(projectName string, userName string, megaID string) erro
 	return nil
 }
 
-func createNewProject(project string, username string, billing string, megaid string, testProject bool) error {
+func createNewProject(clusterId string, project string, username string, billing string, megaid string, testProject bool) error {
 	project = strings.ToLower(project)
 	p := newObjectRequest("ProjectRequest", project)
 
-	resp, err := getOseHTTPClient("POST", "oapi/v1/projectrequests", bytes.NewReader(p.Bytes()))
+	resp, err := getOseHTTPClient("POST", clusterId, "oapi/v1/projectrequests", bytes.NewReader(p.Bytes()))
 	if err != nil {
 		return err
 	}
@@ -229,11 +248,11 @@ func createNewProject(project string, username string, billing string, megaid st
 	if resp.StatusCode == http.StatusCreated {
 		log.Printf("%v created a new project: %v", username, project)
 
-		if err := changeProjectPermission(project, username); err != nil {
+		if err := changeProjectPermission(clusterId, project, username); err != nil {
 			return err
 		}
 
-		if err := createOrUpdateMetadata(project, billing, megaid, username, testProject); err != nil {
+		if err := createOrUpdateMetadata(clusterId, project, billing, megaid, username, testProject); err != nil {
 			return err
 		}
 		return nil
@@ -248,8 +267,8 @@ func createNewProject(project string, username string, billing string, megaid st
 	return errors.New(genericAPIError)
 }
 
-func changeProjectPermission(project string, username string) error {
-	adminRoleBinding, err := getAdminRoleBinding(project)
+func changeProjectPermission(clusterId string, project string, username string) error {
+	adminRoleBinding, err := getAdminRoleBinding(clusterId, project)
 	if err != nil {
 		return err
 	}
@@ -259,6 +278,7 @@ func changeProjectPermission(project string, username string) error {
 
 	// Update the policyBindings on the api
 	resp, err := getOseHTTPClient("PUT",
+		clusterId,
 		"oapi/v1/namespaces/"+project+"/rolebindings/admin",
 		bytes.NewReader(adminRoleBinding.Bytes()))
 	if err != nil {
@@ -277,8 +297,8 @@ func changeProjectPermission(project string, username string) error {
 	return errors.New(genericAPIError)
 }
 
-func getProjectBillingInformation(project string) (string, error) {
-	resp, err := getOseHTTPClient("GET", "api/v1/namespaces/"+project, nil)
+func getProjectBillingInformation(clusterId, project string) (string, error) {
+	resp, err := getOseHTTPClient("GET", clusterId, "api/v1/namespaces/"+project, nil)
 	if err != nil {
 		return "", err
 	}
@@ -299,8 +319,8 @@ func getProjectBillingInformation(project string) (string, error) {
 	}
 }
 
-func createOrUpdateMetadata(project string, billing string, megaid string, username string, testProject bool) error {
-	resp, err := getOseHTTPClient("GET", "api/v1/namespaces/"+project, nil)
+func createOrUpdateMetadata(clusterId, project string, billing string, megaid string, username string, testProject bool) error {
+	resp, err := getOseHTTPClient("GET", clusterId, "api/v1/namespaces/"+project, nil)
 	if err != nil {
 		return err
 	}
@@ -326,7 +346,7 @@ func createOrUpdateMetadata(project string, billing string, megaid string, usern
 		annotations.Set(megaid, "openshift.io/MEGAID")
 	}
 
-	resp, err = getOseHTTPClient("PUT", "api/v1/namespaces/"+project, bytes.NewReader(json.Bytes()))
+	resp, err = getOseHTTPClient("PUT", clusterId, "api/v1/namespaces/"+project, bytes.NewReader(json.Bytes()))
 	if err != nil {
 		return err
 	}
