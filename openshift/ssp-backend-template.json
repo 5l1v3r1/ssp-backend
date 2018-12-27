@@ -216,8 +216,8 @@
                                         "value": "${MAIL_SERVER}"
                                     },
                                     {
-                                        "name": "MAIL_ADMIN_FROM",
-                                        "value": "${MAIL_ADMIN_FROM}"
+                                        "name": "MAIL_ADMIN_SENDER",
+                                        "value": "${MAIL_ADMIN_SENDER}"
                                     },
                                     {
                                         "name": "MAIL_NEW_PROJECT_RECIPIENT",
@@ -526,7 +526,7 @@
             "description": "SMTP server for sending e-mails."
         },
         {
-            "name": "MAIL_ADMIN_FROM",
+            "name": "MAIL_ADMIN_SENDER",
             "description": "E-mail address from which e-mails are sent."
         },
         {
