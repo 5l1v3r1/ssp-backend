@@ -20,6 +20,7 @@ sematext_base_url:
 sec_api_password:
 logsene_discountcode:
 ddc_api:
+otc_api:
 jenkins_url:
 wzubackend_url:
 wzubackend_secret:
