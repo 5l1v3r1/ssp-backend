@@ -9,6 +9,7 @@ import (
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/config"
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/ddc"
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/openshift"
+	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/otc"
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/sematext"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -45,6 +46,9 @@ func main() {
 		// AWS routes
 		aws.RegisterRoutes(auth)
 
+		// OTC routes
+		otc.RegisterRoutes(auth)
+
 		// Sematext routes
 		sematext.RegisterRoutes(auth)
 	}
@@ -69,6 +73,7 @@ func main() {
 type featureToggleResponse struct {
 	Openshift openshift.Features `json:"openshift"`
 	DDC       ddc.Features       `json:"ddc"`
+	OTC       otc.Features       `json:"otc"`
 }
 
 func featuresHandler(c *gin.Context) {
@@ -77,5 +82,6 @@ func featuresHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, featureToggleResponse{
 		Openshift: openshift.GetFeatures(clusterId),
 		DDC:       ddc.GetFeatures(),
+		OTC:       otc.GetFeatures(),
 	})
 }

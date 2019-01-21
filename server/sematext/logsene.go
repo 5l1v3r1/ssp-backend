@@ -285,9 +285,9 @@ func getAllLogsenePlans() ([]common.SematextLogsenePlan, error) {
 	plans := []common.SematextLogsenePlan{}
 	for _, plan := range allPlans {
 		plans = append(plans, common.SematextLogsenePlan{
-			PlanId: int(plan.Path("id").Data().(float64)),
-			Name:   plan.Path("name").Data().(string),
-			IsFree: plan.Path("free").Data().(bool),
+			PlanId:                     int(plan.Path("id").Data().(float64)),
+			Name:                       plan.Path("name").Data().(string),
+			IsFree:                     plan.Path("free").Data().(bool),
 			DefaultDailyMaxLimitSizeMb: plan.Path("defaultDailyMaxLimitSizeMb").Data().(float64),
 			PricePerMonth:              round(30*plan.Path("pricePerDay").Data().(float64), 0.05),
 		})
