@@ -71,6 +71,49 @@ func newTestProjectHandler(c *gin.Context) {
 	}
 }
 
+func getProjectsHandler(c *gin.Context) {
+	username := common.GetUserName(c)
+	params := c.Request.URL.Query()
+	clusterId := params.Get("clusterid")
+	if clusterId == "" {
+		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: wrongAPIUsageError})
+		return
+	}
+	log.Printf("%v has queried all his projects in clusterid: %v", username, clusterId)
+	projects, err := getUserProjects(clusterId, username)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: err.Error()})
+	} else {
+		c.JSON(http.StatusOK, projects)
+	}
+}
+
+func getUserProjects(clusterid, username string) ([]string, error) {
+	// TODO: only return projects, where the user has access
+	resp, err := getOseHTTPClient("GET", clusterid, "oapi/v1/projects", nil)
+	if err != nil {
+		return []string{}, err
+	}
+
+	defer resp.Body.Close()
+
+	json, err := gabs.ParseJSONBuffer(resp.Body)
+	if err != nil {
+		log.Println("error decoding json:", err, resp.StatusCode)
+		return []string{}, errors.New(genericAPIError)
+	}
+	projects, err := json.Search("items").Children()
+	if err != nil {
+		log.Println("error getting projects: ", err)
+		return []string{}, errors.New(genericAPIError)
+	}
+	var projectNames []string
+	for _, project := range projects {
+		projectNames = append(projectNames, project.Path("metadata.name").Data().(string))
+	}
+	return projectNames, nil
+}
+
 func getProjectAdminsHandler(c *gin.Context) {
 	username := common.GetUserName(c)
 

@@ -27,6 +27,7 @@ const (
 func RegisterRoutes(r *gin.RouterGroup) {
 	// OpenShift
 	r.POST("/ose/project", newProjectHandler)
+	r.GET("/ose/projects", getProjectsHandler)
 	r.GET("/ose/project/admins", getProjectAdminsHandler)
 	r.POST("/ose/testproject", newTestProjectHandler)
 	r.POST("/ose/serviceaccount", newServiceAccountHandler)
