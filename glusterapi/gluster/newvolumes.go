@@ -239,6 +239,8 @@ func createGlusterVolume(project string, pvNumber int, mountPoint string) error 
 		volCmd += fmt.Sprintf("%v:%v/brick ", r, mountPoint)
 	}
 
+	volCmd += "--mode=script"
+
 	commands := []string{
 		volCmd,
 
