@@ -180,6 +180,10 @@
                                         "value": "${OPENSHIFT_CHARGEBACK_CURRENCY}"
                                     },
                                     {
+                                        "name": "DOCKER_REPOSITORY",
+                                        "value": "${DOCKER_REPOSITORY}"
+                                    },
+                                    {
                                         "name": "MAIL_SERVER",
                                         "value": "${MAIL_SERVER}"
                                     },
@@ -450,6 +454,12 @@
             "name": "OPENSHIFT_CHARGEBACK_CURRENCY",
             "description": "Value for Währung in OpenShift chargeback reports",
             "value": "CHF",
+            "required": true
+        },
+        {
+            "name": "DOCKER_REPOSITORY",
+            "description": "Default Docker repository (e.g. for the Pull-Secret)",
+            "value": "docker.bin.sbb.ch",
             "required": true
         },
         {
