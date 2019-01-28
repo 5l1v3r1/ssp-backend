@@ -73,8 +73,8 @@ type NewServiceAccountCommand struct {
 
 type NewPullSecretCommand struct {
 	OpenshiftBase
-	Username   string
-	Password   string
+	Username string
+	Password string
 }
 
 type CreateSnapshotCommand struct {

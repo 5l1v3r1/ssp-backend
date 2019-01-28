@@ -29,7 +29,7 @@ func newPullSecretHandler(c *gin.Context) {
 	cfg := config.Config()
 	dockerRepository := cfg.GetString("docker_repository")
 	if dockerRepository == "" {
-        log.Println("Env variable 'docker_repository' must be specified")
+		log.Println("Env variable 'docker_repository' must be specified")
 		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: common.ConfigNotSetError})
 		return
 	}
