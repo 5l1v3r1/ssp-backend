@@ -34,28 +34,36 @@ func newServiceAccountHandler(c *gin.Context) {
 	username := common.GetUserName(c)
 
 	var data common.NewServiceAccountCommand
-	if c.BindJSON(&data) == nil {
-		if err := validateNewServiceAccount(data.ClusterId, username, data.Project, data.ServiceAccount); err != nil {
+	if c.BindJSON(&data) != nil {
+		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: wrongAPIUsageError})
+		return
+	}
+
+	if err := validateNewServiceAccount(data.ClusterId, username, data.Project, data.ServiceAccount); err != nil {
+		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: err.Error()})
+		return
+	}
+
+	if err := createNewServiceAccount(data.ClusterId, username, data.Project, data.ServiceAccount); err != nil {
+		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: err.Error()})
+		return
+	}
+
+	if len(data.OrganizationKey) > 0 {
+
+		if err := createJenkinsCredential(data.ClusterId, data.Project, data.ServiceAccount, data.OrganizationKey); err != nil {
 			c.JSON(http.StatusBadRequest, common.ApiResponse{Message: err.Error()})
 			return
 		}
+		c.JSON(http.StatusOK, common.ApiResponse{
+			Message: fmt.Sprintf(`Der Service Account %v wurde angelegt und im Jenkins hinterlegt. Du findest das Credential & die CredentialId im Jenkins hier: <a href='%v' target='_blank'>Jenkins</a>`,
+				data.ServiceAccount, jenkinsUrl+"/job/"+data.OrganizationKey+"/credentials"),
+		})
 
-		if err := createNewServiceAccount(data.ClusterId, username, data.Project, data.ServiceAccount, data.OrganizationKey); err != nil {
-			c.JSON(http.StatusBadRequest, common.ApiResponse{Message: err.Error()})
-		} else {
-
-			if len(data.OrganizationKey) > 0 {
-				c.JSON(http.StatusOK, common.ApiResponse{
-					Message: fmt.Sprintf(`Der Service Account %v wurde angelegt und im Jenkins hinterlegt. Du findest das Credential & die CredentialId im Jenkins hier: <a href='%v' target='_blank'>Jenkins</a>`,
-						data.ServiceAccount, jenkinsUrl+"/job/"+data.OrganizationKey+"/credentials")})
-			} else {
-				c.JSON(http.StatusOK, common.ApiResponse{
-					Message: fmt.Sprintf("Der Service Account %v wurde angelegt", data.ServiceAccount),
-				})
-			}
-		}
 	} else {
-		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: wrongAPIUsageError})
+		c.JSON(http.StatusOK, common.ApiResponse{
+			Message: fmt.Sprintf("Der Service Account %v wurde angelegt", data.ServiceAccount),
+		})
 	}
 }
 
@@ -72,44 +80,28 @@ func validateNewServiceAccount(clusterId, username string, project string, servi
 	return nil
 }
 
-func createNewServiceAccount(clusterId, username, project, serviceaccount, organizationKey string) error {
+func createNewServiceAccount(clusterId, username, project, serviceaccount string) error {
 	p := newObjectRequest("ServiceAccount", serviceaccount)
 
-	resp, err := getOseHTTPClient("POST",
-		clusterId,
-		"api/v1/namespaces/"+project+"/serviceaccounts",
-		bytes.NewReader(p.Bytes()))
+	resp, err := getOseHTTPClient("POST", clusterId, "api/v1/namespaces/"+project+"/serviceaccounts", bytes.NewReader(p.Bytes()))
 	if err != nil {
 		return err
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode == http.StatusCreated {
-		log.Print(username + " created a new service account: " + serviceaccount + " on project " + project)
-
-		if len(organizationKey) > 0 {
-			if err = createJenkinsCredential(clusterId, project, serviceaccount, organizationKey); err != nil {
-				log.Println("error creating jenkins credential for service-account", err.Error())
-				return err
-			}
-		}
-
-		return nil
-	}
-
-	if resp.StatusCode == http.StatusForbidden {
-		bodyBytes, _ := ioutil.ReadAll(resp.Body)
-		log.Printf("Error creating service account: StatusCode: %v, Nachricht: %v", resp.StatusCode, string(bodyBytes))
-		return errors.New(genericAPIError)
-	}
-
 	if resp.StatusCode == http.StatusConflict {
 		return errors.New("Der Service-Account existiert bereits.")
 	}
 
-	errMsg, _ := ioutil.ReadAll(resp.Body)
-	log.Println("Error creating new project:", err, resp.StatusCode, string(errMsg))
-	return errors.New(genericAPIError)
+	if resp.StatusCode != http.StatusCreated {
+		errMsg, _ := ioutil.ReadAll(resp.Body)
+		log.Printf("Error creating service account: StatusCode: %v, Nachricht: %v", resp.StatusCode, string(errMsg))
+		return errors.New(genericAPIError)
+	}
+
+	log.Print(username + " created a new service account: " + serviceaccount + " on project " + project)
+
+	return nil
 }
 
 func getServiceAccount(clusterId, namespace, serviceaccount string) (*gabs.Container, error) {
