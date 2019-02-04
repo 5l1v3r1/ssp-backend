@@ -12,6 +12,7 @@ import (
 	"encoding/json"
 	"github.com/Jeffail/gabs"
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/common"
+	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/config"
 	"github.com/gin-gonic/gin"
 )
 
@@ -25,6 +26,13 @@ type Auth struct {
 
 func newPullSecretHandler(c *gin.Context) {
 	username := common.GetUserName(c)
+	cfg := config.Config()
+	dockerRepository := cfg.GetString("docker_repository")
+	if dockerRepository == "" {
+		log.Println("Env variable 'docker_repository' must be specified")
+		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: common.ConfigNotSetError})
+		return
+	}
 
 	var data common.NewPullSecretCommand
 	if c.BindJSON(&data) != nil {
@@ -32,14 +40,14 @@ func newPullSecretHandler(c *gin.Context) {
 		return
 	}
 	secret := newObjectRequest("Secret", "external-registry")
-	config := DockerConfig{
+	dockerConfig := DockerConfig{
 		Auths: make(map[string]*Auth),
 	}
 	auth := Auth{
 		Auth: []byte(fmt.Sprintf("%v:%v", data.Username, data.Password)),
 	}
-	config.Auths[data.Repository] = &auth
-	secretData, _ := json.Marshal(config)
+	dockerConfig.Auths[dockerRepository] = &auth
+	secretData, _ := json.Marshal(dockerConfig)
 
 	secret.Set(secretData, "data", ".dockerconfigjson")
 	secret.Set("kubernetes.io/dockerconfigjson", "type")
