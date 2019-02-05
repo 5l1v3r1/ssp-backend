@@ -221,6 +221,9 @@ func getAllLogseneAppsForUser(userMail string) ([]common.SematextAppList, error)
 
 	userApps := []common.SematextAppList{}
 	for _, app := range allApps {
+		if app.Path("appType").Data().(string) != "Logsene" {
+			continue
+		}
 		if common.DebugMode() {
 			log.Println(app.String())
 		}
