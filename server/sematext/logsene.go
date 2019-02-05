@@ -221,6 +221,9 @@ func getAllLogseneAppsForUser(userMail string) ([]common.SematextAppList, error)
 
 	userApps := []common.SematextAppList{}
 	for _, app := range allApps {
+		if common.DebugMode() {
+			log.Println(app.String())
+		}
 		appName := app.Path("name").Data().(string)
 		userRoles, err := app.Path("userRoles").Children()
 		if err != nil {
