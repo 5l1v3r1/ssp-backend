@@ -3,6 +3,7 @@ package otc
 import (
 	"fmt"
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/common"
+	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/config"
 	"github.com/gin-gonic/gin"
 	"github.com/gofrs/uuid"
 	"github.com/gophercloud/gophercloud"
@@ -19,7 +20,6 @@ import (
 	"golang.org/x/crypto/ssh"
 	"log"
 	"net/http"
-	"os"
 	"strings"
 )
 
@@ -111,9 +111,8 @@ func validateUserInput(data NewECSCommand) error {
 }
 
 func newECSHandler(c *gin.Context) {
-	networkId := os.Getenv("OTC_NETWORK_UUID")
-
-	if len(networkId) < 1 {
+	networkId := config.Config().GetString("otc_network_uuid")
+	if networkId == "" {
 		log.Println("Environment variable OTC_NETWORK_UUID must be set.")
 		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericOTCAPIError})
 		return
@@ -214,7 +213,7 @@ func newECSHandler(c *gin.Context) {
 }
 
 func createECSDisks(data NewECSCommand, serverName string, uniqueId string, username string) ([]bootfromvolume.BlockDevice, error) {
-	log.Println("Creating system and data disks.")
+	log.Println("Creating root, system and data disk.")
 
 	blockStorageClient, err := getBlockStorageClient()
 	if err != nil {
@@ -222,69 +221,69 @@ func createECSDisks(data NewECSCommand, serverName string, uniqueId string, user
 		return nil, err
 	}
 
-	// create system disk volume
-	volOpts := volumes.CreateOpts{
-		Size:             data.SystemDiskSize,
-		Name:             serverName + "-" + uniqueId,
-		Description:      serverName + "-" + uniqueId,
-		VolumeType:       data.SystemVolumeTypeId,
-		ImageID:          data.ImageId,
-		AvailabilityZone: data.AvailabilityZone,
-		Metadata: map[string]string{
-			"Owner":   username,
-			"Billing": data.Billing,
-			"Mega ID": data.MegaId,
-		},
-	}
-
-	vol, err := volumes.Create(blockStorageClient, volOpts).Extract()
-	if err != nil {
-		log.Println("Creating system disk volume failed.", err.Error())
-		return nil, err
-	}
-
-	err = volumes.WaitForStatus(blockStorageClient, vol.ID, "available", 60)
-	if err != nil {
-		log.Println("Error while waiting on system volume.", err.Error())
-		return nil, err
+	metadata := map[string]string{
+		"Owner":   username,
+		"Billing": data.Billing,
+		"Mega ID": data.MegaId,
 	}
 
 	var blockDevices []bootfromvolume.BlockDevice
 
-	// add system disk to the list
-	blockDevices = append(blockDevices, bootfromvolume.BlockDevice{SourceType: bootfromvolume.SourceVolume, DestinationType: bootfromvolume.DestinationVolume, UUID: vol.ID})
-
-	// data disks
-	for _, disk := range data.DataDisks {
-		volOpts := volumes.CreateOpts{
-			Size:             disk.DiskSize,
+	// create root disk volume
+	volOpts := []volumes.CreateOpts{
+		{
 			Name:             serverName + "-" + uniqueId,
 			Description:      serverName + "-" + uniqueId,
-			VolumeType:       disk.VolumeTypeId,
+			Size:             data.RootDiskSize,
+			VolumeType:       data.RootVolumeTypeId,
+			ImageID:          data.ImageId,
 			AvailabilityZone: data.AvailabilityZone,
-			Metadata: map[string]string{
-				"Owner":   username,
-				"Billing": data.Billing,
-				"Mega ID": data.MegaId,
-			},
-		}
-
-		vol, err := volumes.Create(blockStorageClient, volOpts).Extract()
-		if err != nil {
-			log.Println("Creating data disk volume failed.", err.Error())
-			return nil, err
-		}
-		blockDevices = append(blockDevices, bootfromvolume.BlockDevice{SourceType: bootfromvolume.SourceVolume, DestinationType: bootfromvolume.DestinationVolume, UUID: vol.ID, BootIndex: -1})
+			Metadata:         metadata,
+		},
+		{
+			Name:             serverName + "-" + uniqueId,
+			Description:      serverName + "-" + uniqueId,
+			Size:             data.SystemDiskSize,
+			VolumeType:       data.SystemVolumeTypeId,
+			AvailabilityZone: data.AvailabilityZone,
+			Metadata:         metadata,
+		},
+		{
+			Name:             serverName + "-" + uniqueId,
+			Description:      serverName + "-" + uniqueId,
+			Size:             data.DataDiskSize,
+			VolumeType:       data.DataVolumeTypeId,
+			AvailabilityZone: data.AvailabilityZone,
+			Metadata:         metadata,
+		},
 	}
 
-	for _, blockDevice := range blockDevices {
-		err = volumes.WaitForStatus(blockStorageClient, blockDevice.UUID, "available", 60)
+	for _, volOpt := range volOpts {
+		vol, err := volumes.Create(blockStorageClient, volOpt).Extract()
 		if err != nil {
-			log.Println("Error while waiting on data disk volume.", err.Error())
+			log.Println("Creating volume failed.", err.Error())
+			return nil, err
+		}
+
+		// bootIndex should be 0 for root volume
+		var bootIndex int
+		if volOpt.ImageID == "" {
+			bootIndex = -1
+		}
+
+		blockDevices = append(blockDevices, bootfromvolume.BlockDevice{
+			SourceType:      bootfromvolume.SourceVolume,
+			DestinationType: bootfromvolume.DestinationVolume,
+			UUID:            vol.ID,
+			BootIndex:       bootIndex,
+		})
+
+		err = volumes.WaitForStatus(blockStorageClient, vol.ID, "available", 60)
+		if err != nil {
+			log.Println("Error while waiting on volume.", err.Error())
 			return nil, err
 		}
 	}
-
 	return blockDevices, nil
 }
 
@@ -315,7 +314,6 @@ func listECSHandler(c *gin.Context) {
 
 	c.JSON(http.StatusOK, allServers)
 	return
-
 }
 
 func listFlavorsHandler(c *gin.Context) {
@@ -836,7 +834,7 @@ func generateECSName(ecsName string) (string, error) {
 	log.Println("Generating ECS name.")
 
 	// <prefix>-<ecsName>
-	ecsPrefix := os.Getenv("OTC_ECS_PREFIX")
+	ecsPrefix := config.Config().GetString("otc_ecs_prefix")
 
 	if len(ecsPrefix) < 1 {
 		return "", errors.New("Environment variable OTC_ECS_PREFIX must be set.")

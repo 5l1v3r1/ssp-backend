@@ -12,8 +12,12 @@ type NewECSCommand struct {
 	ImageId            string     `json:"imageId"`
 	Billing            string     `json:"billing"`
 	PublicKey          string     `json:"publicKey"`
+	RootVolumeTypeId   string     `json:"rootVolumeTypeId"`
+	RootDiskSize       int        `json:"rootDiskSize"`
 	SystemVolumeTypeId string     `json:"systemVolumeTypeId"`
 	SystemDiskSize     int        `json:"systemDiskSize"`
+	DataVolumeTypeId   string     `json:"dataVolumeTypeId"`
+	DataDiskSize       int        `json:"dataDiskSize"`
 	DataDisks          []DataDisk `json:"dataDisks"`
 	MegaId             string     `json:"megaId"`
 }
