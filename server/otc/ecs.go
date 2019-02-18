@@ -823,8 +823,21 @@ func getImages(client *gophercloud.ServiceClient) (*ImageListResponse, error) {
 		return nil, err
 	}
 
+	imagePrefix := config.Config().GetString("otc_image_prefix")
+	if imagePrefix == "" {
+		imagePrefix = "SBB-Managed-OS_"
+	}
+
 	for _, image := range allImages {
-		result.Images = append(result.Images, Image{Name: image.Name, Id: image.ID, MinDiskGigabytes: image.MinDiskGigabytes, MinRAMMegabytes: image.MinRAMMegabytes})
+		if !strings.HasPrefix(image.Name, imagePrefix) {
+			continue
+		}
+		result.Images = append(result.Images, Image{
+			Name:             strings.TrimPrefix(image.Name, imagePrefix),
+			Id:               image.ID,
+			MinDiskGigabytes: image.MinDiskGigabytes,
+			MinRAMMegabytes:  image.MinRAMMegabytes,
+		})
 	}
 
 	return &result, nil
