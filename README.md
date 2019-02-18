@@ -130,9 +130,9 @@ For the other (internal) endpoints take a look at the code (glusterapi/main.go)
 The backend can be started with Docker. All required environment variables must be set in the `env_vars` file.
 ```
 # without proxy:
-docker build -p 8080:8080 -t ssp-backend .
+docker build -p 8000:8000 -t ssp-backend .
 # with proxy:
-docker build -p 8080:8080 --build-arg https_proxy=http://proxy.ch:9000 -t ssp-backend .
+docker build -p 8000:8000 --build-arg https_proxy=http://proxy.ch:9000 -t ssp-backend .
 
 # env_vars must not contain export and quotes
 docker run -it --rm --env-file <(sed "s/export\s//" env_vars | tr -d "'") ssp-backend
@@ -140,5 +140,5 @@ docker run -it --rm --env-file <(sed "s/export\s//" env_vars | tr -d "'") ssp-ba
 
 There is a small script for local API testing. It handles authorization (login, token etc).
 ```
-go run curl.go [-X GET/POST] http://localhost:8080/api/...
+go run curl.go [-X GET/POST] http://localhost:8000/api/...
 ```
