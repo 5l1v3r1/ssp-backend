@@ -77,7 +77,7 @@ func validateUserInput(data NewECSCommand) error {
 		}
 	}
 
-	if image.MinDiskGigabytes > data.SystemDiskSize {
+	if image.MinDiskGigabytes > data.RootDiskSize {
 		return errors.New(fmt.Sprintf("Das gewählte Image benötigt eine mindestens %vGB grosse System Disk.", image.MinDiskGigabytes))
 	}
 
@@ -175,10 +175,26 @@ func newECSHandler(c *gin.Context) {
 		return
 	}
 
+	userdata := []byte(fmt.Sprintf(`
+#cloud-config
+fqdn: %v
+hostname: %v
+manage_etc_hosts: false
+bootcmd:
+  - [ cloud-init-per, once, vgsystem, sh, -c, 'ret=1; i=0; while [[ $i -lt 120 ]]; do test -b /dev/vdb && lvm vgcreate vg_system /dev/vdb && ret=0 && break; i=$((i+5)); sleep 5; done; exit $ret' ]
+  - [ cloud-init-per, once, mkswap, sh, -c, 'lvm vgs vg_system && lvm lvcreate -nswap -L4G vg_system && mkswap /dev/vg_system/swap' ]
+  - [ cloud-init-per, once, mktmp, sh, -c, 'lvm vgs vg_system && lvm lvcreate -ntmp -L2G vg_system && mkfs.xfs /dev/vg_system/tmp && sed -i "$ a /dev/vg_system/tmp /tmp xfs nodev,nosuid 0 0" /etc/fstab && mount /tmp' ]
+  - [ cloud-init-per, once, mklog, sh, -c, 'lvm vgs vg_system && lvm lvcreate -nlog -L1G vg_system && mkfs.xfs /dev/vg_system/log && sed -i "$ a /dev/vg_system/log /var/log xfs nodev,nosuid,noexec 0 0" /etc/fstab && logdirs=$(find /var/log -mindepth 1 -maxdepth 1 -type d) && mount /var/log && mkdir $logdirs && mkdir /var/log/journal && ( type restorecon && restorecon -rv /var/log || true )' ]
+  - [ cloud-init-per, once, vgdata, sh, -c, 'ret=1; i=0; while [[ $i -lt 120 ]]; do test -b /dev/vdc && lvm vgcreate vg_data /dev/vdc && ret=0 && break; i=$((i+5)); sleep 5; done; exit $ret' ]
+  - [ cloud-init-per, once, mkhome, sh, -c, 'lvm vgs vg_data && lvm lvcreate -nhome -L4G vg_data && mkfs.xfs /dev/vg_data/home && sed -i "$ a /dev/vg_data/home /home xfs nodev,nosuid 0 0" /etc/fstab && mount /home' ]
+runcmd:
+  - [ cloud-init-per, once, chownhome, sh, -c, 'chown -R 1000:1000 /home/*' ]`, serverName, serverName))
+
 	serverCreateOpts := servers.CreateOpts{
 		Name:             serverName,
 		AvailabilityZone: data.AvailabilityZone,
 		FlavorRef:        data.FlavorName,
+		UserData:         userdata,
 		Networks: []servers.Network{
 			{
 				UUID: networkId,
@@ -278,7 +294,7 @@ func createECSDisks(data NewECSCommand, serverName string, uniqueId string, user
 			BootIndex:       bootIndex,
 		})
 
-		err = volumes.WaitForStatus(blockStorageClient, vol.ID, "available", 60)
+		err = volumes.WaitForStatus(blockStorageClient, vol.ID, "available", 300)
 		if err != nil {
 			log.Println("Error while waiting on volume.", err.Error())
 			return nil, err
