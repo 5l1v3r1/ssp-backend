@@ -76,3 +76,19 @@ type VolumeType struct {
 	Name string `json:"name"`
 	Id   string `json:"id"`
 }
+
+type ProjectName struct {
+	Project string `json:"project"`
+}
+
+type NewS3BucketCommand struct {
+	ProjectName
+	BucketName string `json:"bucketname"`
+	Billing    string `json:"billing"`
+	Stage      string `json:"stage"`
+}
+
+type NewS3UserCommand struct {
+	UserName   string `json:"username"`
+	IsReadonly bool   `json:"isReadonly"`
+}

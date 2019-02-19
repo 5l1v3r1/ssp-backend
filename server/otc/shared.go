@@ -24,6 +24,39 @@ func RegisterRoutes(r *gin.RouterGroup) {
 	r.GET("/otc/images", listImagesHandler)
 	r.GET("/otc/availabilityzones", listAvailabilityZonesHandler)
 	r.GET("/otc/volumetypes", listVolumeTypesHandler)
+
+	// s3
+	//r.GET("/otc/container", listS3BucketsHandler)
+	r.POST("/otc/container", newContainerHandler)
+	//r.POST("/otc/container/:bucketname/user", newS3UserHandler)
+}
+
+func getObjectStorageClient() (*gophercloud.ServiceClient, error) {
+	opts, err := openstack.AuthOptionsFromEnv()
+
+	if err != nil {
+		fmt.Println("Error while getting auth options from environment.", err.Error())
+		return nil, errors.New(genericOTCAPIError)
+	}
+
+	provider, err := openstack.AuthenticatedClient(opts)
+
+	if err != nil {
+		fmt.Println("Error while authenticating.", err.Error())
+		return nil, errors.New(genericOTCAPIError)
+	}
+
+	client, err := openstack.NewObjectStorageV1(provider, gophercloud.EndpointOpts{
+		Region: "eu-ch",
+		Type:   "object",
+	})
+
+	if err != nil {
+		fmt.Println("Error getting client.", err.Error())
+		return nil, errors.New(genericOTCAPIError)
+	}
+
+	return client, nil
 }
 
 func getComputeClient() (*gophercloud.ServiceClient, error) {
