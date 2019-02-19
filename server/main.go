@@ -1,7 +1,7 @@
 package main
 
 import (
-	"log"
+	log "github.com/sirupsen/logrus"
 	"net/http"
 
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/aws"
@@ -17,7 +17,16 @@ import (
 
 func main() {
 	config.Init("bla")
-	log.SetFlags(log.LstdFlags | log.Lshortfile)
+
+	log.SetReportCaller(true)
+
+	if config.Config().GetBool("debug") {
+		log.SetLevel(log.DebugLevel)
+		gin.SetMode(gin.DebugMode)
+	} else {
+		gin.SetMode(gin.ReleaseMode)
+	}
+
 	router := gin.New()
 	router.Use(gin.Recovery())
 

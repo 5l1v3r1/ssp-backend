@@ -27,13 +27,6 @@ func GetUserMail(c *gin.Context) string {
 	return jwtClaims["mail"].(string)
 }
 
-// DebugMode returns if gin is running in debug mode
-func DebugMode() bool {
-	mode := gin.Mode()
-
-	return mode != gin.ReleaseMode
-}
-
 func RandomString(length int) string {
 	key := make([]byte, length)
 	_, err := rand.Read(key)

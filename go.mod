@@ -10,6 +10,7 @@ require (
 	github.com/jinzhu/now v0.0.0-20181116074157-8ec929ed50c3
 	github.com/jtblin/go-ldap-client v0.0.0-20170223121919-b73f66626b33
 	github.com/pkg/errors v0.8.1
+	github.com/sirupsen/logrus v1.3.0
 	github.com/spf13/viper v1.3.1
 	golang.org/x/crypto v0.0.0-20190131182504-b8fe1690c613
 	gopkg.in/appleboy/gin-jwt.v2 v2.5.0

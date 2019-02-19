@@ -4,8 +4,8 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	log "github.com/sirupsen/logrus"
 	"io"
-	"log"
 	"net/http"
 	"net/url"
 	"strings"
@@ -198,9 +198,7 @@ func getOseHTTPClient(method string, clusterId string, endURL string, body io.Re
 
 	req, _ := http.NewRequest(method, base+"/"+endURL, body)
 
-	if common.DebugMode() {
-		log.Print("Calling ", req.URL.String())
-	}
+	log.Debugf("Calling %v", req.URL.String())
 
 	req.Header.Add("Authorization", "Bearer "+token)
 
@@ -231,9 +229,7 @@ func getWZUBackendClient(method string, endUrl string, body io.Reader) (*http.Re
 	client := &http.Client{Transport: tr}
 	req, _ := http.NewRequest(method, wzuBackendUrl+"/"+endUrl, body)
 
-	if common.DebugMode() {
-		log.Print("Calling ", req.URL.String())
-	}
+	log.Debugf("Calling %v", req.URL.String())
 
 	req.SetBasicAuth("CLOUD_SSP", wzuBackendSecret)
 
@@ -268,9 +264,7 @@ func getGlusterHTTPClient(clusterId string, url string, body io.Reader) (*http.R
 	client := &http.Client{}
 	req, _ := http.NewRequest("POST", fmt.Sprintf("%v/%v", apiUrl, url), body)
 
-	if common.DebugMode() {
-		log.Printf("Calling %v", req.URL.String())
-	}
+	log.Debugf("Calling %v", req.URL.String())
 
 	req.SetBasicAuth("GLUSTER_API", apiSecret)
 
@@ -320,9 +314,7 @@ func getNfsHTTPClient(method, clusterId, apiPath string, body io.Reader) (*http.
 		log.Printf(err.Error())
 	}
 
-	if common.DebugMode() {
-		log.Printf("Calling %v", req.URL.String())
-	}
+	log.Debugf("Calling %v", req.URL.String())
 
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
