@@ -3,6 +3,7 @@ package otc
 import (
 	"fmt"
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/common"
+	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/config"
 	"github.com/gin-gonic/gin"
 	"github.com/gofrs/uuid"
 	"github.com/gophercloud/gophercloud"
@@ -19,7 +20,6 @@ import (
 	"golang.org/x/crypto/ssh"
 	"log"
 	"net/http"
-	"os"
 	"strings"
 )
 
@@ -77,7 +77,7 @@ func validateUserInput(data NewECSCommand) error {
 		}
 	}
 
-	if image.MinDiskGigabytes > data.SystemDiskSize {
+	if image.MinDiskGigabytes > data.RootDiskSize {
 		return errors.New(fmt.Sprintf("Das gewählte Image benötigt eine mindestens %vGB grosse System Disk.", image.MinDiskGigabytes))
 	}
 
@@ -111,9 +111,8 @@ func validateUserInput(data NewECSCommand) error {
 }
 
 func newECSHandler(c *gin.Context) {
-	networkId := os.Getenv("OTC_NETWORK_UUID")
-
-	if len(networkId) < 1 {
+	networkId := config.Config().GetString("otc_network_uuid")
+	if networkId == "" {
 		log.Println("Environment variable OTC_NETWORK_UUID must be set.")
 		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericOTCAPIError})
 		return
@@ -176,10 +175,26 @@ func newECSHandler(c *gin.Context) {
 		return
 	}
 
+	userdata := []byte(fmt.Sprintf(`
+#cloud-config
+fqdn: %v
+hostname: %v
+manage_etc_hosts: false
+bootcmd:
+  - [ cloud-init-per, once, vgsystem, sh, -c, 'ret=1; i=0; while [[ $i -lt 120 ]]; do test -b /dev/vdb && lvm vgcreate vg_system /dev/vdb && ret=0 && break; i=$((i+5)); sleep 5; done; exit $ret' ]
+  - [ cloud-init-per, once, mkswap, sh, -c, 'lvm vgs vg_system && lvm lvcreate -nswap -L4G vg_system && mkswap /dev/vg_system/swap' ]
+  - [ cloud-init-per, once, mktmp, sh, -c, 'lvm vgs vg_system && lvm lvcreate -ntmp -L2G vg_system && mkfs.xfs /dev/vg_system/tmp && sed -i "$ a /dev/vg_system/tmp /tmp xfs nodev,nosuid 0 0" /etc/fstab && mount /tmp' ]
+  - [ cloud-init-per, once, mklog, sh, -c, 'lvm vgs vg_system && lvm lvcreate -nlog -L1G vg_system && mkfs.xfs /dev/vg_system/log && sed -i "$ a /dev/vg_system/log /var/log xfs nodev,nosuid,noexec 0 0" /etc/fstab && logdirs=$(find /var/log -mindepth 1 -maxdepth 1 -type d) && mount /var/log && mkdir $logdirs && mkdir /var/log/journal && ( type restorecon && restorecon -rv /var/log || true )' ]
+  - [ cloud-init-per, once, vgdata, sh, -c, 'ret=1; i=0; while [[ $i -lt 120 ]]; do test -b /dev/vdc && lvm vgcreate vg_data /dev/vdc && ret=0 && break; i=$((i+5)); sleep 5; done; exit $ret' ]
+  - [ cloud-init-per, once, mkhome, sh, -c, 'lvm vgs vg_data && lvm lvcreate -nhome -L4G vg_data && mkfs.xfs /dev/vg_data/home && sed -i "$ a /dev/vg_data/home /home xfs nodev,nosuid 0 0" /etc/fstab && mount /home' ]
+runcmd:
+  - [ cloud-init-per, once, chownhome, sh, -c, 'chown -R 1000:1000 /home/*' ]`, serverName, serverName))
+
 	serverCreateOpts := servers.CreateOpts{
 		Name:             serverName,
 		AvailabilityZone: data.AvailabilityZone,
 		FlavorRef:        data.FlavorName,
+		UserData:         userdata,
 		Networks: []servers.Network{
 			{
 				UUID: networkId,
@@ -214,7 +229,7 @@ func newECSHandler(c *gin.Context) {
 }
 
 func createECSDisks(data NewECSCommand, serverName string, uniqueId string, username string) ([]bootfromvolume.BlockDevice, error) {
-	log.Println("Creating system and data disks.")
+	log.Println("Creating root, system and data disk.")
 
 	blockStorageClient, err := getBlockStorageClient()
 	if err != nil {
@@ -222,69 +237,69 @@ func createECSDisks(data NewECSCommand, serverName string, uniqueId string, user
 		return nil, err
 	}
 
-	// create system disk volume
-	volOpts := volumes.CreateOpts{
-		Size:             data.SystemDiskSize,
-		Name:             serverName + "-" + uniqueId,
-		Description:      serverName + "-" + uniqueId,
-		VolumeType:       data.SystemVolumeTypeId,
-		ImageID:          data.ImageId,
-		AvailabilityZone: data.AvailabilityZone,
-		Metadata: map[string]string{
-			"Owner":   username,
-			"Billing": data.Billing,
-			"Mega ID": data.MegaId,
-		},
-	}
-
-	vol, err := volumes.Create(blockStorageClient, volOpts).Extract()
-	if err != nil {
-		log.Println("Creating system disk volume failed.", err.Error())
-		return nil, err
-	}
-
-	err = volumes.WaitForStatus(blockStorageClient, vol.ID, "available", 60)
-	if err != nil {
-		log.Println("Error while waiting on system volume.", err.Error())
-		return nil, err
+	metadata := map[string]string{
+		"Owner":   username,
+		"Billing": data.Billing,
+		"Mega ID": data.MegaId,
 	}
 
 	var blockDevices []bootfromvolume.BlockDevice
 
-	// add system disk to the list
-	blockDevices = append(blockDevices, bootfromvolume.BlockDevice{SourceType: bootfromvolume.SourceVolume, DestinationType: bootfromvolume.DestinationVolume, UUID: vol.ID})
-
-	// data disks
-	for _, disk := range data.DataDisks {
-		volOpts := volumes.CreateOpts{
-			Size:             disk.DiskSize,
+	// create root disk volume
+	volOpts := []volumes.CreateOpts{
+		{
 			Name:             serverName + "-" + uniqueId,
 			Description:      serverName + "-" + uniqueId,
-			VolumeType:       disk.VolumeTypeId,
+			Size:             data.RootDiskSize,
+			VolumeType:       data.RootVolumeTypeId,
+			ImageID:          data.ImageId,
 			AvailabilityZone: data.AvailabilityZone,
-			Metadata: map[string]string{
-				"Owner":   username,
-				"Billing": data.Billing,
-				"Mega ID": data.MegaId,
-			},
-		}
-
-		vol, err := volumes.Create(blockStorageClient, volOpts).Extract()
-		if err != nil {
-			log.Println("Creating data disk volume failed.", err.Error())
-			return nil, err
-		}
-		blockDevices = append(blockDevices, bootfromvolume.BlockDevice{SourceType: bootfromvolume.SourceVolume, DestinationType: bootfromvolume.DestinationVolume, UUID: vol.ID, BootIndex: -1})
+			Metadata:         metadata,
+		},
+		{
+			Name:             serverName + "-" + uniqueId,
+			Description:      serverName + "-" + uniqueId,
+			Size:             data.SystemDiskSize,
+			VolumeType:       data.SystemVolumeTypeId,
+			AvailabilityZone: data.AvailabilityZone,
+			Metadata:         metadata,
+		},
+		{
+			Name:             serverName + "-" + uniqueId,
+			Description:      serverName + "-" + uniqueId,
+			Size:             data.DataDiskSize,
+			VolumeType:       data.DataVolumeTypeId,
+			AvailabilityZone: data.AvailabilityZone,
+			Metadata:         metadata,
+		},
 	}
 
-	for _, blockDevice := range blockDevices {
-		err = volumes.WaitForStatus(blockStorageClient, blockDevice.UUID, "available", 60)
+	for _, volOpt := range volOpts {
+		vol, err := volumes.Create(blockStorageClient, volOpt).Extract()
 		if err != nil {
-			log.Println("Error while waiting on data disk volume.", err.Error())
+			log.Println("Creating volume failed.", err.Error())
+			return nil, err
+		}
+
+		// bootIndex should be 0 for root volume
+		var bootIndex int
+		if volOpt.ImageID == "" {
+			bootIndex = -1
+		}
+
+		blockDevices = append(blockDevices, bootfromvolume.BlockDevice{
+			SourceType:      bootfromvolume.SourceVolume,
+			DestinationType: bootfromvolume.DestinationVolume,
+			UUID:            vol.ID,
+			BootIndex:       bootIndex,
+		})
+
+		err = volumes.WaitForStatus(blockStorageClient, vol.ID, "available", 300)
+		if err != nil {
+			log.Println("Error while waiting on volume.", err.Error())
 			return nil, err
 		}
 	}
-
 	return blockDevices, nil
 }
 
@@ -315,7 +330,6 @@ func listECSHandler(c *gin.Context) {
 
 	c.JSON(http.StatusOK, allServers)
 	return
-
 }
 
 func listFlavorsHandler(c *gin.Context) {
@@ -825,8 +839,21 @@ func getImages(client *gophercloud.ServiceClient) (*ImageListResponse, error) {
 		return nil, err
 	}
 
+	imagePrefix := config.Config().GetString("otc_image_prefix")
+	if imagePrefix == "" {
+		imagePrefix = "SBB-Managed-OS_"
+	}
+
 	for _, image := range allImages {
-		result.Images = append(result.Images, Image{Name: image.Name, Id: image.ID, MinDiskGigabytes: image.MinDiskGigabytes, MinRAMMegabytes: image.MinRAMMegabytes})
+		if !strings.HasPrefix(image.Name, imagePrefix) {
+			continue
+		}
+		result.Images = append(result.Images, Image{
+			Name:             strings.TrimPrefix(image.Name, imagePrefix),
+			Id:               image.ID,
+			MinDiskGigabytes: image.MinDiskGigabytes,
+			MinRAMMegabytes:  image.MinRAMMegabytes,
+		})
 	}
 
 	return &result, nil
@@ -836,7 +863,7 @@ func generateECSName(ecsName string) (string, error) {
 	log.Println("Generating ECS name.")
 
 	// <prefix>-<ecsName>
-	ecsPrefix := os.Getenv("OTC_ECS_PREFIX")
+	ecsPrefix := config.Config().GetString("otc_ecs_prefix")
 
 	if len(ecsPrefix) < 1 {
 		return "", errors.New("Environment variable OTC_ECS_PREFIX must be set.")
