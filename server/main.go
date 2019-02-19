@@ -63,7 +63,12 @@ func main() {
 	}
 
 	log.Println("Cloud SSP is running")
-	err := router.Run()
+
+	port := config.Config().GetString("port")
+	if port == "" {
+		port = "8000"
+	}
+	err := router.Run(":" + port)
 	if err != nil {
 		log.Println(err)
 	}
