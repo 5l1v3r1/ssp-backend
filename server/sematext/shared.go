@@ -1,11 +1,10 @@
 package sematext
 
 import (
+	log "github.com/sirupsen/logrus"
 	"io"
-	"log"
 	"net/http"
 
-	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/common"
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/config"
 	"github.com/gin-gonic/gin"
 	"strings"
@@ -39,9 +38,7 @@ func getSematextHTTPClient(method string, urlPart string, body io.Reader) (*http
 	client := &http.Client{}
 	req, _ := http.NewRequest(method, baseUrl+urlPart, body)
 
-	if common.DebugMode() {
-		log.Println("Calling ", req.URL.String())
-	}
+	log.Debugf("Calling %v", req.URL.String())
 
 	req.Header.Add("Content-Type", "application/json")
 	req.Header.Add("Authorization", "apiKey "+token)

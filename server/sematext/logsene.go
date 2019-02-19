@@ -8,8 +8,8 @@ import (
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/common"
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/config"
 	"github.com/gin-gonic/gin"
+	log "github.com/sirupsen/logrus"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -221,12 +221,11 @@ func getAllLogseneAppsForUser(userMail string) ([]common.SematextAppList, error)
 
 	userApps := []common.SematextAppList{}
 	for _, app := range allApps {
+		log.Debug(app.String())
 		if app.Path("appType").Data().(string) != "Logsene" {
 			continue
 		}
-		if common.DebugMode() {
-			log.Println(app.String())
-		}
+
 		appName := app.Path("name").Data().(string)
 		userRoles, err := app.Path("userRoles").Children()
 		if err != nil {

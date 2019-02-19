@@ -2,7 +2,7 @@ package ddc
 
 import (
 	"crypto/tls"
-	"log"
+	log "github.com/sirupsen/logrus"
 	"net/http"
 
 	"encoding/csv"
@@ -159,9 +159,7 @@ func getDDCClient() (*http.Client, *http.Request) {
 
 	req, _ := http.NewRequest("GET", api, nil)
 
-	if common.DebugMode() {
-		log.Print("Calling ", req.URL.String())
-	}
+	log.Debugf("Calling %v", req.URL.String())
 
 	return client, req
 }
