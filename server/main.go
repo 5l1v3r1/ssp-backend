@@ -1,7 +1,7 @@
 package main
 
 import (
-	"log"
+	log "github.com/sirupsen/logrus"
 	"net/http"
 
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/aws"
@@ -17,7 +17,16 @@ import (
 
 func main() {
 	config.Init("bla")
-	log.SetFlags(log.LstdFlags | log.Lshortfile)
+
+	log.SetReportCaller(true)
+
+	if config.Config().GetBool("debug") {
+		log.SetLevel(log.DebugLevel)
+		gin.SetMode(gin.DebugMode)
+	} else {
+		gin.SetMode(gin.ReleaseMode)
+	}
+
 	router := gin.New()
 	router.Use(gin.Recovery())
 
@@ -64,7 +73,12 @@ func main() {
 	}
 
 	log.Println("Cloud SSP is running")
-	err := router.Run()
+
+	port := config.Config().GetString("port")
+	if port == "" {
+		port = "8000"
+	}
+	err := router.Run(":" + port)
 	if err != nil {
 		log.Println(err)
 	}

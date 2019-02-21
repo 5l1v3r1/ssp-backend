@@ -59,16 +59,21 @@ func getObjectStorageClient() (*gophercloud.ServiceClient, error) {
 	return client, nil
 }
 
-func getComputeClient() (*gophercloud.ServiceClient, error) {
-	opts, err := openstack.AuthOptionsFromEnv()
-
+func getProvider() (*gophercloud.ProviderClient, error) {
+	opts, err := authOptionsFromEnv()
 	if err != nil {
-		fmt.Println("Error while getting auth options from environment.", err.Error())
-		return nil, errors.New(genericOTCAPIError)
+		return nil, err
 	}
 
 	provider, err := openstack.AuthenticatedClient(opts)
+	if err != nil {
+		return nil, err
+	}
+	return provider, nil
+}
 
+func getComputeClient() (*gophercloud.ServiceClient, error) {
+	provider, err := getProvider()
 	if err != nil {
 		fmt.Println("Error while authenticating.", err.Error())
 		return nil, errors.New(genericOTCAPIError)
@@ -87,15 +92,7 @@ func getComputeClient() (*gophercloud.ServiceClient, error) {
 }
 
 func getImageClient() (*gophercloud.ServiceClient, error) {
-	opts, err := openstack.AuthOptionsFromEnv()
-
-	if err != nil {
-		fmt.Println("Error while getting auth options from environment.", err.Error())
-		return nil, errors.New(genericOTCAPIError)
-	}
-
-	provider, err := openstack.AuthenticatedClient(opts)
-
+	provider, err := getProvider()
 	if err != nil {
 		fmt.Println("Error while authenticating.", err.Error())
 		return nil, errors.New(genericOTCAPIError)
@@ -114,15 +111,7 @@ func getImageClient() (*gophercloud.ServiceClient, error) {
 }
 
 func getBlockStorageClient() (*gophercloud.ServiceClient, error) {
-	opts, err := openstack.AuthOptionsFromEnv()
-
-	if err != nil {
-		fmt.Println("Error while getting auth options from environment.", err.Error())
-		return nil, errors.New(genericOTCAPIError)
-	}
-
-	provider, err := openstack.AuthenticatedClient(opts)
-
+	provider, err := getProvider()
 	if err != nil {
 		fmt.Println("Error while authenticating.", err.Error())
 		return nil, errors.New(genericOTCAPIError)
