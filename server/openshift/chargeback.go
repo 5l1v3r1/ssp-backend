@@ -130,7 +130,7 @@ const quotaQueryTemplate = "SELECT average(cpuHard) AS CpuQuota, average(cpuUsed
 const usageQueryTemplate = "SELECT rate(sum(cpuPercent), 60 minutes)/100 as CPU, rate(sum(memoryResidentSizeBytes), 60 minutes)/(1000*1000*1000) as GB " +
 	"FROM ProcessSample FACET `containerLabel_io.kubernetes.pod.namespace` WHERE {{.Source}} AND `containerLabel_io.kubernetes.pod.namespace` LIKE '{{.Search}}' SINCE '{{.Since}}' UNTIL '{{.Until}}' LIMIT 1000"
 
-const assignmentQueryTemplate = "SELECT latest(accountAssignment), latest(megaId) FROM {{.Source}} FACET project WHERE project LIKE '{{.Search}}' SINCE '{{.Since}}' UNTIL '{{.Until}}' LIMIT 1000"
+const assignmentQueryTemplate = "SELECT latest(accountAssignment), latest(megaId) FROM {{.Source}} FACET project WHERE project LIKE '{{.Search}}' SINCE '{{.Since}}' LIMIT 1000"
 
 func chargebackHandler(c *gin.Context) {
 	username := common.GetUserName(c)
