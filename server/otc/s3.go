@@ -3,23 +3,23 @@ package otc
 import (
 	"encoding/json"
 	"errors"
-//	"html"
+	//	"html"
 	"log"
 	"net/http"
 	"regexp"
 	"strings"
 
-//	"strconv"
+	//	"strconv"
 
-//	"fmt"
+	//	"fmt"
 
-	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/common"
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/config"
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/credentials"
+	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/aws/aws-sdk-go/service/s3"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/gin-gonic/gin"
 )
 
@@ -153,46 +153,46 @@ func newS3BucketHandler(c *gin.Context) {
 }
 
 func newS3UserHandler(c *gin.Context) {
-//	username := common.GetUserName(c)
-//	bucketName := c.Param("bucketname")
-//	cfg := config.Config()
-//
-//	var data common.NewS3UserCommand
-//	if c.BindJSON(&data) != nil {
-//		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: wrongAPIUsageError})
-//		return
-//	}
-//
-//	isNonProd := strings.HasSuffix(bucketName, accountNonProd)
-//	var stage string
-//	var loginURL string
-//	if isNonProd {
-//		stage = stageDev
-//		loginURL = cfg.GetString("aws_nonprod_login_url")
-//	} else {
-//		stage = stageProd
-//		loginURL = cfg.GetString("aws_prod_login_url")
-//	}
-//	//if err := validateNewS3User(username, bucketName, data.UserName, stage); err != nil {
-//	//	c.JSON(http.StatusBadRequest, common.ApiResponse{Message: err.Error()})
-//	//	return
-//	//}
-//
-//	log.Print(username + " creates a new user (" + data.UserName + ") for " + bucketName + " , readonly: " + strconv.FormatBool(data.IsReadonly))
-//
-//	credentials, err := createNewS3User(bucketName, data.UserName, stage, data.IsReadonly)
-//	if err != nil {
-//		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: err.Error()})
-//		return
-//	}
-//	c.JSON(http.StatusOK, common.ApiResponse{
-//		Message: fmt.Sprintf("Der Benutzer (%v) wurde erstellt.<br><br><table>"+
-//			"<tr><td>Access Key ID:</td><td>%v</td></tr>"+
-//			"<tr><td>Secret Access Key:</td><td>%v</td></tr>"+
-//			"<tr><td>Password:</td><td>%v</td></tr>"+
-//			"<tr><td>Login URL:</td><td>%v</td></tr></table>"+
-//			"<br><b>Hinweis:</b> diese Keys und Passwörter gut & sicher abspeichern, da sie später nicht wiederhergestellt werden können!",
-//			credentials.Username, credentials.AccessKeyID, credentials.SecretKey, html.EscapeString(credentials.Password), loginURL)})
+	//	username := common.GetUserName(c)
+	//	bucketName := c.Param("bucketname")
+	//	cfg := config.Config()
+	//
+	//	var data common.NewS3UserCommand
+	//	if c.BindJSON(&data) != nil {
+	//		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: wrongAPIUsageError})
+	//		return
+	//	}
+	//
+	//	isNonProd := strings.HasSuffix(bucketName, accountNonProd)
+	//	var stage string
+	//	var loginURL string
+	//	if isNonProd {
+	//		stage = stageDev
+	//		loginURL = cfg.GetString("aws_nonprod_login_url")
+	//	} else {
+	//		stage = stageProd
+	//		loginURL = cfg.GetString("aws_prod_login_url")
+	//	}
+	//	//if err := validateNewS3User(username, bucketName, data.UserName, stage); err != nil {
+	//	//	c.JSON(http.StatusBadRequest, common.ApiResponse{Message: err.Error()})
+	//	//	return
+	//	//}
+	//
+	//	log.Print(username + " creates a new user (" + data.UserName + ") for " + bucketName + " , readonly: " + strconv.FormatBool(data.IsReadonly))
+	//
+	//	credentials, err := createNewS3User(bucketName, data.UserName, stage, data.IsReadonly)
+	//	if err != nil {
+	//		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: err.Error()})
+	//		return
+	//	}
+	//	c.JSON(http.StatusOK, common.ApiResponse{
+	//		Message: fmt.Sprintf("Der Benutzer (%v) wurde erstellt.<br><br><table>"+
+	//			"<tr><td>Access Key ID:</td><td>%v</td></tr>"+
+	//			"<tr><td>Secret Access Key:</td><td>%v</td></tr>"+
+	//			"<tr><td>Password:</td><td>%v</td></tr>"+
+	//			"<tr><td>Login URL:</td><td>%v</td></tr></table>"+
+	//			"<br><b>Hinweis:</b> diese Keys und Passwörter gut & sicher abspeichern, da sie später nicht wiederhergestellt werden können!",
+	//			credentials.Username, credentials.AccessKeyID, credentials.SecretKey, html.EscapeString(credentials.Password), loginURL)})
 }
 
 func createNewS3Bucket(username string, projectname string, bucketname string, billing string, stage string) error {
@@ -418,11 +418,11 @@ func getAwsSession(account string) (*session.Session, error) {
 		log.Println("Invalid account: " + account)
 	}
 
-    endpoint :=  "https://obs.eu-ch.o13bb.otc.t-systems.com"
+	endpoint := "https://obs.eu-ch.o13bb.otc.t-systems.com"
 	sess, err := session.NewSession(&aws.Config{
 		Credentials: credentials.NewStaticCredentials(accessKeyID, accessSecret, ""),
 		Region:      aws.String(region),
-        Endpoint:   &endpoint,
+		Endpoint:    &endpoint,
 	})
 
 	if err != nil {
@@ -461,7 +461,6 @@ func GetS3Client(stage string) (*s3.S3, error) {
 	}
 	return s3.New(sess), nil
 }
-
 
 func GetIAMClient(stage string) (*iam.IAM, error) {
 	account, err := getAccountForStage(stage)

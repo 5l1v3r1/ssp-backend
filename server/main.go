@@ -45,9 +45,6 @@ func main() {
 	// Protected routes
 	auth := router.Group("/api/")
 
-	// OTC routes
-	otc.RegisterRoutes(auth)
-
 	auth.Use(authMiddleware.MiddlewareFunc())
 	{
 		// Openshift routes
@@ -58,6 +55,9 @@ func main() {
 
 		// AWS routes
 		aws.RegisterRoutes(auth)
+
+		// OTC routes
+		otc.RegisterRoutes(auth)
 
 		// Sematext routes
 		sematext.RegisterRoutes(auth)
