@@ -25,18 +25,15 @@ func RegisterRoutes(r *gin.RouterGroup) {
 	r.GET("/otc/availabilityzones", listAvailabilityZonesHandler)
 	r.GET("/otc/volumetypes", listVolumeTypesHandler)
 
-	// s3
-	//r.GET("/otc/container", listS3BucketsHandler)
-	r.POST("/otc/container", newContainerHandler)
-	//r.POST("/otc/container/:bucketname/user", newS3UserHandler)
+    r.GET("/otc/s3", listS3BucketsHandler)
+	r.POST("/otc/s3", newS3BucketHandler)
+	r.POST("/otc/s3/:bucketname/user", newS3UserHandler)
 }
 
 func getObjectStorageClient() (*gophercloud.ServiceClient, error) {
-	opts, err := openstack.AuthOptionsFromEnv()
-
+	opts, err := authOptionsFromEnv()
 	if err != nil {
-		fmt.Println("Error while getting auth options from environment.", err.Error())
-		return nil, errors.New(genericOTCAPIError)
+		return nil, err
 	}
 
 	provider, err := openstack.AuthenticatedClient(opts)
