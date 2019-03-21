@@ -31,8 +31,8 @@ func RegisterRoutes(r *gin.RouterGroup) {
 	r.GET("/ose/project/admins", getProjectAdminsHandler)
 	r.POST("/ose/testproject", newTestProjectHandler)
 	r.POST("/ose/serviceaccount", newServiceAccountHandler)
-	r.GET("/ose/billing", getBillingHandler)
-	r.POST("/ose/billing", updateBillingHandler)
+	r.GET("/ose/project/info", getProjectInformationHandler)
+	r.POST("/ose/project/info", updateProjectInformationHandler)
 	r.POST("/ose/quotas", editQuotasHandler)
 	r.POST("/ose/chargeback", chargebackHandler)
 	r.POST("/ose/secret/pull", newPullSecretHandler)
@@ -131,7 +131,7 @@ func checkAdminPermissions(clusterId, username, project string) error {
 		return nil
 	}
 
-	return fmt.Errorf("Du hast keine Admin Rechte auf dem Projekt. Bestehende Admins sind folgende Benutzer: %v", strings.Join(admins, ", "))
+	return fmt.Errorf("Du hast keine Admin Rechte auf das Projekt: %v. Bestehende Admins sind folgende Benutzer: %v", project, strings.Join(admins, ", "))
 }
 
 func getOperatorGroup(clusterId string) (*gabs.Container, error) {

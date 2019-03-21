@@ -86,7 +86,7 @@ func updateLogseneBillingHandler(c *gin.Context) {
 		return
 	}
 
-	var data common.EditBillingDataCommand
+	var data common.EditLogseneBillingDataCommand
 	if c.BindJSON(&data) == nil {
 		if err := validateLogseneBillingEdit(mail, appId, data.Project, data.Billing); err != nil {
 			c.JSON(http.StatusBadRequest, common.ApiResponse{Message: err.Error()})

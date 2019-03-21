@@ -137,7 +137,7 @@ func getProjectAdminsHandler(c *gin.Context) {
 	}
 }
 
-func getBillingHandler(c *gin.Context) {
+func getProjectInformationHandler(c *gin.Context) {
 	username := common.GetUserName(c)
 
 	params := c.Request.URL.Query()
@@ -149,30 +149,29 @@ func getBillingHandler(c *gin.Context) {
 		return
 	}
 
-	if billingData, err := getProjectBillingInformation(clusterId, project); err != nil {
+	pi, err := getProjectInformation(clusterId, project)
+	if err != nil {
 		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: err.Error()})
-	} else {
-		c.JSON(http.StatusOK, common.ApiResponse{
-			Message: fmt.Sprintf("Aktuelle Verrechnungsdaten für Projekt %v: %v", project, billingData),
-		})
 	}
+
+	c.JSON(http.StatusOK, pi)
 }
 
-func updateBillingHandler(c *gin.Context) {
+func updateProjectInformationHandler(c *gin.Context) {
 	username := common.GetUserName(c)
 
-	var data common.EditBillingDataCommand
+	var data common.UpdateProjectInformationCommand
 	if c.BindJSON(&data) == nil {
-		if err := validateBillingInformation(data.ClusterId, data.Project, data.Billing, username); err != nil {
+		if err := validateProjectInformation(data, username); err != nil {
 			c.JSON(http.StatusBadRequest, common.ApiResponse{Message: err.Error()})
 			return
 		}
 
-		if err := createOrUpdateMetadata(data.ClusterId, data.Project, data.Billing, "", username, false); err != nil {
+		if err := createOrUpdateMetadata(data.ClusterId, data.Project, data.Billing, data.MegaID, username, false); err != nil {
 			c.JSON(http.StatusBadRequest, common.ApiResponse{Message: err.Error()})
 		} else {
 			c.JSON(http.StatusOK, common.ApiResponse{
-				Message: fmt.Sprintf("Die Verrechnungsdaten wurden gespeichert: %v", data.Billing),
+				Message: fmt.Sprintf("Die Informationen für Projekt %v wurden gespeichert", data.Project),
 			})
 		}
 	} else {
@@ -209,21 +208,21 @@ func validateAdminAccess(clusterId, username, project string) error {
 	return nil
 }
 
-func validateBillingInformation(clusterId, project, billing, username string) error {
-	if len(clusterId) == 0 {
+func validateProjectInformation(data common.UpdateProjectInformationCommand, username string) error {
+	if data.ClusterId == "" {
 		return errors.New("Cluster muss angegeben werden")
 	}
 
-	if len(project) == 0 {
+	if data.Project == "" {
 		return errors.New("Projektname muss angegeben werden")
 	}
 
-	if len(billing) == 0 {
+	if data.Billing == "" {
 		return errors.New("Kontierungsnummer muss angegeben werden")
 	}
 
 	// Validate permissions
-	if err := checkAdminPermissions(clusterId, username, project); err != nil {
+	if err := checkAdminPermissions(data.ClusterId, username, data.Project); err != nil {
 		return err
 	}
 
@@ -340,10 +339,15 @@ func changeProjectPermission(clusterId string, project string, username string) 
 	return errors.New(genericAPIError)
 }
 
-func getProjectBillingInformation(clusterId, project string) (string, error) {
+type ProjectInformation struct {
+	Kontierungsnummer string `json:"kontierungsnummer"`
+	MegaID            string `json:"megaid"`
+}
+
+func getProjectInformation(clusterId, project string) (*ProjectInformation, error) {
 	resp, err := getOseHTTPClient("GET", clusterId, "api/v1/namespaces/"+project, nil)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	defer resp.Body.Close()
@@ -351,15 +355,21 @@ func getProjectBillingInformation(clusterId, project string) (string, error) {
 	json, err := gabs.ParseJSONBuffer(resp.Body)
 	if err != nil {
 		log.Println("error decoding json:", err, resp.StatusCode)
-		return "", errors.New(genericAPIError)
+		return nil, errors.New(genericAPIError)
 	}
 
 	billing := json.Path("metadata.annotations").S("openshift.io/kontierung-element").Data()
-	if billing != nil {
-		return billing.(string), nil
-	} else {
-		return "Keine Daten hinterlegt", nil
+	if billing == nil {
+		billing = ""
 	}
+	megaid := json.Path("metadata.annotations").S("openshift.io/MEGAID").Data()
+	if megaid == nil {
+		megaid = ""
+	}
+	return &ProjectInformation{
+		Kontierungsnummer: billing.(string),
+		MegaID:            megaid.(string),
+	}, nil
 }
 
 func createOrUpdateMetadata(clusterId, project string, billing string, megaid string, username string, testProject bool) error {
