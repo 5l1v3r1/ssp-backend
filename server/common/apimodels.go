@@ -42,16 +42,22 @@ type NewTestProjectCommand struct {
 	OpenshiftBase
 }
 
-type EditBillingDataCommand struct {
+type EditLogseneBillingDataCommand struct {
 	OpenshiftBase
 	Billing string `json:"billing"`
+}
+
+type UpdateProjectInformationCommand struct {
+	OpenshiftBase
+	Billing string `json:"billing"`
+	MegaID  string `json:"megaid"`
 }
 
 type CreateLogseneAppCommand struct {
 	AppName      string `json:"appName"`
 	DiscountCode string `json:"discountCode"`
 	EditSematextPlanCommand
-	EditBillingDataCommand
+	UpdateProjectInformationCommand
 }
 
 type EditSematextPlanCommand struct {
