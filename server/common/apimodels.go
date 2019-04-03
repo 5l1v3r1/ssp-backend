@@ -16,10 +16,11 @@ type OpenshiftBase struct {
 
 type NewVolumeCommand struct {
 	OpenshiftBase
-	Size       string `json:"size"`
-	PvcName    string `json:"pvcName"`
-	Mode       string `json:"mode"`
-	Technology string `json:"technology"`
+	Size         string `json:"size"`
+	PvcName      string `json:"pvcName"`
+	Mode         string `json:"mode"`
+	Technology   string `json:"technology"`
+	StorageClass string `json:"storageclass"`
 }
 
 type FixVolumeCommand struct {

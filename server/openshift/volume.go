@@ -40,7 +40,14 @@ func newVolumeHandler(c *gin.Context) {
 			return
 		}
 
-		newVolumeResponse, err := createNewVolume(data.ClusterId, data.Project, data.Size, data.PvcName, data.Mode, data.Technology, username)
+		// try to get storageclass
+		storageclass, err := getStorageClass(data.ClusterId, data.Technology)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, common.ApiResponse{Message: err.Error()})
+			return
+		}
+
+		newVolumeResponse, err := createNewVolume(data.ClusterId, data.Project, data.Size, data.PvcName, data.Mode, data.Technology, username, storageclass)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, common.ApiResponse{Message: err.Error()})
 			return
@@ -291,7 +298,7 @@ func checkTechnology(technology string) error {
 	return errors.New("Invalid technology. Must be either nfs or gluster")
 }
 
-func createNewVolume(clusterId, project, size, pvcName, mode, technology, username string) (*common.NewVolumeResponse, error) {
+func createNewVolume(clusterId, project, size, pvcName, mode, technology, username, storageclass string) (*common.NewVolumeResponse, error) {
 	var newVolumeResponse *common.NewVolumeResponse
 	var err error
 	if technology == "nfs" {
@@ -315,11 +322,11 @@ func createNewVolume(clusterId, project, size, pvcName, mode, technology, userna
 		}
 	}
 
-	if err := createOpenShiftPV(clusterId, size, newVolumeResponse.PvName, newVolumeResponse.Server, newVolumeResponse.Path, mode, technology, username); err != nil {
+	if err := createOpenShiftPV(clusterId, size, newVolumeResponse.PvName, newVolumeResponse.Server, newVolumeResponse.Path, mode, technology, username, storageclass); err != nil {
 		return nil, err
 	}
 
-	if err := createOpenShiftPVC(clusterId, project, size, pvcName, mode, username); err != nil {
+	if err := createOpenShiftPVC(clusterId, project, size, pvcName, mode, username, storageclass); err != nil {
 		return nil, err
 	}
 
@@ -629,7 +636,7 @@ func growGlusterVolume(clusterId string, pv *gabs.Container, newSize string, use
 	return nil
 }
 
-func createOpenShiftPV(clusterId, size, pvName, server, path, mode, technology, username string) error {
+func createOpenShiftPV(clusterId, size, pvName, server, path, mode, technology, username, storageclass string) error {
 	p := newObjectRequest("PersistentVolume", pvName)
 	p.SetP(size, "spec.capacity.storage")
 
@@ -643,6 +650,10 @@ func createOpenShiftPV(clusterId, size, pvName, server, path, mode, technology, 
 	}
 
 	p.SetP("Retain", "spec.persistentVolumeReclaimPolicy")
+	if storageclass != "" {
+		p.SetP(storageclass, "spec.storageClassName")
+	}
+
 	p.ArrayP("spec.accessModes")
 	p.ArrayAppend(mode, "spec", "accessModes")
 
@@ -665,12 +676,15 @@ func createOpenShiftPV(clusterId, size, pvName, server, path, mode, technology, 
 	return nil
 }
 
-func createOpenShiftPVC(clusterId, project, size, pvcName, mode, username string) error {
+func createOpenShiftPVC(clusterId, project, size, pvcName, mode, username, storageclass string) error {
 	p := newObjectRequest("PersistentVolumeClaim", pvcName)
 
 	p.SetP(size, "spec.resources.requests.storage")
 	p.ArrayP("spec.accessModes")
 	p.ArrayAppend(mode, "spec", "accessModes")
+	if storageclass != "" {
+		p.SetP(storageclass, "spec.storageClassName")
+	}
 
 	resp, err := getOseHTTPClient("POST",
 		clusterId,

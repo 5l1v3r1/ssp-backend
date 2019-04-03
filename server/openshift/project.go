@@ -255,7 +255,7 @@ func sendNewProjectMail(projectName string, userName string, megaID string) erro
 	m.SetBody("text/html", fmt.Sprintf(`
 	Sehr geehrte Damen und Herren,
 	<br><br>
-	das folgende Projekte wurde auf OpenShift erstellt.
+	Das folgende Projekt wurde auf OpenShift erstellt:
 	<br><br>
 	Projektname:	%v<br>
 	Ersteller:		%v<br>
