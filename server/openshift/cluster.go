@@ -20,15 +20,17 @@ type OpenshiftCluster struct {
 }
 
 type GlusterApi struct {
-	URL    string `json:"url"`
-	Secret string `json:"-"`
-	IPs    string `json:"-"`
+	URL          string `json:"url"`
+	Secret       string `json:"-"`
+	IPs          string `json:"-"`
+	StorageClass string `json:"-"`
 }
 
 type NfsApi struct {
-	URL    string `json:"url"`
-	Secret string `json:"-"`
-	Proxy  string `json:"-"`
+	URL          string `json:"url"`
+	Secret       string `json:"-"`
+	Proxy        string `json:"-"`
+	StorageClass string `json:"-"`
 }
 
 func clustersHandler(c *gin.Context) {
@@ -55,4 +57,30 @@ func getOpenshiftCluster(clusterId string) (OpenshiftCluster, error) {
 	}
 	log.Printf("WARNING: Cluster %v not found", clusterId)
 	return OpenshiftCluster{}, errors.New(genericAPIError)
+}
+
+func getStorageClass(clusterId, technology string) (string, error) {
+
+	cluster, err := getOpenshiftCluster(clusterId)
+	if err != nil {
+		return "", err
+	}
+	var storageclass string
+
+	if technology == "nfs" {
+		if cluster.NfsApi == nil {
+			log.Printf("WARNING: NfsApi is not configured for cluster %v", clusterId)
+			return "", nil
+		}
+		storageclass = cluster.NfsApi.StorageClass
+
+	} else {
+		if cluster.GlusterApi == nil {
+			log.Printf("WARNING: GlusterApi is not configured for cluster %v", clusterId)
+			return "", nil
+		}
+
+		storageclass = cluster.GlusterApi.StorageClass
+	}
+	return storageclass, nil
 }
