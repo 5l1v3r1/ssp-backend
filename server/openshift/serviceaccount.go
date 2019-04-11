@@ -202,7 +202,7 @@ func createJenkinsCredential(clusterId, project, serviceaccount, organizationKey
 	// Call the WZU backend
 	command := newJenkinsCredentialsCommand{
 		OrganizationKey: organizationKey,
-		Description:     fmt.Sprintf("OpenShift Deployer - project: %v, service-account: %v", project, serviceaccount),
+		Description:     fmt.Sprintf("OpenShift Deployer - cluster: %v, project: %v, service-account: %v", clusterId, project, serviceaccount),
 		Secret:          string(encodedTokenData),
 	}
 	if err := callWZUBackend(command); err != nil {
