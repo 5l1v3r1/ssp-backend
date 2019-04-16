@@ -357,7 +357,7 @@ func createGlusterVolume(clusterId, project string, size string, username string
 		return nil, fmt.Errorf("Fehlerhafte Antwort vom Gluster-API: %v", string(errMsg))
 	}
 
-	log.Printf("%v created a gluster volume. Project: %v, size: %v", username, project, size)
+	log.Printf("%v created a gluster volume. Cluster: %v, Project: %v, size: %v", username, clusterId, project, size)
 
 	respJson, err := gabs.ParseJSONBuffer(resp.Body)
 	if err != nil {
@@ -410,7 +410,7 @@ func createNfsVolume(clusterId, project, pvcName, size, username string) (*commo
 		return nil, errors.New(genericAPIError)
 	}
 
-	log.Printf("%v is creating an nfs volume. Project: %v, size: %v", username, project, size)
+	log.Printf("%v is creating an nfs volume. CLuster: %v, Project: %v, size: %v", username, clusterId, project, size)
 	bodyBytes, _ := ioutil.ReadAll(resp.Body)
 
 	if err := json.Unmarshal(bodyBytes, job); err != nil {
@@ -672,7 +672,7 @@ func createOpenShiftPV(clusterId, size, pvName, server, path, mode, technology, 
 		return errors.New(genericAPIError)
 	}
 
-	log.Printf("Created the pv %v based on the request of %v", pvName, username)
+	log.Printf("Created the pv %v based on the request of %v on cluster %v", pvName, username, clusterId)
 	return nil
 }
 
@@ -701,7 +701,7 @@ func createOpenShiftPVC(clusterId, project, size, pvcName, mode, username, stora
 		return errors.New(genericAPIError)
 	}
 
-	log.Printf("Created the pvc %v based on the request of %v", pvcName, username)
+	log.Printf("Created the pvc %v based on the request of %v on cluster %v", pvcName, username, clusterId)
 	return nil
 }
 
@@ -746,7 +746,7 @@ func createOpenShiftGlusterService(clusterId, project string, username string) e
 		return errors.New(genericAPIError)
 	}
 
-	log.Printf("Created the gluster service based on the request of %v", username)
+	log.Printf("Created the gluster service based on the request of %v on cluster %v", username, clusterId)
 	return nil
 }
 
@@ -776,7 +776,7 @@ func createOpenShiftGlusterEndpoint(clusterId, project, username string) error {
 		return errors.New(genericAPIError)
 	}
 
-	log.Printf("Created the gluster endpoints based on the request of %v", username)
+	log.Printf("Created the gluster endpoints based on the request of %v on cluster %v", username, clusterId)
 	return nil
 }
 
