@@ -20,6 +20,7 @@ import (
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/common"
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/config"
 	"github.com/gin-gonic/gin"
+	"gopkg.in/matryer/try.v1"
 )
 
 const (
@@ -396,7 +397,17 @@ func createNfsVolume(clusterId, project, pvcName, size, username string) (*commo
 		return nil, errors.New(genericAPIError)
 	}
 
-	resp, err := getNfsHTTPClient("POST", clusterId, fmt.Sprintf("workflows/%v/jobs", apiCreateWorkflowUuid), body)
+	//resp, err := getNfsHTTPClient("POST", clusterId, fmt.Sprintf("workflows/%v/jobs", apiCreateWorkflowUuid), body)
+	var resp *http.Response
+	err := try.Do(func(attempt int) (bool, error) {
+		var err error
+		resp, err = getNfsHTTPClient("POST", clusterId, fmt.Sprintf("workflows/%v/jobs", apiCreateWorkflowUuid), body)
+		if err != nil {
+			log.Println(err.Error())
+			time.Sleep(10 * time.Second) // wait 10s
+		}
+		return attempt < 5, err
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -482,10 +493,21 @@ func getOpenshiftPV(clusterId, pvName string) (*gabs.Container, error) {
 }
 
 func getJob(clusterId string, jobId int) (*common.WorkflowJob, error) {
-	resp, err := getNfsHTTPClient("GET", clusterId, fmt.Sprintf("workflows/jobs/%v", jobId), nil)
+	//resp, err := getNfsHTTPClient("GET", clusterId, fmt.Sprintf("workflows/jobs/%v", jobId), nil)
+	var resp *http.Response
+	err := try.Do(func(attempt int) (bool, error) {
+		var err error
+		resp, err = getNfsHTTPClient("GET", clusterId, fmt.Sprintf("workflows/jobs/%v", jobId), nil)
+		if err != nil {
+			log.Println(err.Error())
+			time.Sleep(10 * time.Second) // wait 10s
+		}
+		return attempt < 5, err
+	})
 	if err != nil {
-		return nil, err
+		log.Fatalln("error:", err)
 	}
+
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
