@@ -3,7 +3,7 @@ module github.com/SchweizerischeBundesbahnen/ssp-backend
 require (
 	github.com/Jeffail/gabs v1.1.1
 	github.com/aws/aws-sdk-go v1.16.30
-	github.com/gin-contrib/cors v0.0.0-20190101123304-5e7acb10687f // indirect
+	github.com/gin-contrib/cors v0.0.0-20190101123304-5e7acb10687f
 	github.com/gin-gonic/gin v1.3.0
 	github.com/gofrs/uuid v3.2.0+incompatible
 	github.com/gophercloud/gophercloud v0.0.0-20190208042652-bc37892e1968
