@@ -257,7 +257,7 @@ func sendNewProjectMail(clusterId string, projectName string, userName string, m
 	<br><br>
 	Das folgende Projekt wurde auf OpenShift erstellt:
 	<br><br>
-    Cluster: %v<br>
+	Cluster: %v<br>
 	Projektname:	%v<br>
 	Ersteller:		%v<br>
 	Mega ID:		%v
