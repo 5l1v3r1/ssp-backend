@@ -34,8 +34,8 @@ func editQuotasHandler(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, common.ApiResponse{Message: err.Error()})
 		} else {
 			c.JSON(http.StatusOK, common.ApiResponse{
-				Message: fmt.Sprintf("Die neuen Quotas wurden gespeichert: Projekt %v, CPU: %v, Memory: %v",
-					data.Project, data.CPU, data.Memory),
+				Message: fmt.Sprintf("Die neuen Quotas wurden gespeichert: Cluster %v, Projekt %v, CPU: %v, Memory: %v",
+					data.ClusterId, data.Project, data.CPU, data.Memory),
 			})
 		}
 	} else {
@@ -107,6 +107,6 @@ func updateQuotas(clusterId, username, project string, cpu int, memory int) erro
 		log.Println("Error updating resourceQuota:", resp.StatusCode, string(errMsg))
 		return errors.New(genericAPIError)
 	}
-	log.Printf("User %v changed quotas for the project %v. CPU: %v Mem: %v", username, project, cpu, memory)
+	log.Printf("User %v changed quotas for the project %v on cluster %v. CPU: %v Mem: %v", username, clusterId, project, cpu, memory)
 	return nil
 }

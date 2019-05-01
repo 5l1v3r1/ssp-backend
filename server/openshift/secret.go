@@ -59,7 +59,7 @@ func newPullSecretHandler(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: err.Error()})
 		return
 	}
-	log.Printf("%v created a new pull secret to default serviceaccount on project %v", username, data.Project)
+	log.Printf("%v created a new pull secret to default serviceaccount on project %v on cluster %v", username, data.Project, data.ClusterId)
 	c.JSON(http.StatusOK, common.ApiResponse{Message: "Das Pull-Secret wurde angelegt"})
 }
 
@@ -91,7 +91,7 @@ func addPullSecretToServiceaccount(clusterId, namespace string, serviceaccount s
 
 	if resp.StatusCode != http.StatusOK {
 		bodyBytes, _ := ioutil.ReadAll(resp.Body)
-		log.Printf("Error adding pull secret to service account: StatusCode: %v, Nachricht: %v", resp.StatusCode, string(bodyBytes))
+		log.Printf("Error adding pull secret to service account on cluster %v: StatusCode: %v, Nachricht: %v", clusterId, resp.StatusCode, string(bodyBytes))
 		return errors.New(genericAPIError)
 	}
 
@@ -110,7 +110,7 @@ func createSecret(clusterId, namespace string, secret *gabs.Container) error {
 
 	if resp.StatusCode == http.StatusForbidden {
 		bodyBytes, _ := ioutil.ReadAll(resp.Body)
-		log.Printf("Error creating secret: StatusCode: %v, Nachricht: %v", resp.StatusCode, string(bodyBytes))
+		log.Printf("Error creating secret on cluster %v: StatusCode: %v, Nachricht: %v", clusterId, resp.StatusCode, string(bodyBytes))
 		return errors.New(genericAPIError)
 	}
 

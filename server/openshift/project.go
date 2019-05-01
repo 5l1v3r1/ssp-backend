@@ -31,13 +31,13 @@ func newProjectHandler(c *gin.Context) {
 		if err := createNewProject(data.ClusterId, data.Project, username, data.Billing, data.MegaId, false); err != nil {
 			c.JSON(http.StatusBadRequest, common.ApiResponse{Message: err.Error()})
 		} else {
-			err := sendNewProjectMail(data.Project, username, data.MegaId)
+			err := sendNewProjectMail(data.ClusterId, data.Project, username, data.MegaId)
 			if err != nil {
-				log.Printf("Can't send e-mail about new project (%v).", err)
+				log.Printf("Can't send e-mail about new project (%v) on cluster %v.", err, data.ClusterId)
 			}
 
 			c.JSON(http.StatusOK, common.ApiResponse{
-				Message: fmt.Sprintf("Das Projekt %v wurde erstellt", data.Project),
+				Message: fmt.Sprintf("Das Projekt %v wurde erstellt auf Cluster %v", data.Project, data.ClusterId),
 			})
 		}
 	} else {
@@ -63,7 +63,7 @@ func newTestProjectHandler(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, common.ApiResponse{Message: err.Error()})
 		} else {
 			c.JSON(http.StatusOK, common.ApiResponse{
-				Message: fmt.Sprintf("Das Test-Projekt %v wurde erstellt", data.Project),
+				Message: fmt.Sprintf("Das Test-Projekt %v wurde erstellt auf Cluster %v", data.Project, data.ClusterId),
 			})
 		}
 	} else {
@@ -126,7 +126,7 @@ func getProjectAdminsHandler(c *gin.Context) {
 		return
 	}
 
-	log.Printf("%v has queried all the admins of project %v", username, project)
+	log.Printf("%v has queried all the admins of project %v on cluster %v", username, project, clusterId)
 
 	if admins, _, err := getProjectAdminsAndOperators(clusterId, project); err != nil {
 		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: err.Error()})
@@ -171,7 +171,7 @@ func updateProjectInformationHandler(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, common.ApiResponse{Message: err.Error()})
 		} else {
 			c.JSON(http.StatusOK, common.ApiResponse{
-				Message: fmt.Sprintf("Die Informationen für Projekt %v wurden gespeichert", data.Project),
+				Message: fmt.Sprintf("Die Informationen für Projekt %v auf Cluster %v wurden gespeichert", data.Project, data.ClusterId),
 			})
 		}
 	} else {
@@ -229,7 +229,7 @@ func validateProjectInformation(data common.UpdateProjectInformationCommand, use
 	return nil
 }
 
-func sendNewProjectMail(projectName string, userName string, megaID string) error {
+func sendNewProjectMail(clusterId string, projectName string, userName string, megaID string) error {
 
 	mailServer, ok := os.LookupEnv("MAIL_SERVER")
 	if !ok {
@@ -257,6 +257,7 @@ func sendNewProjectMail(projectName string, userName string, megaID string) erro
 	<br><br>
 	Das folgende Projekt wurde auf OpenShift erstellt:
 	<br><br>
+	Cluster: %v<br>
 	Projektname:	%v<br>
 	Ersteller:		%v<br>
 	Mega ID:		%v
@@ -264,7 +265,7 @@ func sendNewProjectMail(projectName string, userName string, megaID string) erro
 	Mit freundlichen Grüssen<br>
 	Euer Cloud Platforms Team<br>
 	IT-OM-SDL-CLP
-	`, projectName, userName, megaID))
+	`, clusterId, projectName, userName, megaID))
 
 	d := gomail.Dialer{Host: mailServer, Port: 25}
 	d.TLSConfig = &tls.Config{InsecureSkipVerify: true}
@@ -288,7 +289,7 @@ func createNewProject(clusterId string, project string, username string, billing
 	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusCreated {
-		log.Printf("%v created a new project: %v", username, project)
+		log.Printf("%v created a new project: %v on cluster %v", username, project, clusterId)
 
 		if err := changeProjectPermission(clusterId, project, username); err != nil {
 			return err
@@ -406,7 +407,7 @@ func createOrUpdateMetadata(clusterId, project string, billing string, megaid st
 
 	if resp.StatusCode == http.StatusOK {
 		resp.Body.Close()
-		log.Println("User "+username+" changed config of project "+project+". Kontierungsnummer: "+billing, ", MegaID: "+megaid)
+		log.Println("User "+username+" changed config of project "+project+" on cluster "+clusterId+". Kontierungsnummer: "+billing, ", MegaID: "+megaid)
 		return nil
 	}
 
