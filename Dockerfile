@@ -1,5 +1,5 @@
 FROM golang as builder
-WORKDIR /go/src/github.com/SchweizerischeBundesbahnen/ssp-backend
+WORKDIR /ssp-backend
 COPY . .
 RUN go get -v ./server
 
