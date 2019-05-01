@@ -10,8 +10,9 @@ import (
 )
 
 type OpenshiftCluster struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
+	ID      string `json:"id"`
+	Name    string `json:"name"`
+	Feature string `json:"feature"`
 	// exclude token from json marshal
 	Token      string      `json:"-"`
 	URL        string      `json:"url"`
@@ -35,13 +36,23 @@ type NfsApi struct {
 
 func clustersHandler(c *gin.Context) {
 	//username := common.GetUserName(c)
-	clusters := getOpenshiftClusters()
+	clusters := getOpenshiftClusters(c.Query("feature"))
 	c.JSON(http.StatusOK, clusters)
 }
 
-func getOpenshiftClusters() []OpenshiftCluster {
+func getOpenshiftClusters(feature string) []OpenshiftCluster {
+	log.Printf("Looking up clusters with the following features %v", feature)
 	clusters := []OpenshiftCluster{}
 	config.Config().UnmarshalKey("openshift", &clusters)
+	if feature != "" {
+		tmp := []OpenshiftCluster{}
+		for _, p := range clusters {
+			if p.Feature == feature {
+				tmp = append(tmp, p)
+			}
+		}
+		return tmp
+	}
 	return clusters
 }
 
@@ -49,7 +60,7 @@ func getOpenshiftCluster(clusterId string) (OpenshiftCluster, error) {
 	if clusterId == "" {
 		return OpenshiftCluster{}, errors.New(genericAPIError)
 	}
-	clusters := getOpenshiftClusters()
+	clusters := getOpenshiftClusters("")
 	for _, cluster := range clusters {
 		if cluster.ID == clusterId {
 			return cluster, nil
