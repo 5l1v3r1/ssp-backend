@@ -10,9 +10,9 @@ import (
 )
 
 type OpenshiftCluster struct {
-	ID      string `json:"id"`
-	Name    string `json:"name"`
-	Feature string `json:"feature"`
+	ID       string   `json:"id"`
+	Name     string   `json:"name"`
+	Features []string `json:"features"`
 	// exclude token from json marshal
 	Token      string      `json:"-"`
 	URL        string      `json:"url"`
@@ -47,13 +47,22 @@ func getOpenshiftClusters(feature string) []OpenshiftCluster {
 	if feature != "" {
 		tmp := []OpenshiftCluster{}
 		for _, p := range clusters {
-			if p.Feature == feature {
+			if contains(p.Features, feature) {
 				tmp = append(tmp, p)
 			}
 		}
 		return tmp
 	}
 	return clusters
+}
+
+func contains(list []string, search string) bool {
+	for _, element := range list {
+		if element == search {
+			return true
+		}
+	}
+	return false
 }
 
 func getOpenshiftCluster(clusterId string) (OpenshiftCluster, error) {
