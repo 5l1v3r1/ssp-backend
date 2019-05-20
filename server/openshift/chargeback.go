@@ -9,7 +9,7 @@ import (
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/config"
 	"github.com/gin-gonic/gin"
 	"github.com/jinzhu/now"
-	"log"
+	log "github.com/sirupsen/logrus"
 	"math"
 	"net/http"
 	"net/url"
@@ -112,14 +112,17 @@ type templateValues struct {
 type Cluster string
 
 const (
-	awsCluster  Cluster = "aws"
-	viasCluster Cluster = "vias"
+	awsCluster    Cluster = "aws"
+	viasCluster   Cluster = "vias"
+	test04Cluster Cluster = "test04"
 )
 
 const viasSourceQuotaAssignment = "OpenshiftViasQuota"
 const awsSourceQuotaAssignment = "OpenshiftAwsQuota"
-const viasSourceUsage = "fullHostname like '%.sbb.ch'"
-const awsSourceUsage = "`ec2Tag_Environment` = 'prod' OR hostname like 'node%'"
+const test04SourceQuotaAssignment = "OpenshiftTest04Quota"
+const viasSourceUsage = "iaas = 'tss'"
+const awsSourceUsage = "iaas = 'aws'"
+const test04SourceUsage = "iaas = 'otc_test04'"
 
 const dateFormat = "2006-01-02 15:04:05"
 
@@ -204,6 +207,11 @@ func computeQueries(start time.Time, end time.Time, searchString string, cluster
 		sourceUsage = awsSourceUsage
 	}
 
+	if cluster == test04Cluster {
+		sourceQuotaAssignment = test04SourceQuotaAssignment
+		sourceUsage = test04SourceUsage
+	}
+
 	s := templateValues{
 		Source: sourceQuotaAssignment,
 		Search: searchString,
@@ -249,7 +257,7 @@ func getJson(client *http.Client, query string, target interface{}) error {
 	if newrelic_api_account == "" {
 		log.Fatal("Env variable 'NEWRELIC_API_ACCOUNT' must be specified")
 	}
-
+	log.Debugf("%v", query)
 	var url = fmt.Sprintf("https://insights-api.newrelic.com/v1/accounts/%v/query?nrql=%v", newrelic_api_account, url.QueryEscape(query))
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
