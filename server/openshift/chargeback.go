@@ -115,14 +115,17 @@ const (
 	awsCluster    Cluster = "aws"
 	viasCluster   Cluster = "vias"
 	test04Cluster Cluster = "test04"
+	obelixCluster Cluster = "obelix"
 )
 
 const viasSourceQuotaAssignment = "OpenshiftViasQuota"
 const awsSourceQuotaAssignment = "OpenshiftAwsQuota"
 const test04SourceQuotaAssignment = "OpenshiftTest04Quota"
+const obelixSourceQuotaAssignment = "OpenshiftObelixQuota"
 const viasSourceUsage = "iaas = 'tss'"
 const awsSourceUsage = "iaas = 'aws'"
 const test04SourceUsage = "iaas = 'otc_test04'"
+const obelixSourceUsage = "iaas = 'otc_obelix'"
 
 const dateFormat = "2006-01-02 15:04:05"
 
@@ -210,6 +213,11 @@ func computeQueries(start time.Time, end time.Time, searchString string, cluster
 	if cluster == test04Cluster {
 		sourceQuotaAssignment = test04SourceQuotaAssignment
 		sourceUsage = test04SourceUsage
+	}
+
+	if cluster == obelixCluster {
+		sourceQuotaAssignment = obelixSourceQuotaAssignment
+		sourceUsage = obelixSourceUsage
 	}
 
 	s := templateValues{
