@@ -34,7 +34,6 @@ func RegisterRoutes(r *gin.RouterGroup) {
 	r.GET("/ose/project/info", getProjectInformationHandler)
 	r.POST("/ose/project/info", updateProjectInformationHandler)
 	r.POST("/ose/quotas", editQuotasHandler)
-	r.POST("/ose/chargeback", chargebackHandler)
 	r.POST("/ose/secret/pull", newPullSecretHandler)
 
 	// Volumes (Gluster and NFS)
