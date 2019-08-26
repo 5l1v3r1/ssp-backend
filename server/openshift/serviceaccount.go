@@ -3,8 +3,8 @@ package openshift
 import (
 	"bytes"
 	"errors"
+	log "github.com/sirupsen/logrus"
 	"io/ioutil"
-	"log"
 	"net/http"
 
 	"fmt"
@@ -45,6 +45,11 @@ func newServiceAccountHandler(c *gin.Context) {
 	}
 
 	if err := createNewServiceAccount(data.ClusterId, username, data.Project, data.ServiceAccount); err != nil {
+		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: err.Error()})
+		return
+	}
+
+	if err := authorizeServiceAccount(data.ClusterId, data.Project, data.ServiceAccount); err != nil {
 		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: err.Error()})
 		return
 	}
@@ -94,12 +99,138 @@ func createNewServiceAccount(clusterId, username, project, serviceaccount string
 	}
 
 	if resp.StatusCode != http.StatusCreated {
-		errMsg, _ := ioutil.ReadAll(resp.Body)
-		log.Printf("Error creating service account: StatusCode: %v, Nachricht: %v", resp.StatusCode, string(errMsg))
+		bodyBytes, _ := ioutil.ReadAll(resp.Body)
+		log.WithFields(log.Fields{
+			"cluster":    clusterId,
+			"username":   username,
+			"statuscode": resp.StatusCode,
+			"err":        string(bodyBytes),
+		}).Error("Error creating service account")
 		return errors.New(genericAPIError)
 	}
 
-	log.Print(username + " created a new service account: " + serviceaccount + " on project " + project)
+	log.WithFields(log.Fields{
+		"cluster":        clusterId,
+		"username":       username,
+		"serviceaccount": serviceaccount,
+		"project":        project,
+	}).Info("Serviceaccount was created")
+
+	return nil
+}
+
+func authorizeServiceAccount(clusterId, namespace, serviceaccount string) error {
+	rolebinding, err := getEditRoleBinding(clusterId, namespace)
+	if err != nil {
+		return err
+	}
+	if rolebinding == nil {
+		if err := createEditRoleBinding(clusterId, namespace, serviceaccount); err != nil {
+			return err
+		}
+		return nil
+	}
+	if err := addEditServiceAccountToRoleBinding(clusterId, namespace, serviceaccount, rolebinding); err != nil {
+		return err
+	}
+	return nil
+}
+
+func addEditServiceAccountToRoleBinding(clusterId, namespace, serviceaccount string, rolebinding *gabs.Container) error {
+	rolebinding.ArrayAppend("system:serviceaccount:"+namespace+":"+serviceaccount, "userNames")
+
+	url := fmt.Sprintf("oapi/v1/namespaces/%v/rolebindings/edit", namespace)
+	resp, err := getOseHTTPClient("PUT", clusterId, url, bytes.NewReader(rolebinding.Bytes()))
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusForbidden || resp.StatusCode == http.StatusBadRequest {
+		bodyBytes, _ := ioutil.ReadAll(resp.Body)
+		log.WithFields(log.Fields{
+			"cluster":        clusterId,
+			"namespace":      namespace,
+			"serviceaccount": serviceaccount,
+			"statuscode":     resp.StatusCode,
+			"err":            string(bodyBytes),
+		}).Error("Error adding service account to edit rolebinding")
+		return errors.New(genericAPIError)
+	}
+
+	log.WithFields(log.Fields{
+		"cluster":        clusterId,
+		"namespace":      namespace,
+		"serviceaccount": serviceaccount,
+	}).Info("Successfully added serviceaccount to edit rolebinding")
+
+	return nil
+}
+
+func getEditRoleBinding(clusterId, namespace string) (*gabs.Container, error) {
+	url := fmt.Sprintf("oapi/v1/namespaces/%v/rolebindings/edit", namespace)
+
+	resp, err := getOseHTTPClient("GET", clusterId, url, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusForbidden || resp.StatusCode == http.StatusBadRequest {
+		bodyBytes, _ := ioutil.ReadAll(resp.Body)
+		log.WithFields(log.Fields{
+			"cluster":    clusterId,
+			"namespace":  namespace,
+			"statuscode": resp.StatusCode,
+			"err":        string(bodyBytes),
+		}).Error("Error getting edit rolebinding")
+		return nil, errors.New(genericAPIError)
+	}
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, nil
+	}
+	json, err := gabs.ParseJSONBuffer(resp.Body)
+	if err != nil {
+		log.Error(err.Error())
+		return nil, errors.New(genericAPIError)
+	}
+	return json, nil
+}
+
+func createEditRoleBinding(clusterId, namespace, serviceaccount string) error {
+	rolebinding := newObjectRequest("RoleBinding", "edit")
+	rolebinding.Set("edit", "roleRef", "name")
+	rolebinding.Array("userNames")
+	rolebinding.ArrayAppend("system:serviceaccount:"+namespace+":"+serviceaccount, "userNames")
+
+	url := fmt.Sprintf("oapi/v1/namespaces/%v/rolebindings", namespace)
+
+	resp, err := getOseHTTPClient("POST", clusterId, url, bytes.NewReader(rolebinding.Bytes()))
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusForbidden || resp.StatusCode == http.StatusBadRequest {
+		bodyBytes, _ := ioutil.ReadAll(resp.Body)
+		log.WithFields(log.Fields{
+			"cluster":    clusterId,
+			"namespace":  namespace,
+			"statuscode": resp.StatusCode,
+			"err":        string(bodyBytes),
+		}).Error("Error creating edit rolebinding")
+		return errors.New(genericAPIError)
+	}
+
+	if resp.StatusCode == http.StatusConflict {
+		return errors.New("Das rolebinding existiert bereits")
+	}
+
+	log.WithFields(log.Fields{
+		"cluster":        clusterId,
+		"namespace":      namespace,
+		"serviceaccount": serviceaccount,
+	}).Info("Successfully created edit rolebinding")
 
 	return nil
 }
@@ -114,13 +245,19 @@ func getServiceAccount(clusterId, namespace, serviceaccount string) (*gabs.Conta
 
 	if resp.StatusCode == http.StatusForbidden {
 		bodyBytes, _ := ioutil.ReadAll(resp.Body)
-		log.Printf("Error getting service account: StatusCode: %v, Nachricht: %v", resp.StatusCode, string(bodyBytes))
+		log.WithFields(log.Fields{
+			"cluster":        clusterId,
+			"namespace":      namespace,
+			"serviceaccount": serviceaccount,
+			"statuscode":     resp.StatusCode,
+			"err":            string(bodyBytes),
+		}).Error("Error getting serviceaccount")
 		return nil, errors.New(genericAPIError)
 	}
 
 	json, err := gabs.ParseJSONBuffer(resp.Body)
 	if err != nil {
-		log.Println(err.Error())
+		log.Error(err.Error())
 		return nil, errors.New(genericAPIError)
 	}
 	return json, nil
