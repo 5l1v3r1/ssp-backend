@@ -3,7 +3,7 @@ package gluster
 import (
 	"testing"
 
-	"gopkg.in/jarcoal/httpmock.v1"
+	"github.com/jarcoal/httpmock"
 )
 
 func init() {
