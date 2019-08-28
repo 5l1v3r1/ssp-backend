@@ -21,6 +21,7 @@ rules:
   - get
   - list
 - apiGroups:
+  - ""
   - user.openshift.io
   attributeRestrictions: null
   resources:
