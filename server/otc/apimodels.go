@@ -45,6 +45,7 @@ type ImageListResponse struct {
 }
 
 type Image struct {
+	TrimmedName      string `json:"trimmedName"`
 	Name             string `json:"name"`
 	Id               string `json:"id"`
 	MinDiskGigabytes int    `json:"minDiskGigabytes"`

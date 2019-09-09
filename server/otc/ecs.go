@@ -849,7 +849,8 @@ func getImages(client *gophercloud.ServiceClient) (*ImageListResponse, error) {
 			continue
 		}
 		result.Images = append(result.Images, Image{
-			Name:             strings.TrimPrefix(image.Name, imagePrefix),
+			TrimmedName:      strings.TrimPrefix(image.Name, imagePrefix),
+			Name:             image.Name,
 			Id:               image.ID,
 			MinDiskGigabytes: image.MinDiskGigabytes,
 			MinRAMMegabytes:  image.MinRAMMegabytes,

@@ -11,6 +11,7 @@ import (
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/openshift"
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/otc"
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/sematext"
+	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/tower"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 )
@@ -60,6 +61,9 @@ func main() {
 
 		// Sematext routes
 		sematext.RegisterRoutes(auth)
+
+		// Ansible Tower
+		tower.RegisterRoutes(auth)
 	}
 
 	secApiPassword := config.Config().GetString("sec_api_password")
