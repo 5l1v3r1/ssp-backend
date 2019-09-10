@@ -14,18 +14,14 @@ import (
 )
 
 const (
-	genericAPIError    = "Fehler beim Aufruf vom Ansible-Tower-API. Bitte erstelle ein Ticket"
-	wrongAPIUsageError = "Invalid api call - parameters did not match to method definition"
+	wrongAPIUsageError = "Ungültiger API-Aufruf: Die Argumente stimmen nicht mit der definition überein. Bitte erstelle ein Ticket"
+	genericAPIError    = "Fehler beim Aufruf der Ansible Tower API. Bitte erstelle ein Ticket"
 )
 
 func RegisterRoutes(r *gin.RouterGroup) {
-	//r.POST("/tower/template", startTemplate)
-	r.GET("/tower/jobs", getJobsHandler)
+	r.GET("/tower/jobs/:job/stdout", getJobOutputHandler)
+	r.GET("/tower/jobs/:job", getJobHandler)
 	r.POST("/tower/job_templates/launch", postJobTemplateLaunchHandler)
-}
-
-func startTemplate() {
-
 }
 
 func postJobTemplateLaunchHandler(c *gin.Context) {
@@ -35,30 +31,30 @@ func postJobTemplateLaunchHandler(c *gin.Context) {
 	request, err := ioutil.ReadAll(c.Request.Body)
 	if err != nil {
 		log.Printf("%v", err)
-		c.JSON(http.StatusOK, "ERROR")
+		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericAPIError})
 	}
 	json, err := gabs.ParseJSON(request)
 	if err != nil {
 		log.Printf("%v", err)
-		c.JSON(http.StatusOK, "ERROR")
+		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericAPIError})
 	}
 	json.SetP(username, "extra_vars.provision_otc_owner_tag")
-	log.Printf("%v", json)
 
 	resp, err := getTowerHTTPClient("POST", "job_templates/19296/launch/", bytes.NewReader(json.Bytes()))
 	if err != nil {
 		log.Printf("%v", err)
-		c.JSON(http.StatusOK, "ERROR")
+		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericAPIError})
 	}
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		log.Printf("%v", err)
-		c.JSON(http.StatusOK, "ERROR")
+		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericAPIError})
 	}
 	json, err = gabs.ParseJSON(body)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: "Something went wrong"})
+		log.Printf("%v", err)
+		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericAPIError})
 		return
 	}
 	if resp.StatusCode == http.StatusBadRequest {
@@ -70,25 +66,41 @@ func postJobTemplateLaunchHandler(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: string(errs)})
 		return
 	}
-	log.Printf("%+v", string(body))
-	c.JSON(http.StatusOK, "test")
+	c.JSON(http.StatusOK, string(body))
 }
 
-func getJobsHandler(c *gin.Context) {
-	resp, err := getTowerHTTPClient("GET", "jobs/", nil)
+func getJobOutputHandler(c *gin.Context) {
+	job := c.Param("job")
+	resp, err := getTowerHTTPClient("GET", "jobs/"+job+"/stdout/?format=html", nil)
 	if err != nil {
 		log.Printf("%v", err)
-		c.JSON(http.StatusOK, "ERROR")
+		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericAPIError})
 	}
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		log.Printf("%v", err)
-		c.JSON(http.StatusOK, "ERROR")
+		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericAPIError})
 	}
-	log.Printf("%+v", string(body))
 
-	c.JSON(http.StatusOK, "test")
+	c.JSON(http.StatusOK, string(body))
+}
+
+func getJobHandler(c *gin.Context) {
+	job := c.Param("job")
+	resp, err := getTowerHTTPClient("GET", "jobs/"+job, nil)
+	if err != nil {
+		log.Printf("%v", err)
+		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericAPIError})
+	}
+	defer resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		log.Printf("%v", err)
+		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericAPIError})
+	}
+
+	c.JSON(http.StatusOK, string(body))
 }
 
 func getTowerHTTPClient(method string, urlPart string, body io.Reader) (*http.Response, error) {
