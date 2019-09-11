@@ -27,7 +27,7 @@ func getVolumeUsage(pvName string) (*models.VolInfo, error) {
 	parts := strings.Split(pvName, "-pv")
 
 	// Replace - with -- within project name
-	cmd := fmt.Sprintf("df --output=size,used,source | grep lv_%v_pv%v", strings.Replace(parts[0], "-", "--", -1), parts[1])
+	cmd := fmt.Sprintf("df --output=size,used,source | grep 'lv_%v_pv%v$'", strings.Replace(parts[0], "-", "--", -1), parts[1])
 
 	out, err := ExecRunner.Run("bash", "-c", cmd)
 	if err != nil {
