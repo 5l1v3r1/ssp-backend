@@ -42,6 +42,7 @@ oc create -f clusterRole-selfservice.yml
 
 # Add policy to the service account
 oc adm policy add-cluster-role-to-user ose:selfservice system:serviceaccount:ose-selfservice-backend:ose-selfservice
+oc adm policy add-cluster-role-to-user admin system:serviceaccount:ose-selfservice-backend:ose-selfservice
 
 # Use the token of the service account in the container
 ```
