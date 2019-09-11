@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Jeffail/gabs"
+	"github.com/Jeffail/gabs/v2"
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/common"
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/config"
 	"github.com/gin-gonic/gin"
@@ -57,20 +57,18 @@ func getProjectAdminsAndOperators(clusterId, project string) ([]string, []string
 
 	var admins []string
 	hasOperatorGroup := false
-	groups, err := adminRoleBinding.Path("groupNames").Children()
-	if err == nil {
-		for _, g := range groups {
-			if strings.ToLower(g.Data().(string)) == "operator" {
-				hasOperatorGroup = true
-			}
+	for _, g := range adminRoleBinding.Path("groupNames").Children() {
+		if g.Data() == nil {
+			continue
+		}
+		if strings.ToLower(g.Data().(string)) == "operator" {
+			hasOperatorGroup = true
 		}
 	}
-	usernames, err := adminRoleBinding.Path("userNames").Children()
-	if err != nil {
-		log.Println("Unable to parse roleBinding", err.Error())
-		return nil, nil, errors.New(genericAPIError)
-	}
-	for _, u := range usernames {
+	for _, u := range adminRoleBinding.Path("userNames").Children() {
+		if u.Data() == nil {
+			continue
+		}
 		admins = append(admins, strings.ToLower(u.Data().(string)))
 	}
 
@@ -82,13 +80,7 @@ func getProjectAdminsAndOperators(clusterId, project string) ([]string, []string
 			return nil, nil, err
 		}
 
-		users, err := json.Path("users").Children()
-		if err != nil {
-			log.Println("Could not parse operator group:", json, err.Error())
-			return nil, nil, errors.New(genericAPIError)
-		}
-
-		for _, u := range users {
+		for _, u := range json.Path("users").Children() {
 			operators = append(operators, strings.ToLower(u.Data().(string)))
 		}
 	}
@@ -150,7 +142,7 @@ func getOperatorGroup(clusterId string) (*gabs.Container, error) {
 }
 
 func getAdminRoleBinding(clusterId, project string) (*gabs.Container, error) {
-	resp, err := getOseHTTPClient("GET", clusterId, "oapi/v1/namespaces/"+project+"/rolebindings/admin", nil)
+	resp, err := getOseHTTPClient("GET", clusterId, "oapi/v1/namespaces/"+project+"/rolebindings", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -169,8 +161,14 @@ func getAdminRoleBinding(clusterId, project string) (*gabs.Container, error) {
 		log.Println("error parsing body of response:", err)
 		return nil, errors.New(genericAPIError)
 	}
+	adminRoleBinding, _ := gabs.ParseJSON([]byte("{}"))
+	for _, role := range json.S("items").Children() {
+		if role.Path("roleRef.name").Data().(string) == "admin" {
+			adminRoleBinding.Merge(role)
+		}
+	}
 
-	return json, nil
+	return adminRoleBinding, nil
 }
 
 func getOseHTTPClient(method string, clusterId string, endURL string, body io.Reader) (*http.Response, error) {
