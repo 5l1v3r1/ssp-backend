@@ -15,7 +15,7 @@ import (
 
 	"strconv"
 
-	"github.com/Jeffail/gabs"
+	"github.com/Jeffail/gabs/v2"
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/glusterapi/models"
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/common"
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/config"
@@ -273,13 +273,7 @@ func checkPvcName(clusterId, project, pvcName string) error {
 		return errors.New(genericAPIError)
 	}
 
-	// Check if pvc name is not already used
-	children, err := json.S("items").Children()
-	if err != nil {
-		log.Println("Unable to parse pvc list", err.Error())
-		return errors.New(genericAPIError)
-	}
-	for _, v := range children {
+	for _, v := range json.S("items").Children() {
 		if v.Path("metadata.name").Data().(string) == pvcName {
 			return fmt.Errorf("Der gewünschte PVC-Name %v existiert bereits.", pvcName)
 		}

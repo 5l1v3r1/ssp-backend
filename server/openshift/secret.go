@@ -10,7 +10,7 @@ import (
 	"fmt"
 
 	"encoding/json"
-	"github.com/Jeffail/gabs"
+	"github.com/Jeffail/gabs/v2"
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/common"
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/config"
 	"github.com/gin-gonic/gin"
