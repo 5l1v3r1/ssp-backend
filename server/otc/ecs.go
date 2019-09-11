@@ -28,9 +28,7 @@ func validateUserInput(data NewECSCommand) error {
 
 	if err != nil {
 		log.Println("Can't parse public key.", err.Error())
-		if err != nil {
-			return errors.New("Der SSH Public Key kann nicht geparst werden.")
-		}
+		return errors.New("Der SSH Public Key kann nicht geparst werden.")
 	}
 
 	if len(data.ECSName) == 0 {
@@ -61,18 +59,14 @@ func validateUserInput(data NewECSCommand) error {
 
 	if err != nil {
 		log.Println("Error getting compute client.", err.Error())
-		if err != nil {
-			return errors.New(genericOTCAPIError)
-		}
+		return errors.New(genericOTCAPIError)
 	}
 
 	image, err := images.Get(imageClient, data.ImageId).Extract()
 
 	if err != nil {
 		log.Println("Error while extracting image.", err.Error())
-		if err != nil {
-			return errors.New(genericOTCAPIError)
-		}
+		return errors.New(genericOTCAPIError)
 	}
 
 	if image.MinDiskGigabytes > data.RootDiskSize {
@@ -83,18 +77,14 @@ func validateUserInput(data NewECSCommand) error {
 
 	if err != nil {
 		log.Println("Error getting compute client.", err.Error())
-		if err != nil {
-			return errors.New(genericOTCAPIError)
-		}
+		return errors.New(genericOTCAPIError)
 	}
 
 	flavor, err := flavors.Get(computeClient, data.FlavorName).Extract()
 
 	if err != nil {
 		log.Println("Error while extracting flavor.", err.Error())
-		if err != nil {
-			return errors.New(genericOTCAPIError)
-		}
+		return errors.New(genericOTCAPIError)
 	}
 
 	if image.MinRAMMegabytes > flavor.RAM {
@@ -108,7 +98,6 @@ func validateUserInput(data NewECSCommand) error {
 	return nil
 }
 
-
 func listECSHandler(c *gin.Context) {
 	username := common.GetUserName(c)
 
@@ -118,20 +107,16 @@ func listECSHandler(c *gin.Context) {
 
 	if err != nil {
 		log.Println("Error getting compute client.", err.Error())
-		if err != nil {
-			c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericOTCAPIError})
-			return
-		}
+		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericOTCAPIError})
+		return
 	}
 
 	allServers, err := getECServersByUsername(client, common.GetUserName(c))
 
 	if err != nil {
 		log.Println("Error getting ECS servers.", err.Error())
-		if err != nil {
-			c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericOTCAPIError})
-			return
-		}
+		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericOTCAPIError})
+		return
 	}
 
 	c.JSON(http.StatusOK, allServers)
@@ -145,20 +130,16 @@ func listFlavorsHandler(c *gin.Context) {
 
 	if err != nil {
 		fmt.Println("Error getting compute client.", err.Error())
-		if err != nil {
-			c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericOTCAPIError})
-			return
-		}
+		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericOTCAPIError})
+		return
 	}
 
 	allFlavors, err := getFlavors(client)
 
 	if err != nil {
 		log.Println("Error getting flavors.", err.Error())
-		if err != nil {
-			c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericOTCAPIError})
-			return
-		}
+		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericOTCAPIError})
+		return
 	}
 
 	c.JSON(http.StatusOK, allFlavors)
@@ -172,20 +153,16 @@ func listImagesHandler(c *gin.Context) {
 
 	if err != nil {
 		log.Println("Error getting compute client.", err.Error())
-		if err != nil {
-			c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericOTCAPIError})
-			return
-		}
+		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericOTCAPIError})
+		return
 	}
 
 	allImages, err := getImages(client)
 
 	if err != nil {
 		log.Println("Error getting images.", err.Error())
-		if err != nil {
-			c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericOTCAPIError})
-			return
-		}
+		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericOTCAPIError})
+		return
 	}
 
 	c.JSON(http.StatusOK, allImages)
@@ -199,20 +176,16 @@ func listAvailabilityZonesHandler(c *gin.Context) {
 
 	if err != nil {
 		fmt.Println("Error getting compute client.", err.Error())
-		if err != nil {
-			c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericOTCAPIError})
-			return
-		}
+		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericOTCAPIError})
+		return
 	}
 
 	allAvailabilityZones, err := getAvailabilityZones(client)
 
 	if err != nil {
 		log.Println("Error getting availability zones.", err.Error())
-		if err != nil {
-			c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericOTCAPIError})
-			return
-		}
+		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericOTCAPIError})
+		return
 	}
 
 	c.JSON(http.StatusOK, allAvailabilityZones)
@@ -226,20 +199,16 @@ func listVolumeTypesHandler(c *gin.Context) {
 
 	if err != nil {
 		fmt.Println("Error getting compute client.", err.Error())
-		if err != nil {
-			c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericOTCAPIError})
-			return
-		}
+		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericOTCAPIError})
+		return
 	}
 
 	allVolumeTypes, err := getVolumeTypes(client)
 
 	if err != nil {
 		log.Println("Error getting volume types.", err.Error())
-		if err != nil {
-			c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericOTCAPIError})
-			return
-		}
+		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericOTCAPIError})
+		return
 	}
 
 	c.JSON(http.StatusOK, allVolumeTypes)
@@ -253,10 +222,8 @@ func stopECSHandler(c *gin.Context) {
 
 	if err != nil {
 		log.Println("Error getting compute client.", err.Error())
-		if err != nil {
-			c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericOTCAPIError})
-			return
-		}
+		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericOTCAPIError})
+		return
 	}
 
 	var data ECServerListResponse
@@ -289,10 +256,8 @@ func startECSHandler(c *gin.Context) {
 
 	if err != nil {
 		log.Println("Error getting compute client.", err.Error())
-		if err != nil {
-			c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericOTCAPIError})
-			return
-		}
+		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericOTCAPIError})
+		return
 	}
 
 	var data ECServerListResponse
@@ -325,10 +290,8 @@ func rebootECSHandler(c *gin.Context) {
 
 	if err != nil {
 		log.Println("Error getting compute client.", err.Error())
-		if err != nil {
-			c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericOTCAPIError})
-			return
-		}
+		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericOTCAPIError})
+		return
 	}
 
 	var data ECServerListResponse
@@ -357,7 +320,6 @@ func rebootECSHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, common.ApiResponse{Message: "Neustart initiert."})
 	return
 }
-
 
 func createKeyPair(client *gophercloud.ServiceClient, publicKeyName string, publicKey string) (*keypairs.KeyPair, error) {
 	log.Printf("Creating public key with name %v.", publicKeyName)
