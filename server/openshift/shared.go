@@ -58,17 +58,11 @@ func getProjectAdminsAndOperators(clusterId, project string) ([]string, []string
 	var admins []string
 	hasOperatorGroup := false
 	for _, g := range adminRoleBinding.Path("groupNames").Children() {
-		if g.Data() == nil {
-			continue
-		}
 		if strings.ToLower(g.Data().(string)) == "operator" {
 			hasOperatorGroup = true
 		}
 	}
 	for _, u := range adminRoleBinding.Path("userNames").Children() {
-		if u.Data() == nil {
-			continue
-		}
 		admins = append(admins, strings.ToLower(u.Data().(string)))
 	}
 
@@ -170,15 +164,9 @@ func getAdminRoleBinding(clusterId, project string) (*gabs.Container, error) {
 				adminRoleBinding = role
 			}
 			for _, name := range role.Path("userNames").Children() {
-				if name.Data() == nil {
-					continue
-				}
 				userNames = append(userNames, strings.ToLower(name.Data().(string)))
 			}
 			for _, name := range role.Path("groupNames").Children() {
-				if name.Data() == nil {
-					continue
-				}
 				groupNames = append(groupNames, strings.ToLower(name.Data().(string)))
 			}
 		}
