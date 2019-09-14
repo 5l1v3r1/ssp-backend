@@ -35,6 +35,9 @@ aws_prod_login_url:
 
 https_proxy:
 
+sso_realm:
+sso_urL:
+
 openshift:
   - id: awsdev
     name: AWS Dev

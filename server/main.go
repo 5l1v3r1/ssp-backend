@@ -1,18 +1,17 @@
 package main
 
 import (
-	log "github.com/sirupsen/logrus"
-	"net/http"
-
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/aws"
-	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/common"
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/config"
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/ddc"
+	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/keycloak"
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/openshift"
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/otc"
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/sematext"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	log "github.com/sirupsen/logrus"
+	"net/http"
 )
 
 func main() {
@@ -38,13 +37,11 @@ func main() {
 	router.Use(cors.New(corsConfig))
 
 	// Public routes
-	authMiddleware := common.GetAuthMiddleware()
-	router.POST("/login", authMiddleware.LoginHandler)
 	router.GET("/features", featuresHandler)
 
 	// Protected routes
 	auth := router.Group("/api/")
-	auth.Use(authMiddleware.MiddlewareFunc())
+	auth.Use(keycloak.Auth(keycloak.LoggedInCheck()))
 	{
 		// Openshift routes
 		openshift.RegisterRoutes(auth)
