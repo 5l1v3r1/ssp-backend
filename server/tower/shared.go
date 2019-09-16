@@ -21,39 +21,39 @@ const (
 func RegisterRoutes(r *gin.RouterGroup) {
 	r.GET("/tower/jobs/:job/stdout", getJobOutputHandler)
 	r.GET("/tower/jobs/:job", getJobHandler)
-	r.POST("/tower/job_templates/launch", postJobTemplateLaunchHandler)
+	r.POST("/tower/job_templates/:job_template/launch", postJobTemplateLaunchHandler)
 }
 
 func postJobTemplateLaunchHandler(c *gin.Context) {
 	username := common.GetUserName(c)
-	//mail := common.GetUserMail(c)
+	job_template := c.Param("job_template")
 
 	request, err := ioutil.ReadAll(c.Request.Body)
 	if err != nil {
-		log.Printf("%v", err)
+		log.Errorf("%v", err)
 		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericAPIError})
 	}
 	json, err := gabs.ParseJSON(request)
 	if err != nil {
-		log.Printf("%v", err)
+		log.Errorf("%v", err)
 		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericAPIError})
 	}
 	json.SetP(username, "extra_vars.provision_otc_owner_tag")
 
-	resp, err := getTowerHTTPClient("POST", "job_templates/19296/launch/", bytes.NewReader(json.Bytes()))
+	resp, err := getTowerHTTPClient("POST", "job_templates/"+job_template+"/launch/", bytes.NewReader(json.Bytes()))
 	if err != nil {
-		log.Printf("%v", err)
+		log.Errorf("%v", err)
 		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericAPIError})
 	}
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		log.Printf("%v", err)
+		log.Errorf("%v", err)
 		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericAPIError})
 	}
 	json, err = gabs.ParseJSON(body)
 	if err != nil {
-		log.Printf("%v", err)
+		log.Errorf("%v", err)
 		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericAPIError})
 		return
 	}
@@ -73,13 +73,13 @@ func getJobOutputHandler(c *gin.Context) {
 	job := c.Param("job")
 	resp, err := getTowerHTTPClient("GET", "jobs/"+job+"/stdout/?format=html", nil)
 	if err != nil {
-		log.Printf("%v", err)
+		log.Errorf("%v", err)
 		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericAPIError})
 	}
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		log.Printf("%v", err)
+		log.Errorf("%v", err)
 		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericAPIError})
 	}
 
@@ -90,13 +90,13 @@ func getJobHandler(c *gin.Context) {
 	job := c.Param("job")
 	resp, err := getTowerHTTPClient("GET", "jobs/"+job, nil)
 	if err != nil {
-		log.Printf("%v", err)
+		log.Errorf("%v", err)
 		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericAPIError})
 	}
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		log.Printf("%v", err)
+		log.Errorf("%v", err)
 		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericAPIError})
 	}
 
