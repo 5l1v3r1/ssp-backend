@@ -68,7 +68,7 @@ func addPullSecretToServiceaccount(clusterId, namespace string, serviceaccount s
 	patch := []common.JsonPatch{
 		{
 			Operation: "add",
-			Path:      "/imagePullSecrets/0",
+			Path:      "/imagePullSecrets/-",
 			Value: struct {
 				Name string `json:"name"`
 			}{
