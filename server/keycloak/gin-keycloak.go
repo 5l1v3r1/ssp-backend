@@ -14,6 +14,7 @@ import (
 	"io/ioutil"
 	"math/big"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 )
@@ -119,18 +120,47 @@ func getPublicKey(keyId string) (string, string, error) {
 	keyEntry, exists := publicKeyCache.Get(keyId)
 	if !exists {
 
-		url := config.Config().GetString("sso_url") + "/auth/realms/" + config.Config().GetString("sso_realm") + "/protocol/openid-connect/certs"
+		ssoURL := config.Config().GetString("sso_url")
+		ssoRealm := config.Config().GetString("sso_realm")
+		ssoCertsURL := ssoURL + "/realms/" + ssoRealm + "/protocol/openid-connect/certs"
 
-		resp, err := http.Get(url)
+		// Create http client with proxy:
+		// https://blog.abhi.host/blog/2016/02/27/golang-creating-https-connection-via/
+		client := &http.Client{}
+		httpProxy := config.Config().GetString("http_proxy")
+		if httpProxy != "" {
+			proxyURL, err := url.Parse(httpProxy)
+			if err != nil {
+				log.Printf(err.Error())
+			}
+
+			transport := http.Transport{
+				Proxy: http.ProxyURL(proxyURL),
+			}
+			client.Transport = &transport
+		}
+
+		req, err := http.NewRequest("GET", ssoCertsURL, nil)
 		if err != nil {
+			log.Printf(err.Error())
+			return "", "", err
+		}
+
+		log.Debugf("Calling %v", req.URL.String())
+
+		resp, err := client.Do(req)
+		if err != nil {
+			log.Println("Error from server: ", err.Error())
 			return "", "", err
 		}
 		defer resp.Body.Close()
+
+		// TODO: check statuscode
+
 		body, err := ioutil.ReadAll(resp.Body)
 
 		var data map[string][]map[string]string
-		err = json.Unmarshal(body, &data)
-		if err != nil {
+		if err := json.Unmarshal(body, &data); err != nil {
 			return "", "", err
 		}
 		keyEntry = data["keys"]
