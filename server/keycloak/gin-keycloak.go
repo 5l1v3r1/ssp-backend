@@ -136,6 +136,7 @@ func getPublicKey(keyId string) (string, string, error) {
 
 			transport := http.Transport{
 				Proxy: http.ProxyURL(proxyURL),
+		        TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 			}
 			client.Transport = &transport
 		}
