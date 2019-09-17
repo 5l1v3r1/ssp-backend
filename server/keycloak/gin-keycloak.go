@@ -17,6 +17,7 @@ import (
 	"net/url"
 	"strings"
 	"time"
+    "crypto/tls"
 )
 
 // totally stolen from https://github.com/tbaehler/gin-keycloak
