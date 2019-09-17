@@ -58,17 +58,11 @@ func getProjectAdminsAndOperators(clusterId, project string) ([]string, []string
 	var admins []string
 	hasOperatorGroup := false
 	for _, g := range adminRoleBinding.Path("groupNames").Children() {
-		if g.Data() == nil {
-			continue
-		}
 		if strings.ToLower(g.Data().(string)) == "operator" {
 			hasOperatorGroup = true
 		}
 	}
 	for _, u := range adminRoleBinding.Path("userNames").Children() {
-		if u.Data() == nil {
-			continue
-		}
 		admins = append(admins, strings.ToLower(u.Data().(string)))
 	}
 
@@ -161,11 +155,32 @@ func getAdminRoleBinding(clusterId, project string) (*gabs.Container, error) {
 		log.Println("error parsing body of response:", err)
 		return nil, errors.New(genericAPIError)
 	}
-	adminRoleBinding, _ := gabs.ParseJSON([]byte("{}"))
+	var adminRoleBinding *gabs.Container
+	var userNames []string
+	var groupNames []string
 	for _, role := range json.S("items").Children() {
 		if role.Path("roleRef.name").Data().(string) == "admin" {
-			adminRoleBinding.Merge(role)
+			if adminRoleBinding == nil {
+				adminRoleBinding = role
+			}
+			for _, name := range role.Path("userNames").Children() {
+				userNames = append(userNames, strings.ToLower(name.Data().(string)))
+			}
+			for _, name := range role.Path("groupNames").Children() {
+				groupNames = append(groupNames, strings.ToLower(name.Data().(string)))
+			}
 		}
+	}
+
+	userNames = common.RemoveDuplicates(userNames)
+	adminRoleBinding.Array("userNames")
+	for _, name := range userNames {
+		adminRoleBinding.ArrayAppend(name, "userNames")
+	}
+	groupNames = common.RemoveDuplicates(groupNames)
+	adminRoleBinding.Array("groupNames")
+	for _, name := range groupNames {
+		adminRoleBinding.ArrayAppend(name, "groupNames")
 	}
 
 	return adminRoleBinding, nil
