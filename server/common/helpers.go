@@ -3,28 +3,19 @@ package common
 import (
 	"crypto/rand"
 	"fmt"
-	"log"
-	"strings"
-
+	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/keycloak"
 	"github.com/gin-gonic/gin"
-	"gopkg.in/appleboy/gin-jwt.v2"
+	"log"
 )
 
 // GetUserName returns the username based of the gin.Context
 func GetUserName(c *gin.Context) string {
-	// AuthUserKey is set by basic auth
-	user, exists := c.Get(gin.AuthUserKey)
-	if exists {
-		return strings.ToLower(user.(string))
-	}
-	jwtClaims := jwt.ExtractClaims(c)
-	return strings.ToLower(jwtClaims["id"].(string))
+	return keycloak.GetUserName(c)
 }
 
 // GetUserMail returns the users mail address based of the gin.Context
 func GetUserMail(c *gin.Context) string {
-	jwtClaims := jwt.ExtractClaims(c)
-	return jwtClaims["mail"].(string)
+	return keycloak.GetEmail(c)
 }
 
 func RandomString(length int) string {

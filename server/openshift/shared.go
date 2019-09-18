@@ -45,10 +45,6 @@ func RegisterRoutes(r *gin.RouterGroup) {
 	r.GET("/ose/clusters", clustersHandler)
 }
 
-func RegisterSecRoutes(r *gin.RouterGroup) {
-	r.POST("/gluster/volume/fix", fixVolumeHandler)
-}
-
 func getProjectAdminsAndOperators(clusterId, project string) ([]string, []string, error) {
 	adminRoleBinding, err := getAdminRoleBinding(clusterId, project)
 	if err != nil {
@@ -92,11 +88,6 @@ func checkAdminPermissions(clusterId, username, project string) error {
 	}
 
 	username = strings.ToLower(username)
-
-	// allow full access via basic auth
-	if username == "sec_api" {
-		return nil
-	}
 
 	// Access for admins
 	for _, a := range admins {
