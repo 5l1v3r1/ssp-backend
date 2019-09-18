@@ -59,15 +59,6 @@ func main() {
 		sematext.RegisterRoutes(auth)
 	}
 
-	secApiPassword := config.Config().GetString("sec_api_password")
-	if secApiPassword != "" {
-		log.Println("Activating secure api (basic auth)")
-		sec := router.Group("/sec", gin.BasicAuth(gin.Accounts{"SEC_API": secApiPassword}))
-		openshift.RegisterSecRoutes(sec)
-	} else {
-		log.Println("Secure api (basic auth) won't be activated, because SEC_API_PASSWORD isn't set")
-	}
-
 	log.Println("Cloud SSP is running")
 
 	port := config.Config().GetString("port")

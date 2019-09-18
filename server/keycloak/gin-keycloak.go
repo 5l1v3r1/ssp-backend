@@ -2,6 +2,7 @@ package keycloak
 
 import (
 	"crypto/rsa"
+	"crypto/tls"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -17,7 +18,6 @@ import (
 	"net/url"
 	"strings"
 	"time"
-    "crypto/tls"
 )
 
 // totally stolen from https://github.com/tbaehler/gin-keycloak
@@ -136,8 +136,8 @@ func getPublicKey(keyId string) (string, string, error) {
 			}
 
 			transport := http.Transport{
-				Proxy: http.ProxyURL(proxyURL),
-		        TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+				Proxy:           http.ProxyURL(proxyURL),
+				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 			}
 			client.Transport = &transport
 		}

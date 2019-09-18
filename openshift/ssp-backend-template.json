@@ -136,10 +136,6 @@
                                         "value": "${LOGSENE_DISCOUNTCODE}"
                                     },
                                     {
-                                        "name": "SEC_API_PASSWORD",
-                                        "value": "${SEC_API_PASSWORD}"
-                                    },
-                                    {
                                         "name": "JENKINS_URL",
                                         "value": "${JENKINS_URL}"
                                     },
@@ -425,12 +421,6 @@
         {
             "name": "LOGSENE_DISCOUNTCODE",
             "description": "Discount code for Sematext"
-        },
-        {
-            "name": "SEC_API_PASSWORD",
-            "description": "Password for SEC_API users basic auth login",
-            "generate": "expression",
-            "from": "[a-zA-Z0-9]{30}"
         },
         {
             "name": "JENKINS_URL",

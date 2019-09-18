@@ -17,7 +17,6 @@ aws_prod_secret_access_key:
 aws_nonprod_access_key_id:
 sematext_api_token:
 sematext_base_url:
-sec_api_password:
 logsene_discountcode:
 ddc_api:
 otc_api:
