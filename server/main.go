@@ -1,19 +1,18 @@
 package main
 
 import (
-	log "github.com/sirupsen/logrus"
-	"net/http"
-
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/aws"
-	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/common"
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/config"
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/ddc"
+	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/keycloak"
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/openshift"
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/otc"
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/sematext"
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/tower"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	log "github.com/sirupsen/logrus"
+	"net/http"
 )
 
 func main() {
@@ -39,13 +38,11 @@ func main() {
 	router.Use(cors.New(corsConfig))
 
 	// Public routes
-	authMiddleware := common.GetAuthMiddleware()
-	router.POST("/login", authMiddleware.LoginHandler)
 	router.GET("/features", featuresHandler)
 
 	// Protected routes
 	auth := router.Group("/api/")
-	auth.Use(authMiddleware.MiddlewareFunc())
+	auth.Use(keycloak.Auth(keycloak.LoggedInCheck()))
 	{
 		// Openshift routes
 		openshift.RegisterRoutes(auth)
@@ -64,15 +61,6 @@ func main() {
 
 		// Ansible Tower
 		tower.RegisterRoutes(auth)
-	}
-
-	secApiPassword := config.Config().GetString("sec_api_password")
-	if secApiPassword != "" {
-		log.Println("Activating secure api (basic auth)")
-		sec := router.Group("/sec", gin.BasicAuth(gin.Accounts{"SEC_API": secApiPassword}))
-		openshift.RegisterSecRoutes(sec)
-	} else {
-		log.Println("Secure api (basic auth) won't be activated, because SEC_API_PASSWORD isn't set")
 	}
 
 	log.Println("Cloud SSP is running")

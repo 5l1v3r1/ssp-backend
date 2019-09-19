@@ -10,7 +10,7 @@ import (
 	"fmt"
 
 	"encoding/json"
-	"github.com/Jeffail/gabs"
+	"github.com/Jeffail/gabs/v2"
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/common"
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/config"
 	"github.com/gin-gonic/gin"
@@ -68,7 +68,7 @@ func addPullSecretToServiceaccount(clusterId, namespace string, serviceaccount s
 	patch := []common.JsonPatch{
 		{
 			Operation: "add",
-			Path:      "/imagePullSecrets/0",
+			Path:      "/imagePullSecrets/-",
 			Value: struct {
 				Name string `json:"name"`
 			}{
