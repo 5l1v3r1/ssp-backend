@@ -2,6 +2,8 @@ package tower
 
 import (
 	"bytes"
+	"errors"
+	"fmt"
 	"github.com/Jeffail/gabs/v2"
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/common"
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/config"
@@ -32,41 +34,74 @@ func postJobTemplateLaunchHandler(c *gin.Context) {
 	if err != nil {
 		log.Errorf("%v", err)
 		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericAPIError})
+		return
 	}
 	json, err := gabs.ParseJSON(request)
 	if err != nil {
 		log.Errorf("%v", err)
 		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericAPIError})
+		return
 	}
 	json.SetP(username, "extra_vars.provision_otc_owner_tag")
-
-	resp, err := getTowerHTTPClient("POST", "job_templates/"+job_template+"/launch/", bytes.NewReader(json.Bytes()))
+	job, err := launchJobTemplate(job_template, json, username)
 	if err != nil {
 		log.Errorf("%v", err)
 		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericAPIError})
+		return
+	}
+	c.JSON(http.StatusOK, job)
+}
+
+func launchJobTemplate(job_template string, json *gabs.Container, username string) (string, error) {
+	if err := checkPermissions(job_template, username); err != nil {
+		return "", err
+	}
+	return "", nil
+
+	resp, err := getTowerHTTPClient("POST", "job_templates/"+job_template+"/launch/", bytes.NewReader(json.Bytes()))
+	if err != nil {
+		return "", err
 	}
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		log.Errorf("%v", err)
-		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericAPIError})
+		return "", err
 	}
 	json, err = gabs.ParseJSON(body)
 	if err != nil {
-		log.Errorf("%v", err)
-		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericAPIError})
-		return
+		return "", err
 	}
 	if resp.StatusCode == http.StatusBadRequest {
-		// TODO: cleanup code
+		// Should never happen. This means the SSP and Tower send/expect different variables
 		errs := "Fehler vom Ansible Tower (bitte Ticket erstellen):<br><br>"
 		for _, err := range json.Path("variables_needed_to_start").Children() {
 			errs += "<br>" + err.Data().(string)
 		}
-		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: string(errs)})
-		return
+		return "", fmt.Errorf(string(errs))
 	}
-	c.JSON(http.StatusOK, string(body))
+	return string(body), nil
+}
+
+type jobTemplatePermission struct {
+	ID string
+}
+
+func checkPermissions(job_template, username string) error {
+	cfg := config.Config()
+
+	job_templates := []jobTemplatePermission{}
+	err := cfg.UnmarshalKey("tower.job_templates", &job_templates)
+	if err != nil {
+		return err
+	}
+	for _, template := range job_templates {
+		if template.ID == job_template {
+			log.Printf("Job template %v allowed", job_template)
+			return nil
+		}
+
+	}
+	return fmt.Errorf("Username %v tried to launch job template %v. Not in allowed job_templates", username, job_template)
 }
 
 func getJobOutputHandler(c *gin.Context) {
@@ -105,15 +140,17 @@ func getJobHandler(c *gin.Context) {
 
 func getTowerHTTPClient(method string, urlPart string, body io.Reader) (*http.Response, error) {
 	cfg := config.Config()
-	baseUrl := cfg.GetString("tower_base_url")
+	baseUrl := cfg.GetString("tower.base_url")
 	if baseUrl == "" {
-		log.Fatal("Env variables 'TOWER_BASE_URL' must be specified")
+		log.Error("Env variables 'TOWER_BASE_URL' must be specified")
+		return nil, errors.New(common.ConfigNotSetError)
 	}
 
-	username := cfg.GetString("tower_username")
-	password := cfg.GetString("tower_password")
+	username := cfg.GetString("tower.username")
+	password := cfg.GetString("tower.password")
 	if username == "" || password == "" {
-		log.Fatal("Env variables 'TOWER_USERNAME' and 'TOWER_PASSWORD' must be specified")
+		log.Error("Env variables 'TOWER_USERNAME' and 'TOWER_PASSWORD' must be specified")
+		return nil, errors.New(common.ConfigNotSetError)
 	}
 
 	if !strings.HasSuffix(baseUrl, "/") {

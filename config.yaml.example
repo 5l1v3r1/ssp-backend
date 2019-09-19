@@ -37,6 +37,13 @@ https_proxy:
 sso_realm:
 sso_url:
 
+tower:
+  base_url: https://deploy.domain.ch/api/v2/
+  username: user
+  password: pass
+  job_templates:
+    - id: 11111
+
 openshift:
   - id: awsdev
     name: AWS Dev
