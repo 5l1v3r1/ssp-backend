@@ -16,6 +16,7 @@ import (
 	"math/big"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"time"
 )
@@ -127,8 +128,12 @@ func getPublicKey(keyId string) (string, string, error) {
 
 		// Create http client with proxy:
 		// https://blog.abhi.host/blog/2016/02/27/golang-creating-https-connection-via/
+		// somehow doesn't work with default environment variable (?)
 		client := &http.Client{}
-		httpProxy := config.Config().GetString("http_proxy")
+		httpProxy := os.Getenv("http_proxy")
+		if httpProxy == "" {
+			httpProxy = os.Getenv("HTTP_PROXY")
+		}
 		if httpProxy != "" {
 			proxyURL, err := url.Parse(httpProxy)
 			if err != nil {
