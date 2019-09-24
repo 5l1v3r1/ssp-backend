@@ -23,6 +23,7 @@ const (
 func RegisterRoutes(r *gin.RouterGroup) {
 	r.GET("/tower/jobs/:job/stdout", getJobOutputHandler)
 	r.GET("/tower/jobs/:job", getJobHandler)
+	r.GET("/tower/jobs", getJobsHandler)
 	r.POST("/tower/job_templates/:job_template/launch", postJobTemplateLaunchHandler)
 }
 
@@ -56,7 +57,6 @@ func launchJobTemplate(job_template string, json *gabs.Container, username strin
 	if err := checkPermissions(job_template, username); err != nil {
 		return "", err
 	}
-	return "", nil
 
 	resp, err := getTowerHTTPClient("POST", "job_templates/"+job_template+"/launch/", bytes.NewReader(json.Bytes()))
 	if err != nil {
@@ -136,6 +136,31 @@ func getJobHandler(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, string(body))
+}
+
+func getJobsHandler(c *gin.Context) {
+	log.Printf("%+v", c.Request)
+	resp, err := getTowerHTTPClient("GET", "jobs/?finished__isnull=true&not__launch_type=scheduled", nil)
+	if err != nil {
+		log.Errorf("%v", err)
+		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericAPIError})
+	}
+	defer resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		log.Errorf("%v", err)
+		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericAPIError})
+	}
+
+	c.JSON(http.StatusOK, string(body))
+}
+
+func getRunningJobs() {
+
+}
+
+func getFinishedJobs(username string) {
+
 }
 
 func getTowerHTTPClient(method string, urlPart string, body io.Reader) (*http.Response, error) {
