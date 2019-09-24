@@ -139,8 +139,7 @@ func getJobHandler(c *gin.Context) {
 }
 
 func getJobsHandler(c *gin.Context) {
-	log.Printf("%+v", c.Request)
-	resp, err := getTowerHTTPClient("GET", "jobs/?finished__isnull=true&not__launch_type=scheduled", nil)
+	resp, err := getTowerHTTPClient("GET", "jobs/?or__finished__isnull=true&or__artifacts__contains=gs-gdi-otc2-t02&not__launch_type=scheduled", nil)
 	if err != nil {
 		log.Errorf("%v", err)
 		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericAPIError})
@@ -153,14 +152,6 @@ func getJobsHandler(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, string(body))
-}
-
-func getRunningJobs() {
-
-}
-
-func getFinishedJobs(username string) {
-
 }
 
 func getTowerHTTPClient(method string, urlPart string, body io.Reader) (*http.Response, error) {
