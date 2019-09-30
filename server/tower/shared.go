@@ -58,6 +58,8 @@ func launchJobTemplate(job_template string, json *gabs.Container, username strin
 		return "", err
 	}
 
+	json.SetP(username, "extra_vars.custom_tower_user_name")
+
 	resp, err := getTowerHTTPClient("POST", "job_templates/"+job_template+"/launch/", bytes.NewReader(json.Bytes()))
 	if err != nil {
 		return "", err
