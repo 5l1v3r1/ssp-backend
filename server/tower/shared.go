@@ -43,7 +43,6 @@ func postJobTemplateLaunchHandler(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericAPIError})
 		return
 	}
-	json.SetP(username, "extra_vars.provision_otc_owner_tag")
 	job, err := launchJobTemplate(job_template, json, username)
 	if err != nil {
 		log.Errorf("%v", err)
@@ -59,6 +58,7 @@ func launchJobTemplate(job_template string, json *gabs.Container, username strin
 	}
 
 	json.SetP(username, "extra_vars.custom_tower_user_name")
+	log.Printf("%+v", json)
 
 	resp, err := getTowerHTTPClient("POST", "job_templates/"+job_template+"/launch/", bytes.NewReader(json.Bytes()))
 	if err != nil {
@@ -141,7 +141,8 @@ func getJobHandler(c *gin.Context) {
 }
 
 func getJobsHandler(c *gin.Context) {
-	resp, err := getTowerHTTPClient("GET", "jobs/?or__finished__isnull=true&or__artifacts__contains=gs-gdi-otc2-t02&not__launch_type=scheduled", nil)
+	username := common.GetUserName(c)
+	resp, err := getTowerHTTPClient("GET", "jobs/?or__finished__isnull=true&or__artifacts__contains="+username, nil)
 	if err != nil {
 		log.Errorf("%v", err)
 		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericAPIError})
