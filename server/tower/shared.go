@@ -112,12 +112,14 @@ func getJobOutputHandler(c *gin.Context) {
 	if err != nil {
 		log.Errorf("%v", err)
 		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericAPIError})
+        return
 	}
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		log.Errorf("%v", err)
 		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericAPIError})
+        return
 	}
 
 	c.JSON(http.StatusOK, string(body))
@@ -129,12 +131,14 @@ func getJobHandler(c *gin.Context) {
 	if err != nil {
 		log.Errorf("%v", err)
 		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericAPIError})
+        return
 	}
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		log.Errorf("%v", err)
 		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericAPIError})
+        return
 	}
 
 	c.JSON(http.StatusOK, string(body))
@@ -146,12 +150,14 @@ func getJobsHandler(c *gin.Context) {
 	if err != nil {
 		log.Errorf("%v", err)
 		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericAPIError})
+        return
 	}
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		log.Errorf("%v", err)
 		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericAPIError})
+        return
 	}
 
 	c.JSON(http.StatusOK, string(body))
