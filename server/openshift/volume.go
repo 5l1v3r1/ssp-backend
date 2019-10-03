@@ -23,9 +23,9 @@ import (
 )
 
 const (
-	wrongSizeFormatError    = "Ungültige Grösse. Format muss Zahl gefolgt von M/G sein (z.B. 500M)."
-	wrongSizeNFSFormatError = "Ungültige Grösse. Format muss Zahl gefolgt von G sein (z.B. 1G)."
-	wrongSizeLimitError     = "Grösse nicht erlaubt. Mindestgrösse: 500M (1G für NFS). Maximale Grössen sind: M: %v, G: %v"
+	wrongSizeFormatError    = "Invalid size. Format: number which is followed by M/G Invalid size.(e.g. 500M)."
+	wrongSizeNFSFormatError = "Invalid size. Format: number which is followed by G.(e.g. 1G)."
+	wrongSizeLimitError     = "Size is not allowed. min size: 500M (1G für NFS). Max size are: M: %v, G: %v"
 	apiCreateWorkflowUuid   = "64b3b95b-0d79-4563-8b88-f8c4486b40a0"
 	apiChangeWorkflowUuid   = "186b1295-1b82-42e4-b04d-477da967e1d4"
 )
@@ -60,7 +60,7 @@ func newVolumeHandler(c *gin.Context) {
 			})
 		} else {
 			c.JSON(http.StatusOK, common.NewVolumeApiResponse{
-				Message: "Das Volume wurde erstellt. Deinem Projekt wurde das PVC, und der Gluster Service & Endpunkte hinzugefügt.",
+				Message: "Volume has been created. Deinem Projekt wurde das PVC, und der Gluster Service & Endpunkte hinzugefügt.",
 				Data:    *newVolumeResponse,
 			})
 		}
@@ -103,7 +103,7 @@ func fixVolumeHandler(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, common.ApiResponse{Message: err.Error()})
 		} else {
 			c.JSON(http.StatusOK, common.ApiResponse{
-				Message: "Die Gluster-Objekte wurden in deinem Projekt erzeugt.",
+				Message: "The Gluster-objects have been created in the project.",
 			})
 		}
 
@@ -134,13 +134,13 @@ func growVolumeHandler(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, common.ApiResponse{Message: "Das Volume wurde vergrössert."})
+	c.JSON(http.StatusOK, common.ApiResponse{Message: "Volume has been resized"})
 }
 
 func validateNewVolume(clusterId, project, size, pvcName, mode, technology, username string) error {
 	// Required fields
 	if len(project) == 0 || len(pvcName) == 0 || len(size) == 0 || len(mode) == 0 {
-		return errors.New("Es müssen alle Felder ausgefüllt werden")
+		return errors.New("All fields have to be filled")
 	}
 
 	if err := validateSizeFormat(size, technology); err != nil {
@@ -172,7 +172,7 @@ func validateNewVolume(clusterId, project, size, pvcName, mode, technology, user
 func validateGrowVolume(clusterId string, pv *gabs.Container, newSize string, username string) error {
 	// Required fields
 	if len(newSize) == 0 {
-		return errors.New("Es müssen alle Felder ausgefüllt werden")
+		return errors.New("All fileds must be filled")
 	}
 
 	// The technology (nfs, gluster) isn't important. Size can only be bigger
@@ -199,7 +199,7 @@ func validateGrowVolume(clusterId string, pv *gabs.Container, newSize string, us
 
 func validateFixVolume(clusterId, project string, username string) error {
 	if len(project) == 0 {
-		return errors.New("Projekt muss angegeben werden")
+		return errors.New("Project must be provided again")
 	}
 
 	// Permissions on project
@@ -243,7 +243,7 @@ func validateSize(size string) error {
 			return fmt.Errorf(wrongSizeLimitError, maxMB, maxGB)
 		}
 		if sizeInt > maxMB {
-			return errors.New("Deine Angaben sind zu gross für 'M'. Bitte gib die Grösse als Ganzzahl in 'G' an")
+			return errors.New("Your configuration is to big for 'M'. Please provide the size in G")
 		}
 	}
 	if strings.HasSuffix(size, "G") {
@@ -275,7 +275,7 @@ func checkPvcName(clusterId, project, pvcName string) error {
 
 	for _, v := range json.S("items").Children() {
 		if v.Path("metadata.name").Data().(string) == pvcName {
-			return fmt.Errorf("Der gewünschte PVC-Name %v existiert bereits.", pvcName)
+			return fmt.Errorf("The wanted PVC-name %v already exists.", pvcName)
 		}
 	}
 
@@ -623,7 +623,7 @@ func growGlusterVolume(clusterId string, pv *gabs.Container, newSize string, use
 	if resp.StatusCode != http.StatusOK {
 		errMsg, _ := ioutil.ReadAll(resp.Body)
 		log.Printf("Error growing gluster volume: %v %v", resp.StatusCode, string(errMsg))
-		return fmt.Errorf("Fehlerhafte Antwort vom Gluster-API: %v", string(errMsg))
+		return fmt.Errorf("Error message from Gluster-API: %v", string(errMsg))
 	}
 
 	log.Printf("%v grew gluster volume. pv: %v, newSize: %v", username, pvName, newSize)

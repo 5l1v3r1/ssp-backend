@@ -19,8 +19,8 @@ import (
 )
 
 const (
-	wrongAPIUsageError = "Ungültiger API-Aufruf: Die Argumente stimmen nicht mit der definition überein. Bitte erstelle eine Ticket"
-	genericAwsAPIError = "Fehler beim Aufruf der AWS API. Bitte erstelle ein Ticket"
+	wrongAPIUsageError = "invalid API-query: Argument doesnt match definition. Please create a ticket"
+	genericAwsAPIError = "Failed to fetch AWS API. Bitte erstelle ein Ticket"
 )
 
 const (

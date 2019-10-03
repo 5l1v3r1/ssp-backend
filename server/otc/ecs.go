@@ -31,32 +31,32 @@ func validateUserInput(data NewECSCommand) error {
 	if err != nil {
 		log.Println("Can't parse public key.", err.Error())
 		if err != nil {
-			return errors.New("Der SSH Public Key kann nicht geparst werden.")
+			return errors.New("SSH Publickey cant be parset")
 		}
 	}
 
 	if len(data.ECSName) == 0 {
-		return errors.New("Der ECS Name muss angegeben werden.")
+		return errors.New("ECS name has to be provided.")
 	}
 
 	if len(data.Billing) == 0 {
-		return errors.New("Kontierungsnummer muss angegeben werden.")
+		return errors.New("Account assignment number has to be provided.")
 	}
 
 	if len(data.MegaId) == 0 {
-		return errors.New("Mega ID muss angegeben werden.")
+		return errors.New("Mega ID has to be provided.")
 	}
 
 	if len(data.AvailabilityZone) == 0 {
-		return errors.New("Availability Zone muss angegeben werden.")
+		return errors.New("Availability Zone has to be provided.")
 	}
 
 	if len(data.FlavorName) == 0 {
-		return errors.New("Flavor muss angegeben werden.")
+		return errors.New("Flavor has to be provided.")
 	}
 
 	if len(data.ImageId) == 0 {
-		return errors.New("Flavor muss angegeben werden.")
+		return errors.New("Flavor has to be provided.")
 	}
 
 	imageClient, err := getImageClient()
@@ -78,7 +78,7 @@ func validateUserInput(data NewECSCommand) error {
 	}
 
 	if image.MinDiskGigabytes > data.RootDiskSize {
-		return errors.New(fmt.Sprintf("Das gewählte Image benötigt eine mindestens %vGB grosse System Disk.", image.MinDiskGigabytes))
+		return errors.New(fmt.Sprintf("The choosen Image has to have a system disc size of  %vGB .", image.MinDiskGigabytes))
 	}
 
 	computeClient, err := getComputeClient()
@@ -100,11 +100,11 @@ func validateUserInput(data NewECSCommand) error {
 	}
 
 	if image.MinRAMMegabytes > flavor.RAM {
-		return errors.New(fmt.Sprintf("Das gewählte Image benötigt mindestens %vGB RAM.", image.MinRAMMegabytes/1024))
+		return errors.New(fmt.Sprintf("The choosen image has to have a RAM size of %vGB RAM.", image.MinRAMMegabytes/1024))
 	}
 
 	if len(data.SystemVolumeTypeId) == 0 {
-		return errors.New("System Disk Typ muss angegeben werden.")
+		return errors.New("System Disc type has to be provided")
 	}
 
 	return nil
@@ -219,11 +219,11 @@ runcmd:
 
 	if err != nil {
 		log.Println("Creating server failed.", err.Error())
-		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: "Server konnte nicht erstellt werden."})
+		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: "Server couldnt be created."})
 		return
 	} else {
 		log.Println("Creating server succeeded.")
-		c.JSON(http.StatusOK, common.ApiResponse{Message: "Server erstellt."})
+		c.JSON(http.StatusOK, common.ApiResponse{Message: "Server created."})
 		return
 	}
 }
@@ -467,12 +467,12 @@ func stopECSHandler(c *gin.Context) {
 
 		if stopResult.Err != nil {
 			log.Println("Error while stopping server.", err.Error())
-			c.JSON(http.StatusBadRequest, common.ApiResponse{Message: "Mindestens ein server konnte nicht gestoppt werden."})
+			c.JSON(http.StatusBadRequest, common.ApiResponse{Message: "At least one Server wasnt able to stop."})
 			return
 		}
 	}
 
-	c.JSON(http.StatusOK, common.ApiResponse{Message: "Serverstopp initiert."})
+	c.JSON(http.StatusOK, common.ApiResponse{Message: "Serverstopp initiated."})
 	return
 }
 
@@ -503,12 +503,12 @@ func startECSHandler(c *gin.Context) {
 
 		if stopResult.Err != nil {
 			log.Println("Error while starting server.", err.Error())
-			c.JSON(http.StatusBadRequest, common.ApiResponse{Message: "Mindestens ein server konnte nicht gestartet werden."})
+			c.JSON(http.StatusBadRequest, common.ApiResponse{Message: "At least one server wasnt able to start"})
 			return
 		}
 	}
 
-	c.JSON(http.StatusOK, common.ApiResponse{Message: "Serverstart initiert."})
+	c.JSON(http.StatusOK, common.ApiResponse{Message: "Serverstart initiated."})
 	return
 }
 
@@ -543,12 +543,12 @@ func rebootECSHandler(c *gin.Context) {
 
 		if rebootResult.Err != nil {
 			log.Println("Error while rebooting server.", err.Error())
-			c.JSON(http.StatusBadRequest, common.ApiResponse{Message: "Mindestens ein server konnte nicht rebootet werden."})
+			c.JSON(http.StatusBadRequest, common.ApiResponse{Message: "At least one server wasnt able to be rebooted."})
 			return
 		}
 	}
 
-	c.JSON(http.StatusOK, common.ApiResponse{Message: "Neustart initiert."})
+	c.JSON(http.StatusOK, common.ApiResponse{Message: "reboot initiated."})
 	return
 }
 
@@ -579,12 +579,12 @@ func deleteECSHandler(c *gin.Context) {
 
 		if deleteResult.Err != nil {
 			log.Println("Error while deleting server.", err.Error())
-			c.JSON(http.StatusBadRequest, common.ApiResponse{Message: "Mindestens ein server konnte nicht gelöscht werden."})
+			c.JSON(http.StatusBadRequest, common.ApiResponse{Message: "At least one server didnt got deleted."})
 			return
 		}
 	}
 
-	c.JSON(http.StatusOK, common.ApiResponse{Message: "Löschung wurde initiert."})
+	c.JSON(http.StatusOK, common.ApiResponse{Message: "Deletion initiated"})
 	return
 }
 

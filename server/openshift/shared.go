@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	genericAPIError         = "Fehler beim Aufruf der OpenShift-API. Bitte erstelle ein Ticket"
+	genericAPIError         = "An error occured while trying to fetch the openshift-API. Please create a ticket"
 	wrongAPIUsageError      = "Invalid api call - parameters did not match to method definition"
 	testProjectDeletionDays = "30"
 )
@@ -107,7 +107,7 @@ func checkAdminPermissions(clusterId, username, project string) error {
 		return nil
 	}
 
-	return fmt.Errorf("Du hast keine Admin Rechte auf das Projekt: %v. Bestehende Admins sind folgende Benutzer: %v", project, strings.Join(admins, ", "))
+	return fmt.Errorf("You have no admin permissions on the project: %v. The following users are admins: %v", project, strings.Join(admins, ", "))
 }
 
 func getOperatorGroup(clusterId string) (*gabs.Container, error) {

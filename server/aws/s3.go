@@ -22,31 +22,31 @@ import (
 )
 
 const (
-	s3CreateError = "Erstellung des Buckets fehlgeschlagen. Bitte erstelle ein Ticket"
-	s3ListError   = "Die Buckets können nicht aufgelistet werden. Bitte erstelle ein Ticket"
+	s3CreateError = "An error occured while creating a Bucket. Please create a ticket"
+	s3ListError   = "Not able to list Buckets. Please create a ticket"
 )
 
 func validateNewS3Bucket(projectname string, bucketname string, billing string, stage string) error {
 	if len(stage) == 0 {
-		return errors.New("Umgebung muss definiert werden")
+		return errors.New("Enviroment must be defined")
 	}
 	if len(billing) == 0 {
-		return errors.New("Verrechnungsnummer muss definiert sein")
+		return errors.New("Withholding number has the be defined")
 	}
 	if len(bucketname) == 0 {
-		return errors.New("Bucketname muss definiert sein")
+		return errors.New("Bucketname has to be defined")
 	}
 	if len(projectname) == 0 {
-		return errors.New("Projekt muss definiert sein")
+		return errors.New("Project has to be defined")
 	}
 
 	if len(bucketname) > 63 {
 		// http://docs.aws.amazon.com/AmazonS3/latest/dev/BucketRestrictions.html
-		return errors.New("Generierter Bucketname " + bucketname + " ist zu lang")
+		return errors.New("Generated Bucketname " + bucketname + " is to long")
 	}
 	var validName = regexp.MustCompile(`^[a-zA-Z0-9\-]+$`).MatchString
 	if !validName(bucketname) {
-		return errors.New("Bucketname kann nur alphanumerische Zeichen und Bindestriche enthalten")
+		return errors.New("Bucketname can only contain alphanumeric characters or "-"")
 	}
 
 	svc, err := GetS3Client(stage)
@@ -63,7 +63,7 @@ func validateNewS3Bucket(projectname string, bucketname string, billing string, 
 	for _, b := range result.Buckets {
 		if *b.Name == bucketname {
 			log.Print("Error, bucket " + bucketname + "already exists")
-			return errors.New("Fehler: Bucket " + bucketname + " existiert bereits")
+			return errors.New("Error: Bucket " + bucketname + " already exists")
 		}
 	}
 
@@ -106,8 +106,8 @@ func newS3BucketHandler(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, common.ApiResponse{Message: err.Error()})
 		} else {
 			c.JSON(http.StatusOK, common.ApiResponse{
-				Message: "Es wurde ein neuer S3 Bucket erstellt: " + newbucketname +
-					". Du kannst nun über den anderen Menüpunkt Benutzer für diesen Bucket erstellen",
+				Message: "A new S3 Bucket has been created: " + newbucketname +
+					". Now you can add other users to the Bucket trough the other Menu topic",
 			})
 		}
 	} else {
@@ -149,12 +149,12 @@ func newS3UserHandler(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, common.ApiResponse{
-		Message: fmt.Sprintf("Der Benutzer (%v) wurde erstellt.<br><br><table>"+
+		Message: fmt.Sprintf("The User (%v) has been created.<br><br><table>"+
 			"<tr><td>Access Key ID:</td><td>%v</td></tr>"+
 			"<tr><td>Secret Access Key:</td><td>%v</td></tr>"+
 			"<tr><td>Password:</td><td>%v</td></tr>"+
 			"<tr><td>Login URL:</td><td>%v</td></tr></table>"+
-			"<br><b>Hinweis:</b> diese Keys und Passwörter gut & sicher abspeichern, da sie später nicht wiederhergestellt werden können!",
+			"<br><b>Note:</b> safe those keys and pws on a safe and stable place, since you can change them after!",
 			credentials.Username, credentials.AccessKeyID, credentials.SecretKey, html.EscapeString(credentials.Password), loginURL)})
 }
 
