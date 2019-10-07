@@ -80,7 +80,7 @@ type featureToggleResponse struct {
 	Openshift openshift.Features `json:"openshift"`
 	DDC       ddc.Features       `json:"ddc"`
 	OTC       otc.Features       `json:"otc"`
-	KAFKA     kafka.Features     `json:"kafka"`
+	Kafka     kafka.Features     `json:"kafka"`
 }
 
 func featuresHandler(c *gin.Context) {
@@ -90,6 +90,6 @@ func featuresHandler(c *gin.Context) {
 		Openshift: openshift.GetFeatures(clusterId),
 		DDC:       ddc.GetFeatures(),
 		OTC:       otc.GetFeatures(),
-		KAFKA:     kafka.GetFeatures(),
+		Kafka:     kafka.GetFeatures(),
 	})
 }

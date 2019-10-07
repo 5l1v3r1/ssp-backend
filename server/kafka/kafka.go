@@ -3,6 +3,7 @@ package kafka
 import (
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/config"
 	"github.com/gin-gonic/gin"
+	"log"
 	"net/http"
 )
 
@@ -13,7 +14,11 @@ type KafkaBackend struct {
 
 func getAllKafkaBackendsFromConfig() []KafkaBackend {
 	kafka_backends := []KafkaBackend{}
-	config.Config().UnmarshalKey("kafka_backends", &kafka_backends)
+	err := config.Config().UnmarshalKey("kafka_backends", &kafka_backends)
+
+	if err != nil {
+		log.Println("Error unmarshalling kafka config.", err.Error())
+	}
 
 	return kafka_backends
 }
