@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/common"
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/config"
+	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/ldap"
 	"github.com/gin-gonic/gin"
 	"github.com/gophercloud/gophercloud"
 	"github.com/gophercloud/gophercloud/openstack/blockstorage/v1/volumetypes"
@@ -551,6 +552,17 @@ func getAvailabilityZones(client *gophercloud.ServiceClient) (*AvailabilityZoneL
 
 func getImages(client *gophercloud.ServiceClient) (*ImageListResponse, error) {
 	log.Println("Getting images @ OTC.")
+	l, err := ldap.New()
+	if err != nil {
+		log.Printf("%v", err)
+	}
+	log.Printf("%+v", l)
+	groups, err := l.GetGroupsOfUser("cn=e507889,ou=Ext Mitarbeiter,dc=sbb,dc=CH")
+	log.Printf("getting groups")
+	if err != nil {
+		log.Printf("%v", err)
+	}
+	log.Printf("%+v", groups)
 
 	result := ImageListResponse{
 		Images: []Image{},
