@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	genericUserCreationError = "An error uccured while creating the user account"
+	genericUserCreationError = "An error occured while creating the user account"
 )
 
 // PolicyDocument IAM Policy Document
@@ -46,7 +46,7 @@ func validateNewS3User(username string, bucketname string, newuser string, stage
 	}
 	validName := regexp.MustCompile(`^[a-zA-Z0-9\-]+$`).MatchString
 	if !validName(bucketname) {
-		return errors.New("Username can only contain alphanumeric signs and "-"")
+		return errors.New("Username can only contain alphanumeric characters and "-"")
 	}
 
 	svc, err := GetIAMClient(stage)
@@ -62,7 +62,7 @@ func validateNewS3User(username string, bucketname string, newuser string, stage
 	for _, u := range result.Users {
 		if *u.UserName == newuser {
 			log.Printf("Error, user %v already exists", newuser)
-			return errors.New("Error: IAM-Benutzer " + newuser + " already exists")
+			return errors.New("Error: IAM account " + newuser + " already exists")
 		}
 	}
 
@@ -74,7 +74,7 @@ func validateNewS3User(username string, bucketname string, newuser string, stage
 			return nil
 		}
 	}
-	return errors.New("There is none bukcet with the name" + bucketname + "in existence. Or youre not allowed to create a Bucket)
+	return errors.New("Bucket " + bucketname + " doesn't exist. Or you're not allowed to create a Bucket)
 }
 
 func createNewS3User(bucketname string, s3username string, stage string, isReadonly bool) (*common.S3CredentialsResponse, error) {

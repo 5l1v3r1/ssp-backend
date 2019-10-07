@@ -34,7 +34,7 @@ func editQuotasHandler(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, common.ApiResponse{Message: err.Error()})
 		} else {
 			c.JSON(http.StatusOK, common.ApiResponse{
-				Message: fmt.Sprintf("New Quotas has been safed: Cluster %v, Project %v, CPU: %v, Memory: %v",
+				Message: fmt.Sprintf("New quotas has been saved: Cluster %v, Project %v, CPU: %v, Memory: %v",
 					data.ClusterId, data.Project, data.CPU, data.Memory),
 			})
 		}
@@ -55,19 +55,19 @@ func validateEditQuotas(clusterId, username, project string, cpu int, memory int
 
 	// Validate user input
 	if clusterId == "" {
-		return errors.New("Cluster has to be provided)
+		return errors.New("Cluster must be provided)
 	}
 
 	if project == "" {
-		return errors.New("Project has to be provided")
+		return errors.New("Project must be provided")
 	}
 
 	if cpu > maxCPU {
-		return fmt.Errorf("MAX CPU Value: %v", maxCPU)
+		return fmt.Errorf("The maximal value for CPU cores: %v", maxCPU)
 	}
 
 	if memory > maxMemory {
-		return fmt.Errorf("MAX value for Memory: %v", maxMemory)
+		return fmt.Errorf("The maximal value for memory: %v", maxMemory)
 	}
 
 	// Validate permissions

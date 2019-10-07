@@ -13,9 +13,9 @@ import (
 )
 
 const (
-	ec2ListError  = "Instances cant be displayed. Please open a ticket"
-	ec2StartError = "Instances cant be started. Please open a ticket
-	ec2StopError  = "Instances cant be stopped. Please open a ticket"
+	ec2ListError  = "Instances can't be listed. Please open a ticket"
+	ec2StartError = "Instances can't be started. Please open a ticket
+	ec2StopError  = "Instances can't be stopped. Please open a ticket"
 )
 
 func listEC2InstancesHandler(c *gin.Context) {
@@ -55,7 +55,7 @@ func createEC2InstanceSnapshotHandler(c *gin.Context) {
 			return
 		}
 		log.Println(username + " snapshots volume " + data.VolumeId + " in instance " + data.InstanceId)
-		c.JSON(http.StatusOK, common.SnapshotApiResponse{Message: "Created snapshot: " + data.Description, Snapshot: *snapshot})
+		c.JSON(http.StatusOK, common.SnapshotApiResponse{Message: "Successfully created snapshot: " + data.Description, Snapshot: *snapshot})
 		return
 	}
 	c.JSON(http.StatusBadRequest, common.ApiResponse{Message: wrongAPIUsageError})
@@ -328,7 +328,7 @@ func listSnapshots(instance *ec2.Instance, account string) ([]*ec2.Snapshot, err
 			// If the device name cannot be found return an error to the user
 			devicename, err := getDeviceName(*snapshot.VolumeId, account)
 			if err != nil {
-				devicename = "Discname unnkown"
+				devicename = "Disk name unknown"
 			}
 			// Append to tag list, so the frontend can display it
 			// Snapshots that are created after this change
@@ -384,7 +384,7 @@ func getDeviceName(volumeId string, account string) (string, error) {
 		return "", errors.New(ec2StartError)
 	}
 	if describeVolumesOutput.Volumes[0].Attachments == nil {
-		return "", errors.New("Discname couldn't be found")
+		return "", errors.New("Diskname couldn't be found")
 	}
 	return *describeVolumesOutput.Volumes[0].Attachments[0].Device, nil
 }
