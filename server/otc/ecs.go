@@ -150,24 +150,6 @@ func listFlavorsHandler(c *gin.Context) {
 func listImagesHandler(c *gin.Context) {
 	log.Println("Querying images @ OTC.")
 
-	username := common.GetUserName(c)
-	l, err := ldap.New()
-	if err != nil {
-		log.Error(err)
-		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: common.ConfigNotSetError})
-		return
-	}
-	groups, err := l.GetGroupsOfUser(username)
-	if err != nil {
-		log.Error(err)
-		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericOTCAPIError})
-		return
-	}
-	log.WithFields(log.Fields{
-		"groups":   groups,
-		"username": username,
-	}).Debug("LDAP groups")
-
 	client, err := getImageClient()
 	if err != nil {
 		log.Println("Error getting compute client.", err.Error())
@@ -358,7 +340,24 @@ func createKeyPair(client *gophercloud.ServiceClient, publicKeyName string, publ
 }
 
 func getECServersByUsername(client *gophercloud.ServiceClient, username string) (*ECServerListResponse, error) {
-	log.Printf("Getting EC servers for user %v.", username)
+	log.WithFields(log.Fields{
+		"username": username,
+	}).Debug("Getting EC Servers.")
+
+	l, err := ldap.New()
+	if err != nil {
+		return nil, err
+	}
+	defer l.Close()
+
+	groups, err := l.GetGroupsOfUser(username)
+	if err != nil {
+		return nil, err
+	}
+	log.WithFields(log.Fields{
+		"groups":   groups,
+		"username": username,
+	}).Debug("LDAP groups")
 
 	result := ECServerListResponse{
 		ECServers: []ECServer{},
@@ -395,8 +394,7 @@ func getECServersByUsername(client *gophercloud.ServiceClient, username string) 
 	}
 
 	for _, server := range allServers {
-
-		if strings.ToLower(server.Metadata["Owner"]) != strings.ToLower(username) {
+		if !common.ContainsStringI(groups, server.Metadata["Group"]) {
 			continue
 		}
 
@@ -443,10 +441,9 @@ func getECServersByUsername(client *gophercloud.ServiceClient, username string) 
 				RAM:       flavor.RAM,
 				ImageName: image.Name,
 				Status:    server.Status,
-				Billing:   server.Metadata["Billing"],
-				Owner:     server.Metadata["Owner"],
-				MegaId:    server.Metadata["Mega ID"],
-				Volumes:   serverVolumes})
+				Metadata:  server.Metadata,
+				Volumes:   serverVolumes,
+			})
 	}
 
 	return &result, nil

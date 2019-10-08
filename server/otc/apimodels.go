@@ -57,19 +57,17 @@ type ECServerListResponse struct {
 }
 
 type ECServer struct {
-	Id               string           `json:"id"`
-	IPv4             []string         `json:"ipv4"`
-	AvailabilityZone string           `json:"availabilityZone"`
-	Name             string           `json:"name"`
-	Created          time.Time        `json:"created"`
-	VCPUs            int              `json:"vcpus"`
-	RAM              int              `json:"ram"`
-	ImageName        string           `json:"imageName"`
-	Status           string           `json:"status"`
-	Billing          string           `json:"billing"`
-	Owner            string           `json:"owner"`
-	MegaId           string           `json:"megaId"`
-	Volumes          []volumes.Volume `json:"volumes"`
+	Id               string            `json:"id"`
+	IPv4             []string          `json:"ipv4"`
+	AvailabilityZone string            `json:"availabilityZone"`
+	Name             string            `json:"name"`
+	Created          time.Time         `json:"created"`
+	VCPUs            int               `json:"vcpus"`
+	RAM              int               `json:"ram"`
+	ImageName        string            `json:"imageName"`
+	Status           string            `json:"status"`
+	Metadata         map[string]string `json:"metadata"`
+	Volumes          []volumes.Volume  `json:"volumes"`
 }
 
 type VolumeTypesListResponse struct {
