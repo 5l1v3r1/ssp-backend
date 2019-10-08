@@ -31,13 +31,13 @@ func validateNewS3Bucket(projectname string, bucketname string, billing string, 
 		return errors.New("Environment must be defined")
 	}
 	if len(billing) == 0 {
-		return errors.New("Accounting number has the be defined")
+		return errors.New("Accounting number must be defined")
 	}
 	if len(bucketname) == 0 {
-		return errors.New("Bucketname has to be defined")
+		return errors.New("Bucketname must be defined")
 	}
 	if len(projectname) == 0 {
-		return errors.New("Project has to be defined")
+		return errors.New("Project must be defined")
 	}
 
 	if len(bucketname) > 63 {

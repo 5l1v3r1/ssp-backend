@@ -259,7 +259,7 @@ func sendNewProjectMail(clusterId string, projectName string, userName string, m
 	<br><br>
 	Cluster: %v<br>
 	Project name:	%v<br>
-	Creater:		%v<br>
+	Creator:		%v<br>
 	Mega ID:		%v
 	<br><br>
 	Kind regards<br>

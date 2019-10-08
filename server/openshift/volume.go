@@ -60,7 +60,7 @@ func newVolumeHandler(c *gin.Context) {
 			})
 		} else {
 			c.JSON(http.StatusOK, common.NewVolumeApiResponse{
-				Message: "Volume has been created. Deinem Projekt wurde das Persistent Volume Claim(PVC), und der GlusterFS Service & Endpunkte hinzugefügt.",
+				Message: "The volume has been successfully created.",
 				Data:    *newVolumeResponse,
 			})
 		}

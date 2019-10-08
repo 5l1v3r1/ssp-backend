@@ -68,7 +68,7 @@ func updateLogsenePlanAndLimitHandler(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, common.ApiResponse{Message: err.Error()})
 		} else {
 			c.JSON(http.StatusOK, common.ApiResponse{
-				Message: "New plan and limit are saved",
+				Message: "New plan and limit have been saved",
 			})
 		}
 	} else {

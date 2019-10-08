@@ -115,7 +115,7 @@ func createSecret(clusterId, namespace string, secret *gabs.Container) error {
 	}
 
 	if resp.StatusCode == http.StatusConflict {
-		return errors.New("This secret already exists")
+		return errors.New("The secret already exists")
 	}
 
 	return nil
