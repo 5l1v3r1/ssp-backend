@@ -107,7 +107,7 @@ func newS3BucketHandler(c *gin.Context) {
 		} else {
 			c.JSON(http.StatusOK, common.ApiResponse{
 				Message: "A new S3 Bucket has been created: " + newbucketname +
-					". Now you can add other users to the Bucket through the other menu items",
+					". Now you can add other users to the Bucket through the other menu tab",
 			})
 		}
 	} else {

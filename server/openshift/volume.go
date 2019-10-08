@@ -134,13 +134,13 @@ func growVolumeHandler(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, common.ApiResponse{Message: "Volume has been resized"})
+	c.JSON(http.StatusOK, common.ApiResponse{Message: "Volume has been expanded."})
 }
 
 func validateNewVolume(clusterId, project, size, pvcName, mode, technology, username string) error {
 	// Required fields
 	if len(project) == 0 || len(pvcName) == 0 || len(size) == 0 || len(mode) == 0 {
-		return errors.New("All fields must be filled")
+		return errors.New("All fields must be filled out.")
 	}
 
 	if err := validateSizeFormat(size, technology); err != nil {
@@ -172,7 +172,7 @@ func validateNewVolume(clusterId, project, size, pvcName, mode, technology, user
 func validateGrowVolume(clusterId string, pv *gabs.Container, newSize string, username string) error {
 	// Required fields
 	if len(newSize) == 0 {
-		return errors.New("All fields must be filled")
+		return errors.New("All fields must be filled out.")
 	}
 
 	// The technology (nfs, gluster) isn't important. Size can only be bigger
@@ -275,7 +275,7 @@ func checkPvcName(clusterId, project, pvcName string) error {
 
 	for _, v := range json.S("items").Children() {
 		if v.Path("metadata.name").Data().(string) == pvcName {
-			return fmt.Errorf("The requested PVC name %v already exists.", pvcName)
+			return fmt.Errorf("The requested persistent volume claim(PVC) name %v already exists.", pvcName)
 		}
 	}
 
