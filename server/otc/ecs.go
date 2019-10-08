@@ -16,8 +16,8 @@ import (
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/servers"
 	"github.com/gophercloud/gophercloud/openstack/imageservice/v2/images"
 	"github.com/pkg/errors"
+	log "github.com/sirupsen/logrus"
 	"golang.org/x/crypto/ssh"
-	"log"
 	"net/http"
 	"strings"
 )
@@ -150,8 +150,25 @@ func listFlavorsHandler(c *gin.Context) {
 func listImagesHandler(c *gin.Context) {
 	log.Println("Querying images @ OTC.")
 
-	client, err := getImageClient()
+	username := common.GetUserName(c)
+	l, err := ldap.New()
+	if err != nil {
+		log.Error(err)
+		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: common.ConfigNotSetError})
+		return
+	}
+	groups, err := l.GetGroupsOfUser(username)
+	if err != nil {
+		log.Error(err)
+		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericOTCAPIError})
+		return
+	}
+	log.WithFields(log.Fields{
+		"groups":   groups,
+		"username": username,
+	}).Debug("LDAP groups")
 
+	client, err := getImageClient()
 	if err != nil {
 		log.Println("Error getting compute client.", err.Error())
 		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericOTCAPIError})
@@ -552,17 +569,6 @@ func getAvailabilityZones(client *gophercloud.ServiceClient) (*AvailabilityZoneL
 
 func getImages(client *gophercloud.ServiceClient) (*ImageListResponse, error) {
 	log.Println("Getting images @ OTC.")
-	l, err := ldap.New()
-	if err != nil {
-		log.Printf("%v", err)
-	}
-	log.Printf("%+v", l)
-	groups, err := l.GetGroupsOfUser("cn=e507889,ou=Ext Mitarbeiter,dc=sbb,dc=CH")
-	log.Printf("getting groups")
-	if err != nil {
-		log.Printf("%v", err)
-	}
-	log.Printf("%+v", groups)
 
 	result := ImageListResponse{
 		Images: []Image{},

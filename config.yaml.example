@@ -52,6 +52,12 @@ kafka_backends:
   - name:
     url:
 
+ldap:
+  host: ldap.domain.ch
+  base: dc=domain,dc=ch
+  dn: cn=Reader,dc=domain,dc=ch
+  password: 5up3r54f3
+
 openshift:
   - id: awsdev
     name: AWS Dev
