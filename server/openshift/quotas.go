@@ -34,7 +34,7 @@ func editQuotasHandler(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, common.ApiResponse{Message: err.Error()})
 		} else {
 			c.JSON(http.StatusOK, common.ApiResponse{
-				Message: fmt.Sprintf("New quotas has been saved: Cluster %v, Project %v, CPU: %v, Memory: %v",
+				Message: fmt.Sprintf("The new quotas have been saved: Cluster %v, Project %v, CPU: %v, Memory: %v",
 					data.ClusterId, data.Project, data.CPU, data.Memory),
 			})
 		}
