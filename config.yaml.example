@@ -44,6 +44,14 @@ tower:
   job_templates:
     - id: 11111
 
+kafka_backends:
+  - name:
+    url:
+  - name:
+    url:
+  - name:
+    url:
+
 openshift:
   - id: awsdev
     name: AWS Dev
