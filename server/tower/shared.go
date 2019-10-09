@@ -146,21 +146,67 @@ func getJobHandler(c *gin.Context) {
 
 func getJobsHandler(c *gin.Context) {
 	username := common.GetUserName(c)
-	resp, err := getTowerHTTPClient("GET", "jobs/?or__finished__isnull=true&or__artifacts__contains="+username, nil)
+	finishedJobs, err := getFinishedJobs(username)
 	if err != nil {
 		log.Errorf("%v", err)
 		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericAPIError})
 		return
+	}
+	failedOrRunningJobs, err := getFailedOrRunningJobs(username)
+	if err != nil {
+		log.Errorf("%v", err)
+		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericAPIError})
+		return
+	}
+	finishedJobs.Merge(failedOrRunningJobs)
+
+	c.JSON(http.StatusOK, finishedJobs.String())
+}
+
+func getFinishedJobs(username string) (*gabs.Container, error) {
+	resp, err := getTowerHTTPClient("GET", "jobs/?order_by=-created&artifacts__contains="+username, nil)
+	if err != nil {
+		return nil, err
 	}
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		log.Errorf("%v", err)
-		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericAPIError})
-		return
+		return nil, err
 	}
+	return gabs.ParseJSON(body)
+}
 
-	c.JSON(http.StatusOK, string(body))
+func getFailedOrRunningJobs(username string) (*gabs.Container, error) {
+	resp, err := getTowerHTTPClient("GET", "jobs/?order_by=-created&or__status=failed&or__finished__isnull=true", nil)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	jobs, err := gabs.ParseJSON(body)
+	if err != nil {
+		return nil, err
+	}
+	jsonObj := gabs.New()
+	// Ugly hack to filter on extra_vars.custom_tower_user_name
+	// Because the tower api doesn't allow filtering on custom_vars
+	// custom_vars is an escaped json string
+	for _, job := range jobs.S("results").Children() {
+		extra_vars, err := gabs.ParseJSON([]byte(job.S("extra_vars").Data().(string)))
+		if err != nil {
+			log.Error(err)
+			continue
+		}
+		// Can be nil, if the value doesn't exist
+		ctun := extra_vars.S("custom_tower_user_name").Data()
+		if ctun != nil && ctun.(string) == username {
+			jsonObj.ArrayAppend(job, "results")
+		}
+	}
+	return gabs.ParseJSON(body)
 }
 
 func getTowerHTTPClient(method string, urlPart string, body io.Reader) (*http.Response, error) {
