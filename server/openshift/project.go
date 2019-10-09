@@ -171,7 +171,7 @@ func updateProjectInformationHandler(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, common.ApiResponse{Message: err.Error()})
 		} else {
 			c.JSON(http.StatusOK, common.ApiResponse{
-				Message: fmt.Sprintf("The Information for project %v on Cluster %v has been safed", data.Project, data.ClusterId),
+				Message: fmt.Sprintf("The details for project %v on cluster %v has been saved", data.Project, data.ClusterId),
 			})
 		}
 	} else {
@@ -181,11 +181,11 @@ func updateProjectInformationHandler(c *gin.Context) {
 
 func validateNewProject(project string, billing string, testProject bool) error {
 	if len(project) == 0 {
-		return errors.New("Projectname has to be provided")
+		return errors.New("Project name has to be provided")
 	}
 
 	if !testProject && len(billing) == 0 {
-		return errors.New("Account assingment number must be provided")
+		return errors.New("Accounting number must be provided")
 	}
 
 	return nil
@@ -193,11 +193,11 @@ func validateNewProject(project string, billing string, testProject bool) error 
 
 func validateAdminAccess(clusterId, username, project string) error {
 	if clusterId == "" {
-		return errors.New("Cluster has to be provided")
+		return errors.New("Cluster must be provided")
 	}
 
 	if project == "" {
-		return errors.New("Projectname has to be provided")
+		return errors.New("Project name must be provided")
 	}
 
 	// Validate permissions
@@ -210,15 +210,15 @@ func validateAdminAccess(clusterId, username, project string) error {
 
 func validateProjectInformation(data common.UpdateProjectInformationCommand, username string) error {
 	if data.ClusterId == "" {
-		return errors.New("Cluster has to be provided")
+		return errors.New("Cluster must be provided")
 	}
 
 	if data.Project == "" {
-		return errors.New("Projectname has to be provided")
+		return errors.New("Project name must be provided")
 	}
 
 	if data.Billing == "" {
-		return errors.New("Account assingment number must be provided")
+		return errors.New("Accounting number must be provided")
 	}
 
 	// Validate permissions
@@ -255,15 +255,15 @@ func sendNewProjectMail(clusterId string, projectName string, userName string, m
 	m.SetBody("text/html", fmt.Sprintf(`
 	Dear Ladys and Gentleman,
 	<br><br>
-	The follow project has been created on:
+	The following project has been created on:
 	<br><br>
 	Cluster: %v<br>
-	Projectname:	%v<br>
-	Creater:		%v<br>
+	Project name:	%v<br>
+	Creator:		%v<br>
 	Mega ID:		%v
 	<br><br>
 	Kind regards<br>
-	Your CLoud Team<br>
+	Your Cloud Team<br>
 	IT-OM-SDL-CLP
 	`, clusterId, projectName, userName, megaID))
 

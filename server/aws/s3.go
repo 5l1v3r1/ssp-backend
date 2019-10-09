@@ -28,21 +28,21 @@ const (
 
 func validateNewS3Bucket(projectname string, bucketname string, billing string, stage string) error {
 	if len(stage) == 0 {
-		return errors.New("Enviroment must be defined")
+		return errors.New("Environment must be defined")
 	}
 	if len(billing) == 0 {
-		return errors.New("Withholding number has the be defined")
+		return errors.New("Accounting number must be defined")
 	}
 	if len(bucketname) == 0 {
-		return errors.New("Bucketname has to be defined")
+		return errors.New("Bucketname must be defined")
 	}
 	if len(projectname) == 0 {
-		return errors.New("Project has to be defined")
+		return errors.New("Project must be defined")
 	}
 
 	if len(bucketname) > 63 {
 		// http://docs.aws.amazon.com/AmazonS3/latest/dev/BucketRestrictions.html
-		return errors.New("Generated Bucketname " + bucketname + " is to long")
+		return errors.New("Generated Bucketname " + bucketname + " is too long")
 	}
 	var validName = regexp.MustCompile(`^[a-zA-Z0-9\-]+$`).MatchString
 	if !validName(bucketname) {
@@ -107,7 +107,7 @@ func newS3BucketHandler(c *gin.Context) {
 		} else {
 			c.JSON(http.StatusOK, common.ApiResponse{
 				Message: "A new S3 Bucket has been created: " + newbucketname +
-					". Now you can add other users to the Bucket trough the other Menu topic",
+					". Now you can add other users to the Bucket through the other menu tab",
 			})
 		}
 	} else {
@@ -149,12 +149,12 @@ func newS3UserHandler(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, common.ApiResponse{
-		Message: fmt.Sprintf("The User (%v) has been created.<br><br><table>"+
+		Message: fmt.Sprintf("The user (%v) has been created.<br><br><table>"+
 			"<tr><td>Access Key ID:</td><td>%v</td></tr>"+
 			"<tr><td>Secret Access Key:</td><td>%v</td></tr>"+
 			"<tr><td>Password:</td><td>%v</td></tr>"+
 			"<tr><td>Login URL:</td><td>%v</td></tr></table>"+
-			"<br><b>Note:</b> safe those keys and pws on a safe and stable place, since you can change them after!",
+			"<br><b>Note:</b> Save those keys and passwords on a safe place such as a password store since they cannot be retrieved anymore later!",
 			credentials.Username, credentials.AccessKeyID, credentials.SecretKey, html.EscapeString(credentials.Password), loginURL)})
 }
 

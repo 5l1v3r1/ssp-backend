@@ -16,10 +16,10 @@ import (
 )
 
 const (
-	genericAPIError    = "An error occured trying to fetch Sematext-API. Please create a ticket." 
+	genericAPIError    = "Error when calling the Sematext API. Please create a ticket." 
 	sematextRoleActive = "ACTIVE"
 	sematextRoleAdmin  = "ADMIN"
-	noAccessError      = "You dont have permission for this Sematext application!"
+	noAccessError      = "You don't have permissions for this Sematext App!"
 )
 
 func getLogseneAppsHandler(c *gin.Context) {
@@ -68,7 +68,7 @@ func updateLogsenePlanAndLimitHandler(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, common.ApiResponse{Message: err.Error()})
 		} else {
 			c.JSON(http.StatusOK, common.ApiResponse{
-				Message: "New plan and limit is safed",
+				Message: "New plan and limit have been saved",
 			})
 		}
 	} else {
@@ -97,7 +97,7 @@ func updateLogseneBillingHandler(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, common.ApiResponse{Message: err.Error()})
 		} else {
 			c.JSON(http.StatusOK, common.ApiResponse{
-				Message: fmt.Sprintf("Account assignment number (%v / %v) has been safed.", data.Billing, data.Project),
+				Message: fmt.Sprintf("Accounting number (%v / %v) has been saved.", data.Billing, data.Project),
 			})
 		}
 	} else {
@@ -120,7 +120,7 @@ func createLogseneAppHandler(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, common.ApiResponse{Message: err.Error()})
 		} else {
 			c.JSON(http.StatusOK, common.ApiResponse{
-				Message: fmt.Sprintf("Logsene application (%v) has been created. %v has been invited for administrator.", data.AppName, mail),
+				Message: fmt.Sprintf("Logsene App (%v) has been created. %v has been invited as administrator.", data.AppName, mail),
 			})
 		}
 	} else {
@@ -130,23 +130,23 @@ func createLogseneAppHandler(c *gin.Context) {
 
 func validateNewLogseneApp(appName string, planId int, limit int, project string, billing string) error {
 	if len(appName) == 0 {
-		return errors.New("Please provide a application name!")
+		return errors.New("App name must be provided!")
 	}
 
 	if planId <= 0 {
-		return errors.New("Please provide a plan!")
+		return errors.New("Plan must be provided!")
 	}
 
 	if limit <= 0 {
-		return errors.New("Please provide a daily-limit!")
+		return errors.New("Daily limit must be defined!")
 	}
 
 	if len(project) == 0 {
-		return errors.New("Please provide a project name!")
+		return errors.New("Project name must be provided!")
 	}
 
 	if len(billing) == 0 {
-		return errors.New("Please provide account assingment number!")
+		return errors.New("Accounting number must be provided!")
 	}
 
 	return nil
