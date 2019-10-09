@@ -31,6 +31,9 @@ type LDAPClient struct {
 func New() (*LDAPClient, error) {
 	var ldapclient LDAPClient
 	l := config.Config().Sub("ldap")
+	if l == nil {
+		return nil, fmt.Errorf("LDAP configuration missing. Must set host, base, dn and password!")
+	}
 	l.SetDefault("Port", 389)
 	l.SetDefault("UseSSL", false)
 	l.SetDefault("SkipTLS", true)
