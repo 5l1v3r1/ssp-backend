@@ -107,7 +107,7 @@ func newS3BucketHandler(c *gin.Context) {
 		} else {
 			c.JSON(http.StatusOK, common.ApiResponse{
 				Message: "A new S3 Bucket has been created: " + newbucketname +
-					". Now you can add other users to the Bucket through the other menu tab",
+					". Allow other users to access the bucket via the corresponding menu entry",
 			})
 		}
 	} else {
@@ -154,7 +154,7 @@ func newS3UserHandler(c *gin.Context) {
 			"<tr><td>Secret Access Key:</td><td>%v</td></tr>"+
 			"<tr><td>Password:</td><td>%v</td></tr>"+
 			"<tr><td>Login URL:</td><td>%v</td></tr></table>"+
-			"<br><b>Note:</b> Save those keys and passwords on a safe place such as a password store since they cannot be retrieved anymore later!",
+			"<br><b>Note:</b> Make sure you save these - you won't be able to access them again!",
 			credentials.Username, credentials.AccessKeyID, credentials.SecretKey, html.EscapeString(credentials.Password), loginURL)})
 }
 

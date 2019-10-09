@@ -275,7 +275,7 @@ func checkPvcName(clusterId, project, pvcName string) error {
 
 	for _, v := range json.S("items").Children() {
 		if v.Path("metadata.name").Data().(string) == pvcName {
-			return fmt.Errorf("The requested persistent volume claim(PVC) name %v already exists.", pvcName)
+			return fmt.Errorf("The requested persistent volume claim (PVC) name %v already exists.", pvcName)
 		}
 	}
 

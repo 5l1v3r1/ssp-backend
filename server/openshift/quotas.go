@@ -63,11 +63,11 @@ func validateEditQuotas(clusterId, username, project string, cpu int, memory int
 	}
 
 	if cpu > maxCPU {
-		return fmt.Errorf("The maximal value for CPU cores: %v", maxCPU)
+		return fmt.Errorf("The CPU quota must not exceed %v", maxCPU)
 	}
 
 	if memory > maxMemory {
-		return fmt.Errorf("The maximal value for memory: %v", maxMemory)
+		return fmt.Errorf("The memory quota must not exceed %v", maxMemory)
 	}
 
 	// Validate permissions

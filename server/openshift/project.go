@@ -171,7 +171,7 @@ func updateProjectInformationHandler(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, common.ApiResponse{Message: err.Error()})
 		} else {
 			c.JSON(http.StatusOK, common.ApiResponse{
-				Message: fmt.Sprintf("The details for project %v on cluster %v has been saved", data.Project, data.ClusterId),
+				Message: fmt.Sprintf("The details for project %v on cluster %v have been saved", data.Project, data.ClusterId),
 			})
 		}
 	} else {
@@ -181,7 +181,7 @@ func updateProjectInformationHandler(c *gin.Context) {
 
 func validateNewProject(project string, billing string, testProject bool) error {
 	if len(project) == 0 {
-		return errors.New("Project name has to be provided")
+		return errors.New("Project name must be provided")
 	}
 
 	if !testProject && len(billing) == 0 {
@@ -255,7 +255,7 @@ func sendNewProjectMail(clusterId string, projectName string, userName string, m
 	m.SetBody("text/html", fmt.Sprintf(`
 	Dear Ladys and Gentleman,
 	<br><br>
-	The following project has been created on:
+	The following OpenShift project has been created:
 	<br><br>
 	Cluster: %v<br>
 	Project name:	%v<br>
