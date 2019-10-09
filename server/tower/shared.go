@@ -160,7 +160,7 @@ func getJobsHandler(c *gin.Context) {
 	}
 	finishedJobs.Merge(failedOrRunningJobs)
 
-	c.JSON(http.StatusOK, finishedJobs.String())
+	c.JSON(http.StatusOK, finishedJobs.S("results").String())
 }
 
 func getFinishedJobs(username string) (*gabs.Container, error) {
