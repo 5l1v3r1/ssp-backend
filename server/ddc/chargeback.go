@@ -18,7 +18,7 @@ import (
 	"time"
 )
 
-const apiErrorDDC = "An error occured while trying to access the DDC API. Please create a ticket."
+const apiErrorDDC = "An error occured while trying to access the DDC API. Please open a Jira issue."
 
 // RegisterRoutes registers the routes for OpenShift
 func RegisterRoutes(r *gin.RouterGroup) {
