@@ -74,7 +74,7 @@ func validateNewS3User(username string, bucketname string, newuser string, stage
 			return nil
 		}
 	}
-	return errors.New("Bucket " + bucketname + " doesn't exist or you're not allowed to create a user)
+	return errors.New("Bucket " + bucketname + " doesn't exist or you're not allowed to create a user")
 }
 
 func createNewS3User(bucketname string, s3username string, stage string, isReadonly bool) (*common.S3CredentialsResponse, error) {
