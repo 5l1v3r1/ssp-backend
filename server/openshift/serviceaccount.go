@@ -74,7 +74,7 @@ func newServiceAccountHandler(c *gin.Context) {
 
 func validateNewServiceAccount(clusterId, username string, project string, serviceAccountName string) error {
 	if len(serviceAccountName) == 0 {
-		return errors.New("You have to create a service account")
+		return errors.New("Service account must be provided")
 	}
 
 	// Validate permissions
