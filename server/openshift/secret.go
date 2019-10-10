@@ -91,7 +91,7 @@ func addPullSecretToServiceaccount(clusterId, namespace string, serviceaccount s
 
 	if resp.StatusCode != http.StatusOK {
 		bodyBytes, _ := ioutil.ReadAll(resp.Body)
-		log.Printf("Error adding pull secret to service account on cluster %v: StatusCode: %v, Nachricht: %v", clusterId, resp.StatusCode, string(bodyBytes))
+		log.Printf("Error adding pull secret to service account on cluster %v: StatusCode: %v, Message: %v", clusterId, resp.StatusCode, string(bodyBytes))
 		return errors.New(genericAPIError)
 	}
 

@@ -135,7 +135,7 @@ func getAdminRoleBinding(clusterId, project string) (*gabs.Container, error) {
 
 	if resp.StatusCode == 404 {
 		log.Println("Project was not found", project)
-		return nil, errors.New("Das Projekt existiert nicht")
+		return nil, errors.New("Project doesn't exists")
 	}
 	if resp.StatusCode == 403 {
 		log.Println("Cannot list RoleBindings: Forbidden")

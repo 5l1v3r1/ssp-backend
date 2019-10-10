@@ -348,7 +348,7 @@ func createGlusterVolume(clusterId, project string, size string, username string
 	if resp.StatusCode != http.StatusOK {
 		errMsg, _ := ioutil.ReadAll(resp.Body)
 		log.Printf("Error creating gluster volume: %v %v", resp.StatusCode, string(errMsg))
-		return nil, fmt.Errorf("Fehlerhafte Antwort vom Gluster-API: %v", string(errMsg))
+		return nil, fmt.Errorf("Incorrect response from Gluster-API: %v", string(errMsg))
 	}
 
 	log.Printf("%v created a gluster volume. Cluster: %v, Project: %v, size: %v", username, clusterId, project, size)

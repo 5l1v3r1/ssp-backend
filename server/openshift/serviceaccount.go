@@ -95,7 +95,7 @@ func createNewServiceAccount(clusterId, username, project, serviceaccount string
 	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusConflict {
-		return errors.New("Der Service-Account existiert bereits.")
+		return errors.New("Service account already exists.")
 	}
 
 	if resp.StatusCode != http.StatusCreated {
@@ -273,7 +273,7 @@ func getSecret(clusterId, namespace, secret string) (*gabs.Container, error) {
 
 	if resp.StatusCode == http.StatusForbidden {
 		bodyBytes, _ := ioutil.ReadAll(resp.Body)
-		log.Printf("Error getting secret: StatusCode: %v, Nachricht: %v", resp.StatusCode, string(bodyBytes))
+		log.Printf("Error getting secret: StatusCode: %v, Message: %v", resp.StatusCode, string(bodyBytes))
 		return nil, errors.New(genericAPIError)
 	}
 

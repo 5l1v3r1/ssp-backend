@@ -37,7 +37,7 @@ func newProjectHandler(c *gin.Context) {
 			}
 
 			c.JSON(http.StatusOK, common.ApiResponse{
-				Message: fmt.Sprintf("Das Projekt %v wurde erstellt auf Cluster %v", data.Project, data.ClusterId),
+				Message: fmt.Sprintf("Project %v has been created on Cluster %v", data.Project, data.ClusterId),
 			})
 		}
 	} else {
@@ -51,7 +51,7 @@ func newTestProjectHandler(c *gin.Context) {
 	var data common.NewTestProjectCommand
 	if c.BindJSON(&data) == nil {
 		// Special values for a test project
-		billing := "keine-verrechnung"
+		billing := "No costs"
 		data.Project = username + "-" + data.Project
 
 		if err := validateNewProject(data.Project, billing, true); err != nil {
@@ -63,7 +63,7 @@ func newTestProjectHandler(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, common.ApiResponse{Message: err.Error()})
 		} else {
 			c.JSON(http.StatusOK, common.ApiResponse{
-				Message: fmt.Sprintf("Das Test-Projekt %v wurde erstellt auf Cluster %v", data.Project, data.ClusterId),
+				Message: fmt.Sprintf("Trial Project %v has been created Cluster %v", data.Project, data.ClusterId),
 			})
 		}
 	} else {
@@ -393,7 +393,7 @@ func createOrUpdateMetadata(clusterId, project string, billing string, megaid st
 
 	if testProject {
 		annotations.Set(testProjectDeletionDays, "openshift.io/testproject-daystodeletion")
-		annotations.Set(fmt.Sprintf("Dieses Testprojekt wird in %v Tagen automatisch gelöscht!", testProjectDeletionDays), "openshift.io/description")
+		annotations.Set(fmt.Sprintf("This trial porject will be deleted automatically in %v Days!", testProjectDeletionDays), "openshift.io/description")
 	}
 
 	if len(megaid) > 0 {
@@ -407,7 +407,7 @@ func createOrUpdateMetadata(clusterId, project string, billing string, megaid st
 
 	if resp.StatusCode == http.StatusOK {
 		resp.Body.Close()
-		log.Println("User "+username+" changed config of project "+project+" on cluster "+clusterId+". Kontierungsnummer: "+billing, ", MegaID: "+megaid)
+		log.Println("User "+username+" changed config of project "+project+" on cluster "+clusterId+". Accounting number: "+billing, ", MegaID: "+megaid)
 		return nil
 	}
 
