@@ -46,7 +46,7 @@ func validateNewS3User(username string, bucketname string, newuser string, stage
 	}
 	validName := regexp.MustCompile(`^[a-zA-Z0-9\-]+$`).MatchString
 	if !validName(bucketname) {
-		return errors.New("Username can only contain alphanumeric characters and "-"")
+		return errors.New("Username can only contain alphanumeric characters and '-'")
 	}
 
 	svc, err := GetIAMClient(stage)
