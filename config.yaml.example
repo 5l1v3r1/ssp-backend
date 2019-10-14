@@ -41,6 +41,8 @@ tower:
   base_url: https://deploy.domain.ch/api/v2/
   username: user
   password: pass
+  parameter_blacklist:
+    - unifiedos_creator
   job_templates:
     - id: 11111
 
@@ -57,6 +59,8 @@ ldap:
   base: dc=domain,dc=ch
   dn: cn=Reader,dc=domain,dc=ch
   password: 5up3r54f3
+  group_blacklist:
+    - alleMitarbeiter
 
 openshift:
   - id: awsdev

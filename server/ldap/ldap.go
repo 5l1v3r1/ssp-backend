@@ -3,6 +3,7 @@ package ldap
 import (
 	"crypto/tls"
 	"fmt"
+	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/common"
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/config"
 	log "github.com/sirupsen/logrus"
 
@@ -96,7 +97,16 @@ func (lc *LDAPClient) Close() {
 	}
 }
 
-// GetGroupsOfUser returns the group for a user
+func getGroupBlacklist() []string {
+	cfg := config.Config()
+	var blacklist []string
+	// We can ignore the error here
+	if err := cfg.UnmarshalKey("ldap.group_blacklist", &blacklist); err != nil {
+		log.Warn("No LDAP group blacklist found")
+	}
+	return blacklist
+}
+
 func (lc *LDAPClient) GetGroupsOfUser(username string) ([]string, error) {
 	err := lc.Connect()
 	if err != nil {
@@ -126,11 +136,14 @@ func (lc *LDAPClient) GetGroupsOfUser(username string) ([]string, error) {
 	}
 	log.Debug("search successful")
 	groups := []string{}
+	blacklist := getGroupBlacklist()
 	for _, entry := range sr.Entries {
-		groups = append(groups, entry.GetAttributeValue("cn"))
-	}
-	if len(groups) == 0 {
-		return nil, fmt.Errorf("No LDAP groups found for %v. This should always return at least one group.", username)
+		group := entry.GetAttributeValue("cn")
+		// Check if the group is blacklisted
+		if common.ContainsStringI(blacklist, group) {
+			continue
+		}
+		groups = append(groups, group)
 	}
 	return groups, nil
 }

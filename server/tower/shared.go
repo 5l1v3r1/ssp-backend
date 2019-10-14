@@ -57,6 +57,8 @@ func launchJobTemplate(job_template string, json *gabs.Container, username strin
 		return "", err
 	}
 
+	json = removeBlacklistedParameters(json)
+
 	json.SetP(username, "extra_vars.custom_tower_user_name")
 	log.Printf("%+v", json)
 
@@ -75,9 +77,9 @@ func launchJobTemplate(job_template string, json *gabs.Container, username strin
 	}
 	if resp.StatusCode == http.StatusBadRequest {
 		// Should never happen. This means the SSP and Tower send/expect different variables
-		errs := "Fehler vom Ansible Tower (bitte Ticket erstellen):<br><br>"
+		errs := "Fehler vom Ansible Tower:"
 		for _, err := range json.Path("variables_needed_to_start").Children() {
-			errs += "<br>" + err.Data().(string)
+			errs += ", " + err.Data().(string)
 		}
 		return "", fmt.Errorf(string(errs))
 	}
@@ -88,12 +90,28 @@ type jobTemplatePermission struct {
 	ID string
 }
 
+func removeBlacklistedParameters(json *gabs.Container) *gabs.Container {
+	cfg := config.Config()
+	var blacklist []string
+	if err := cfg.UnmarshalKey("tower.parameter_blacklist", &blacklist); err != nil {
+		log.Warn("No Ansible-Tower parameter blacklist found")
+	}
+	for _, p := range blacklist {
+		if json.Exists("extra_vars", p) {
+			json.Delete("extra_vars", p)
+			log.WithFields(log.Fields{
+				"parameter": p,
+			}).Warn("Removed blacklisted parameter!")
+		}
+	}
+	return json
+}
+
 func checkPermissions(job_template, username string) error {
 	cfg := config.Config()
 
 	job_templates := []jobTemplatePermission{}
-	err := cfg.UnmarshalKey("tower.job_templates", &job_templates)
-	if err != nil {
+	if err := cfg.UnmarshalKey("tower.job_templates", &job_templates); err != nil {
 		return err
 	}
 	for _, template := range job_templates {
