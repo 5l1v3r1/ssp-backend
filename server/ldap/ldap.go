@@ -107,7 +107,7 @@ func getGroupBlacklist() []string {
 	return blacklist
 }
 
-func (lc *LDAPClient) GetGroupsOfUser(username string) ([]string, error) {
+func (lc *LDAPClient) GetUser(username string) (*ldap.Entry, error) {
 	err := lc.Connect()
 	if err != nil {
 		return nil, err
@@ -121,24 +121,51 @@ func (lc *LDAPClient) GetGroupsOfUser(username string) ([]string, error) {
 		}
 	}
 
-	lc.GroupFilter = fmt.Sprintf("(|(member=cn=%s,ou=Ext Mitarbeiter,%s)(member=cn=%s,ou=Int Mitarbeiter,%s))", username, lc.Base, username, lc.Base)
-	log.Debug("connected")
 	searchRequest := ldap.NewSearchRequest(
 		lc.Base,
 		ldap.ScopeWholeSubtree, ldap.NeverDerefAliases, 0, 0, false,
-		lc.GroupFilter,
-		[]string{"cn"}, // can it be something else than "cn"?
+		fmt.Sprintf(lc.UserFilter, username),
+		[]string{"memberOf"},
 		nil,
 	)
 	sr, err := lc.Conn.Search(searchRequest)
 	if err != nil {
 		return nil, err
 	}
-	log.Debug("search successful")
-	groups := []string{}
+	if len(sr.Entries) > 1 {
+		return nil, fmt.Errorf("Something went wrong. Multiple LDAP users returned")
+	}
+	return sr.Entries[0], nil
+}
+
+func getCN(dn string) string {
+	parsedDN, err := ldap.ParseDN(dn)
+	fields := log.Fields{"dn": dn}
+	if err != nil {
+		log.WithFields(fields).Error("Could not parse DN")
+		return ""
+	}
+	// Die erste RDN ist immer CN, dieser hat nur ein Attribut
+	if len(parsedDN.RDNs) < 1 {
+		//log.WithFields(fields).Error("Unexpected RDNs length")
+		return ""
+	}
+	if len(parsedDN.RDNs[0].Attributes) != 1 {
+		log.WithFields(fields).Error("Unexpected attributes length")
+		return ""
+	}
+	return parsedDN.RDNs[0].Attributes[0].Value
+}
+
+func (lc *LDAPClient) GetGroupsOfUser(username string) ([]string, error) {
+	var groups []string
+	user, err := lc.GetUser(username)
+	if err != nil {
+		return groups, err
+	}
 	blacklist := getGroupBlacklist()
-	for _, entry := range sr.Entries {
-		group := entry.GetAttributeValue("cn")
+	for _, entry := range user.GetAttributeValues("memberOf") {
+		group := getCN(entry)
 		// Check if the group is blacklisted
 		if common.ContainsStringI(blacklist, group) {
 			continue
