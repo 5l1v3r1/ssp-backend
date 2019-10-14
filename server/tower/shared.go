@@ -221,10 +221,10 @@ func getFailedOrRunningJobs(username string) (*gabs.Container, error) {
 		// Can be nil, if the value doesn't exist
 		ctun := extra_vars.S("custom_tower_user_name").Data()
 		if ctun != nil && ctun.(string) == username {
-			jsonObj.ArrayAppend(job, "results")
+			jsonObj.ArrayAppend(job.Data(), "results")
 		}
 	}
-	return gabs.ParseJSON(body)
+	return jsonObj, nil
 }
 
 func getTowerHTTPClient(method string, urlPart string, body io.Reader) (*http.Response, error) {
