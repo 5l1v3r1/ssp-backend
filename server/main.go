@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/aws"
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/config"
+	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/kafka"
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/keycloak"
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/openshift"
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/otc"
@@ -53,6 +54,9 @@ func main() {
 
 		// Sematext routes
 		sematext.RegisterRoutes(auth)
+
+		// Kafka routes
+		kafka.RegisterRoutes(auth)
 	}
 
 	log.Println("Cloud SSP is running")
@@ -71,6 +75,7 @@ func main() {
 type featureToggleResponse struct {
 	Openshift openshift.Features `json:"openshift"`
 	OTC       otc.Features       `json:"otc"`
+	Kafka     kafka.Features     `json:"kafka"`
 }
 
 func featuresHandler(c *gin.Context) {
@@ -79,5 +84,6 @@ func featuresHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, featureToggleResponse{
 		Openshift: openshift.GetFeatures(clusterId),
 		OTC:       otc.GetFeatures(),
+		Kafka:     kafka.GetFeatures(),
 	})
 }

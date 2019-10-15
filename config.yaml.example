@@ -36,6 +36,14 @@ https_proxy:
 sso_realm:
 sso_url:
 
+kafka_backends:
+  - name:
+    url:
+  - name:
+    url:
+  - name:
+    url:
+
 openshift:
   - id: awsdev
     name: AWS Dev
