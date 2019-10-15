@@ -200,27 +200,6 @@ type SematextLogsenePlan struct {
 	DefaultDailyMaxLimitSizeMb float64 `json:"defaultDailyMaxLimitSizeMb"`
 }
 
-type DDCBilling struct {
-	Rows []DDCBillingRow `json:"rows"`
-	CSV  string          `json:"csv"`
-}
-
-type DDCBillingRow struct {
-	Sender              string  `json:"sender"`
-	Text                string  `json:"text"`
-	Art                 string  `json:"art"`
-	Project             string  `json:"project"`
-	Host                string  `json:"host"`
-	Backup              bool    `json:"backup"`
-	ReceptionAssignment string  `json:"receptionAssignment"`
-	OrderReception      string  `json:"orderReception"`
-	PspElement          string  `json:"pspElement"`
-	TotalCPU            float64 `json:"totalCpu"`
-	TotalMemory         float64 `json:"totalMemory"`
-	TotalStorage        float64 `json:"totalStorage"`
-	Total               float64 `json:"total"`
-}
-
 type NewS3BucketCommand struct {
 	ProjectName
 	BucketName string `json:"bucketname"`

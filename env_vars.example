@@ -21,7 +21,6 @@ export AWS_PROD_SECRET_ACCESS_KEY=
 export AWS_NONPROD_ACCESS_KEY_ID=
 export SEMATEXT_API_TOKEN=
 export SEMATEXT_BASE_URL='https://apps.eu.sematext.com/'
-export DDC_API=
 export JENKINS_URL='http://jenkins.yourorg.com'
 export WZUBACKEND_URL=
 export WZUBACKEND_SECRET=
