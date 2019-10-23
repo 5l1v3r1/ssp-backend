@@ -3,8 +3,7 @@ package common
 import "time"
 import "github.com/aws/aws-sdk-go/service/ec2"
 
-const ConfigNotSetError = "Funktion deaktiviert oder falsch konfiguriert. Kontaktieren Sie bitte das CLP Team"
-"This feature hasn't been configured correctly. Please contact the CLP Team"
+const ConfigNotSetError = "This feature hasn't been configured correctly. Please contact the CLP Team"
 
 type ProjectName struct {
 	Project string `json:"project"`

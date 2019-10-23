@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	genericAPIError    = "Error when calling the Sematext API. Please create a ticket." 
+	genericAPIError    = "Error when calling the Sematext API. Please create a ticket."
 	sematextRoleActive = "ACTIVE"
 	sematextRoleAdmin  = "ADMIN"
 	noAccessError      = "You don't have permissions for this Sematext App!"

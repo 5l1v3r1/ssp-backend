@@ -46,7 +46,7 @@ func validateNewS3User(username string, bucketname string, newuser string, stage
 	}
 	validName := regexp.MustCompile(`^[a-zA-Z0-9\-]+$`).MatchString
 	if !validName(bucketname) {
-		return errors.New("Username can only contain alphanumeric characters and "-"")
+		return errors.New("Username can only contain alphanumeric characters and -")
 	}
 
 	svc, err := GetIAMClient(stage)
@@ -74,7 +74,7 @@ func validateNewS3User(username string, bucketname string, newuser string, stage
 			return nil
 		}
 	}
-	return errors.New("Bucket " + bucketname + " doesn't exist or you're not allowed to create a Bucket)
+	return errors.New("Bucket " + bucketname + " doesn't exist or you're not allowed to create a Bucket")
 }
 
 func createNewS3User(bucketname string, s3username string, stage string, isReadonly bool) (*common.S3CredentialsResponse, error) {

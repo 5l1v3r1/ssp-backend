@@ -61,7 +61,7 @@ func newServiceAccountHandler(c *gin.Context) {
 			return
 		}
 		c.JSON(http.StatusOK, common.ApiResponse{
-			Message: fmt.Sprintf('Service account %v has been created and stored as a Jenkins credential. You can find the credential id in Jenkins <a href='%v' target='_blank'>here</a>',
+			Message: fmt.Sprintf("Service account %v has been created and stored as a Jenkins credential. You can find the credential id in Jenkins <a href='%v' target='_blank'>here</a>",
 				data.ServiceAccount, jenkinsUrl+"/job/"+data.OrganizationKey+"/credentials"),
 		})
 
