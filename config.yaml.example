@@ -18,7 +18,6 @@ aws_nonprod_access_key_id:
 sematext_api_token:
 sematext_base_url:
 logsene_discountcode:
-ddc_api:
 otc_api:
 jenkins_url:
 wzubackend_url:
@@ -36,6 +35,14 @@ https_proxy:
 
 sso_realm:
 sso_url:
+
+kafka_backends:
+  - name:
+    url:
+  - name:
+    url:
+  - name:
+    url:
 
 openshift:
   - id: awsdev

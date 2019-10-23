@@ -373,10 +373,6 @@
             "required": true
         },
         {
-            "name": "DDC_API",
-            "description": "URL of the DDC Billing API"
-        },
-        {
             "name": "AWS_PROD_ACCESS_KEY_ID",
             "description": "AWS Access Key ID to manage AWS ressources for production buckets",
             "required": true

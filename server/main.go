@@ -3,7 +3,7 @@ package main
 import (
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/aws"
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/config"
-	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/ddc"
+	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/kafka"
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/keycloak"
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/openshift"
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/otc"
@@ -46,9 +46,6 @@ func main() {
 		// Openshift routes
 		openshift.RegisterRoutes(auth)
 
-		// DDC routes
-		ddc.RegisterRoutes(auth)
-
 		// AWS routes
 		aws.RegisterRoutes(auth)
 
@@ -57,6 +54,9 @@ func main() {
 
 		// Sematext routes
 		sematext.RegisterRoutes(auth)
+
+		// Kafka routes
+		kafka.RegisterRoutes(auth)
 	}
 
 	log.Println("Cloud SSP is running")
@@ -74,8 +74,8 @@ func main() {
 // not in common package, because that generates an import loop
 type featureToggleResponse struct {
 	Openshift openshift.Features `json:"openshift"`
-	DDC       ddc.Features       `json:"ddc"`
 	OTC       otc.Features       `json:"otc"`
+	Kafka     kafka.Features     `json:"kafka"`
 }
 
 func featuresHandler(c *gin.Context) {
@@ -83,7 +83,7 @@ func featuresHandler(c *gin.Context) {
 	clusterId := params.Get("clusterid")
 	c.JSON(http.StatusOK, featureToggleResponse{
 		Openshift: openshift.GetFeatures(clusterId),
-		DDC:       ddc.GetFeatures(),
 		OTC:       otc.GetFeatures(),
+		Kafka:     kafka.GetFeatures(),
 	})
 }

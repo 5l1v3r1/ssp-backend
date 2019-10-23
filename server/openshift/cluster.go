@@ -67,6 +67,7 @@ func contains(list []string, search string) bool {
 
 func getOpenshiftCluster(clusterId string) (OpenshiftCluster, error) {
 	if clusterId == "" {
+		log.Printf("WARNING: clusterId missing!")
 		return OpenshiftCluster{}, errors.New(genericAPIError)
 	}
 	clusters := getOpenshiftClusters("")
