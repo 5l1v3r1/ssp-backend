@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	genericUserCreationError = "Es ist ein Fehler bei der Erstellung des Benutzers aufgetreten"
+	genericUserCreationError = "An error occured while creating the user account"
 )
 
 // PolicyDocument IAM Policy Document
@@ -31,22 +31,22 @@ type StatementEntry struct {
 
 func validateNewS3User(username string, bucketname string, newuser string, stage string) error {
 	if len(username) == 0 {
-		return errors.New("Benutzername muss angegeben werden")
+		return errors.New("Username must be set")
 	}
 	if len(bucketname) == 0 {
-		return errors.New("Bucket Name muss angegeben werden")
+		return errors.New("Bucket name must be set")
 	}
 	if len(newuser) == 0 {
-		return errors.New("Bucket Benutzername muss angegeben werden")
+		return errors.New("Bucket username must be set")
 	}
 
 	if (len(newuser) + len(bucketname)) > 63 {
 		// http://docs.aws.amazon.com/IAM/latest/UserGuide/reference_iam-limits.html
-		return errors.New("Generierter Benutzername '" + bucketname + "-" + newuser + "' ist zu lang")
+		return errors.New("Generated user '" + bucketname + "-" + newuser + "' is to long")
 	}
 	validName := regexp.MustCompile(`^[a-zA-Z0-9\-]+$`).MatchString
 	if !validName(bucketname) {
-		return errors.New("Benutzername kann nur alphanumerische Zeichen und Bindestriche enthalten")
+		return errors.New("Username can only contain alphanumeric characters and "-"")
 	}
 
 	svc, err := GetIAMClient(stage)
@@ -62,7 +62,7 @@ func validateNewS3User(username string, bucketname string, newuser string, stage
 	for _, u := range result.Users {
 		if *u.UserName == newuser {
 			log.Printf("Error, user %v already exists", newuser)
-			return errors.New("Fehler: IAM-Benutzer " + newuser + " existiert bereits")
+			return errors.New("Error: IAM account " + newuser + " already exists")
 		}
 	}
 
@@ -74,7 +74,7 @@ func validateNewS3User(username string, bucketname string, newuser string, stage
 			return nil
 		}
 	}
-	return errors.New("Es gibt diesen Bucket " + bucketname + " nicht. Oder du darfst für den Bucket keine Benutzer erstellen")
+	return errors.New("Bucket " + bucketname + " doesn't exist or you're not allowed to create a Bucket)
 }
 
 func createNewS3User(bucketname string, s3username string, stage string, isReadonly bool) (*common.S3CredentialsResponse, error) {
@@ -89,7 +89,7 @@ func createNewS3User(bucketname string, s3username string, stage string, isReado
 	})
 
 	if usr != nil && usr.User != nil {
-		return nil, errors.New("Der Benutzer existiert bereits")
+		return nil, errors.New("The user already exists")
 	}
 
 	cred := common.S3CredentialsResponse{

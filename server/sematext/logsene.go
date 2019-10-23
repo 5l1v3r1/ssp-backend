@@ -16,10 +16,10 @@ import (
 )
 
 const (
-	genericAPIError    = "Fehler beim Aufruf der Sematext-API. Bitte erstelle ein Ticket."
+	genericAPIError    = "Error when calling the Sematext API. Please create a ticket." 
 	sematextRoleActive = "ACTIVE"
 	sematextRoleAdmin  = "ADMIN"
-	noAccessError      = "Du hast keinen Zugriff auf diese Sematext-Anwendung"
+	noAccessError      = "You don't have permissions for this Sematext App!"
 )
 
 func getLogseneAppsHandler(c *gin.Context) {
@@ -68,7 +68,7 @@ func updateLogsenePlanAndLimitHandler(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, common.ApiResponse{Message: err.Error()})
 		} else {
 			c.JSON(http.StatusOK, common.ApiResponse{
-				Message: "Der neue Plan & Limite wurden gespeichert.",
+				Message: "New plan and limit have been saved",
 			})
 		}
 	} else {
@@ -97,7 +97,7 @@ func updateLogseneBillingHandler(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, common.ApiResponse{Message: err.Error()})
 		} else {
 			c.JSON(http.StatusOK, common.ApiResponse{
-				Message: fmt.Sprintf("Die Kontierungsdaten (%v / %v) wurden gespeichert.", data.Billing, data.Project),
+				Message: fmt.Sprintf("Accounting number (%v / %v) has been saved.", data.Billing, data.Project),
 			})
 		}
 	} else {
@@ -120,7 +120,7 @@ func createLogseneAppHandler(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, common.ApiResponse{Message: err.Error()})
 		} else {
 			c.JSON(http.StatusOK, common.ApiResponse{
-				Message: fmt.Sprintf("Die Logsene App (%v) wurde erstellt. %v wurde als Administrator eingeladen.", data.AppName, mail),
+				Message: fmt.Sprintf("Logsene App (%v) has been created. %v has been invited as administrator.", data.AppName, mail),
 			})
 		}
 	} else {
@@ -130,23 +130,23 @@ func createLogseneAppHandler(c *gin.Context) {
 
 func validateNewLogseneApp(appName string, planId int, limit int, project string, billing string) error {
 	if len(appName) == 0 {
-		return errors.New("App-Name muss angegeben werden!")
+		return errors.New("App name must be provided!")
 	}
 
 	if planId <= 0 {
-		return errors.New("Plan muss angegeben werden!")
+		return errors.New("Plan must be provided!")
 	}
 
 	if limit <= 0 {
-		return errors.New("Die Tageslimite muss muss angegeben werden!")
+		return errors.New("Daily limit must be defined!")
 	}
 
 	if len(project) == 0 {
-		return errors.New("Name vom Projekt muss angegeben werden!")
+		return errors.New("Project name must be provided!")
 	}
 
 	if len(billing) == 0 {
-		return errors.New("Kontierungsnummer muss angegeben werden!")
+		return errors.New("Accounting number must be provided!")
 	}
 
 	return nil
@@ -161,11 +161,11 @@ func validateLogseneBillingEdit(mail string, appId int, project string, billing 
 
 	// Check values
 	if len(project) == 0 {
-		return errors.New("Das Projekt muss angegeben werden!")
+		return errors.New("Please provide a project name")
 	}
 
 	if len(billing) == 0 {
-		return errors.New("Die Kontierungsnummer muss angegeben werden!")
+		return errors.New("Please provide account assignment number!")
 	}
 
 	return nil
@@ -180,11 +180,11 @@ func validateLogsenePlanAndLimitEdit(mail string, appId int, planId int, limit i
 
 	// Check values
 	if planId <= 0 {
-		return errors.New("Der neue Plan muss angegeben werden!")
+		return errors.New("New plan must be provided")
 	}
 
 	if limit <= 0 {
-		return errors.New("Die Tageslimite muss muss angegeben werden!")
+		return errors.New("Daily-limit has to be provided")
 	}
 
 	return nil

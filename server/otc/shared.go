@@ -9,8 +9,8 @@ import (
 )
 
 const (
-	genericOTCAPIError = "Fehler beim Aufruf der OTC API. Bitte erstelle ein Ticket."
-	wrongAPIUsageError = "Ungültiger API-Aufruf: Die Argumente stimmen nicht mit der definition überein. Bitte erstelle eine Ticket."
+	genericOTCAPIError = "Error when calling the OTC API. Please create a ticket"
+	wrongAPIUsageError = "Invalid API request: Argument doesn't match definition. Please create a ticket."
 )
 
 func RegisterRoutes(r *gin.RouterGroup) {
