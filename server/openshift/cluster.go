@@ -12,6 +12,7 @@ import (
 type OpenshiftCluster struct {
 	ID       string   `json:"id"`
 	Name     string   `json:"name"`
+	Optgroup string   `json:"optgroup"`
 	Features []string `json:"features"`
 	// exclude token from json marshal
 	Token      string      `json:"-"`
