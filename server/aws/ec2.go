@@ -14,7 +14,7 @@ import (
 
 const (
 	ec2ListError  = "Instances can't be listed. Please open a ticket"
-	ec2StartError = "Instances can't be started. Please open a ticket
+	ec2StartError = "Instances can't be started. Please open a ticket"
 	ec2StopError  = "Instances can't be stopped. Please open a ticket"
 )
 

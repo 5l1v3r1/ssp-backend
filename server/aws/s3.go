@@ -46,7 +46,7 @@ func validateNewS3Bucket(projectname string, bucketname string, billing string, 
 	}
 	var validName = regexp.MustCompile(`^[a-zA-Z0-9\-]+$`).MatchString
 	if !validName(bucketname) {
-		return errors.New("Bucketname can only contain alphanumeric characters or "-"")
+		return errors.New("Bucketname can only contain alphanumeric characters or -")
 	}
 
 	svc, err := GetS3Client(stage)
