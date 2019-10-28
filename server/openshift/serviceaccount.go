@@ -61,20 +61,20 @@ func newServiceAccountHandler(c *gin.Context) {
 			return
 		}
 		c.JSON(http.StatusOK, common.ApiResponse{
-			Message: fmt.Sprintf(`Der Service Account %v wurde angelegt und im Jenkins hinterlegt. Du findest das Credential & die CredentialId im Jenkins hier: <a href='%v' target='_blank'>Jenkins</a>`,
+			Message: fmt.Sprintf("Service account %v has been created and stored as a Jenkins credential. You can find the credential id in Jenkins <a href='%v' target='_blank'>here</a>",
 				data.ServiceAccount, jenkinsUrl+"/job/"+data.OrganizationKey+"/credentials"),
 		})
 
 	} else {
 		c.JSON(http.StatusOK, common.ApiResponse{
-			Message: fmt.Sprintf("Der Service Account %v wurde angelegt", data.ServiceAccount),
+			Message: fmt.Sprintf("The service account %v has been created", data.ServiceAccount),
 		})
 	}
 }
 
 func validateNewServiceAccount(clusterId, username string, project string, serviceAccountName string) error {
 	if len(serviceAccountName) == 0 {
-		return errors.New("Service Account muss angegeben werden")
+		return errors.New("You have to create a service account")
 	}
 
 	// Validate permissions
@@ -223,7 +223,7 @@ func createEditRoleBinding(clusterId, namespace, serviceaccount string) error {
 	}
 
 	if resp.StatusCode == http.StatusConflict {
-		return errors.New("Das rolebinding existiert bereits")
+		return errors.New("The role binding already exists")
 	}
 
 	log.WithFields(log.Fields{
@@ -300,7 +300,7 @@ func callWZUBackend(command newJenkinsCredentialsCommand) error {
 
 	if resp.StatusCode != http.StatusOK {
 		bodyBytes, _ := ioutil.ReadAll(resp.Body)
-		return fmt.Errorf("Fehler vom WZU-Backend: StatusCode: %v, Nachricht: %v", resp.StatusCode, string(bodyBytes))
+		return fmt.Errorf("Error from WZU backend: StatusCode: %v, Message: %v", resp.StatusCode, string(bodyBytes))
 	}
 	return nil
 }

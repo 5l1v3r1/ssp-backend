@@ -171,7 +171,7 @@ func updateProjectInformationHandler(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, common.ApiResponse{Message: err.Error()})
 		} else {
 			c.JSON(http.StatusOK, common.ApiResponse{
-				Message: fmt.Sprintf("Die Informationen für Projekt %v auf Cluster %v wurden gespeichert", data.Project, data.ClusterId),
+				Message: fmt.Sprintf("The details for project %v on cluster %v has been saved", data.Project, data.ClusterId),
 			})
 		}
 	} else {
@@ -181,11 +181,11 @@ func updateProjectInformationHandler(c *gin.Context) {
 
 func validateNewProject(project string, billing string, testProject bool) error {
 	if len(project) == 0 {
-		return errors.New("Projektname muss angegeben werden")
+		return errors.New("Project name has to be provided")
 	}
 
 	if !testProject && len(billing) == 0 {
-		return errors.New("Kontierungsnummer muss angegeben werden")
+		return errors.New("Accounting number must be provided")
 	}
 
 	return nil
@@ -193,11 +193,11 @@ func validateNewProject(project string, billing string, testProject bool) error 
 
 func validateAdminAccess(clusterId, username, project string) error {
 	if clusterId == "" {
-		return errors.New("Cluster muss angegeben werden")
+		return errors.New("Cluster must be provided")
 	}
 
 	if project == "" {
-		return errors.New("Projektname muss angegeben werden")
+		return errors.New("Project name must be provided")
 	}
 
 	// Validate permissions
@@ -210,15 +210,15 @@ func validateAdminAccess(clusterId, username, project string) error {
 
 func validateProjectInformation(data common.UpdateProjectInformationCommand, username string) error {
 	if data.ClusterId == "" {
-		return errors.New("Cluster muss angegeben werden")
+		return errors.New("Cluster must be provided")
 	}
 
 	if data.Project == "" {
-		return errors.New("Projektname muss angegeben werden")
+		return errors.New("Project name must be provided")
 	}
 
 	if data.Billing == "" {
-		return errors.New("Kontierungsnummer muss angegeben werden")
+		return errors.New("Accounting number must be provided")
 	}
 
 	// Validate permissions
@@ -250,20 +250,20 @@ func sendNewProjectMail(clusterId string, projectName string, userName string, m
 	m.SetHeader("From", fromMail)
 
 	m.SetHeader("To", newProjectMail)
-	m.SetHeader("Subject", fmt.Sprintf("Neues Projekt '%v' auf OpenShift", projectName))
+	m.SetHeader("Subject", fmt.Sprintf("New Project '%v' on OpenShift", projectName))
 
 	m.SetBody("text/html", fmt.Sprintf(`
-	Sehr geehrte Damen und Herren,
+	Dear Ladys and Gentleman,
 	<br><br>
-	Das folgende Projekt wurde auf OpenShift erstellt:
+	The following project has been created on:
 	<br><br>
 	Cluster: %v<br>
-	Projektname:	%v<br>
-	Ersteller:		%v<br>
+	Project name:	%v<br>
+	Creator:		%v<br>
 	Mega ID:		%v
 	<br><br>
-	Mit freundlichen Grüssen<br>
-	Euer Cloud Platforms Team<br>
+	Kind regards<br>
+	Your Cloud Team<br>
 	IT-OM-SDL-CLP
 	`, clusterId, projectName, userName, megaID))
 
@@ -301,7 +301,7 @@ func createNewProject(clusterId string, project string, username string, billing
 		return nil
 	}
 	if resp.StatusCode == http.StatusConflict {
-		return errors.New("Das Projekt existiert bereits")
+		return errors.New("The project already exists")
 	}
 
 	errMsg, _ := ioutil.ReadAll(resp.Body)

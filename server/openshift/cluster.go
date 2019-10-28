@@ -12,6 +12,7 @@ import (
 type OpenshiftCluster struct {
 	ID       string   `json:"id"`
 	Name     string   `json:"name"`
+	Optgroup string   `json:"optgroup"`
 	Features []string `json:"features"`
 	// exclude token from json marshal
 	Token      string      `json:"-"`
@@ -67,6 +68,7 @@ func contains(list []string, search string) bool {
 
 func getOpenshiftCluster(clusterId string) (OpenshiftCluster, error) {
 	if clusterId == "" {
+		log.Printf("WARNING: clusterId missing!")
 		return OpenshiftCluster{}, errors.New(genericAPIError)
 	}
 	clusters := getOpenshiftClusters("")

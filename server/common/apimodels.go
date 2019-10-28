@@ -3,7 +3,7 @@ package common
 import "time"
 import "github.com/aws/aws-sdk-go/service/ec2"
 
-const ConfigNotSetError = "Funktion deaktiviert oder falsch konfiguriert. Kontaktieren Sie bitte das CLP Team"
+const ConfigNotSetError = "This feature hasn't been configured correctly. Please contact the CLP Team"
 
 type ProjectName struct {
 	Project string `json:"project"`
@@ -198,27 +198,6 @@ type SematextLogsenePlan struct {
 	IsFree                     bool    `json:"isFree"`
 	PricePerMonth              float64 `json:"pricePerMonth"`
 	DefaultDailyMaxLimitSizeMb float64 `json:"defaultDailyMaxLimitSizeMb"`
-}
-
-type DDCBilling struct {
-	Rows []DDCBillingRow `json:"rows"`
-	CSV  string          `json:"csv"`
-}
-
-type DDCBillingRow struct {
-	Sender              string  `json:"sender"`
-	Text                string  `json:"text"`
-	Art                 string  `json:"art"`
-	Project             string  `json:"project"`
-	Host                string  `json:"host"`
-	Backup              bool    `json:"backup"`
-	ReceptionAssignment string  `json:"receptionAssignment"`
-	OrderReception      string  `json:"orderReception"`
-	PspElement          string  `json:"pspElement"`
-	TotalCPU            float64 `json:"totalCpu"`
-	TotalMemory         float64 `json:"totalMemory"`
-	TotalStorage        float64 `json:"totalStorage"`
-	Total               float64 `json:"total"`
 }
 
 type NewS3BucketCommand struct {
