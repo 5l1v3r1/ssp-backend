@@ -463,6 +463,10 @@ func getInstanceStruct(instance *ec2.Instance, account string, snapshots []*ec2.
 	}
 	imageName, _ := getImageName(*instance.ImageId, account)
 
+	var privateIpAddress string
+	if instance.PrivateIpAddress != nil {
+		privateIpAddress = *instance.PrivateIpAddress
+	}
 	return common.Instance{
 		Name:             name,
 		InstanceId:       *instance.InstanceId,
@@ -470,7 +474,7 @@ func getInstanceStruct(instance *ec2.Instance, account string, snapshots []*ec2.
 		ImageId:          *instance.ImageId,
 		ImageName:        *imageName,
 		LaunchTime:       instance.LaunchTime,
-		PrivateIpAddress: *instance.PrivateIpAddress,
+		PrivateIpAddress: privateIpAddress,
 		State:            *instance.State.Name,
 		Account:          account,
 		Snapshots:        snapshots,
