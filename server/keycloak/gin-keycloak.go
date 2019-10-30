@@ -124,6 +124,9 @@ func getPublicKey(keyId string) (string, string, error) {
 
 		ssoURL := config.Config().GetString("sso_url")
 		ssoRealm := config.Config().GetString("sso_realm")
+		if ssoURL == "" || ssoRealm == "" {
+			return "", "", errors.New("Missing SSO configuration")
+		}
 		ssoCertsURL := ssoURL + "/realms/" + ssoRealm + "/protocol/openid-connect/certs"
 
 		// Create http client with proxy:
