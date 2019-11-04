@@ -463,6 +463,7 @@ func getInstanceStruct(instance *ec2.Instance, account string, snapshots []*ec2.
 	}
 	imageName, _ := getImageName(*instance.ImageId, account)
 
+	// there is no privateIp when the instance has been terminated
 	var privateIpAddress string
 	if instance.PrivateIpAddress != nil {
 		privateIpAddress = *instance.PrivateIpAddress
