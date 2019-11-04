@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	genericAPIError         = "Error when calling the OpenShift API. Please create a ticket"
+	genericAPIError         = "Error when calling the OpenShift API. Please open a Jira issue"
 	wrongAPIUsageError      = "Invalid api call - parameters did not match to method definition"
 	testProjectDeletionDays = "30"
 )

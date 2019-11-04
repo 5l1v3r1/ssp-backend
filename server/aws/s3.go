@@ -22,8 +22,8 @@ import (
 )
 
 const (
-	s3CreateError = "An error occured while creating a Bucket. Please create a ticket"
-	s3ListError   = "Not able to list Buckets. Please create a ticket"
+	s3CreateError = "An error occured while creating a Bucket. Please open a Jira issue"
+	s3ListError   = "Not able to list Buckets. Please open a Jira issue"
 )
 
 func validateNewS3Bucket(projectname string, bucketname string, billing string, stage string) error {
