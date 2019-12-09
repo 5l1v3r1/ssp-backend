@@ -6,7 +6,6 @@ import (
 	"fmt"
 	log "github.com/sirupsen/logrus"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strings"
@@ -45,28 +44,6 @@ func RegisterRoutes(r *gin.RouterGroup) {
 	// Get job status for NFS volumes because it takes a while
 	r.GET("/ose/volume/jobs", jobStatusHandler)
 	r.GET("/ose/clusters", clustersHandler)
-}
-
-func prometheusQueryHandler(c *gin.Context) {
-	params := c.Request.URL.Query()
-	clusterId := params.Get("clusterid")
-	query := params.Get("query")
-	if clusterId == "" || query == "" {
-		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: wrongAPIUsageError})
-		return
-	}
-	resp, err := getPrometheusHTTPClient("GET", clusterId, "api/v1/query?query="+url.QueryEscape(query), nil)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericAPIError})
-		return
-	}
-	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericAPIError})
-		return
-	}
-	c.JSON(http.StatusOK, string(body))
 }
 
 func getProjectAdminsAndOperators(clusterId, project string) ([]string, []string, error) {
@@ -354,52 +331,6 @@ func getNfsHTTPClient(method, clusterId, apiPath string, body io.Reader) (*http.
 	}
 
 	return resp, err
-}
-
-func getPrometheusHTTPClient(method, clusterId, apiPath string, body io.Reader) (*http.Response, error) {
-	resp, err := getOseHTTPClient("GET", clusterId, "apis/route.openshift.io/v1/namespaces/openshift-monitoring/routes/prometheus-k8s", nil)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	prometheusRoute, err := gabs.ParseJSONBuffer(resp.Body)
-	if err != nil {
-		log.Println("error parsing body of response:", err)
-		return nil, errors.New(genericAPIError)
-	}
-
-	prometheusHost := prometheusRoute.Path("spec.host").Data().(string)
-
-	cluster, err := getOpenshiftCluster(clusterId)
-	if err != nil {
-		return nil, err
-	}
-
-	token := cluster.Token
-	if token == "" {
-		log.Printf("WARNING: Cluster token not found. Please see README for more details. ClusterId: %v", clusterId)
-		return nil, errors.New(common.ConfigNotSetError)
-	}
-
-	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-	}
-	client := &http.Client{Transport: tr}
-
-	req, _ := http.NewRequest(method, "https://"+prometheusHost+"/"+apiPath, body)
-
-	log.Debugf("Calling %v", req.URL.String())
-
-	req.Header.Add("Authorization", "Bearer "+token)
-
-	resp, err = client.Do(req)
-	if err != nil {
-		log.Println("Error from server: ", err.Error())
-		return nil, errors.New(genericAPIError)
-	}
-	log.Printf("%+v", resp)
-	return resp, nil
 }
 
 func newObjectRequest(kind string, name string) *gabs.Container {
