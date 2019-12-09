@@ -48,22 +48,25 @@ func RegisterRoutes(r *gin.RouterGroup) {
 }
 
 func prometheusQueryHandler(c *gin.Context) {
-	var data common.PrometheusQueryCommand
-	if c.BindJSON(&data) != nil {
+	params := c.Request.URL.Query()
+	clusterId := params.Get("clusterid")
+	query := params.Get("query")
+	if clusterId == "" || query == "" {
 		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: wrongAPIUsageError})
+		return
 	}
-	resp, err := getPrometheusHTTPClient("GET", data.ClusterId, "api/v1/query?query="+url.QueryEscape(data.Query), nil)
+	resp, err := getPrometheusHTTPClient("GET", clusterId, "api/v1/query?query="+url.QueryEscape(query), nil)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: wrongAPIUsageError})
+		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericAPIError})
+		return
 	}
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: wrongAPIUsageError})
+		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericAPIError})
+		return
 	}
-	c.JSON(http.StatusOK, common.ApiResponse{
-		Message: string(body),
-	})
+	c.JSON(http.StatusOK, string(body))
 }
 
 func getProjectAdminsAndOperators(clusterId, project string) ([]string, []string, error) {

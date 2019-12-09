@@ -27,11 +27,6 @@ type FixVolumeCommand struct {
 	OpenshiftBase
 }
 
-type PrometheusQueryCommand struct {
-	ClusterId string `json:"clusterid"`
-	Query     string `json:"query"`
-}
-
 type GrowVolumeCommand struct {
 	ClusterId string `json:"clusterid"`
 	NewSize   string `json:"newSize"`
