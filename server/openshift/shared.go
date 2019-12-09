@@ -89,12 +89,12 @@ func getProjectAdminsAndOperators(clusterId, project string) ([]string, []string
 	var operators []string
 	if hasOperatorGroup {
 		// Going to add the operator group to the admins
-		operatorGroup, err := getOperatorGroup(clusterId)
+		json, err := getOperatorGroup(clusterId)
 		if err != nil {
 			return nil, nil, err
 		}
 
-		for _, u := range operatorGroup.Path("users").Children() {
+		for _, u := range json.Path("users").Children() {
 			operators = append(operators, strings.ToLower(u.Data().(string)))
 		}
 	}
@@ -403,13 +403,13 @@ func getPrometheusHTTPClient(method, clusterId, apiPath string, body io.Reader) 
 }
 
 func newObjectRequest(kind string, name string) *gabs.Container {
-	o := gabs.New()
+	json := gabs.New()
 
-	o.Set(kind, "kind")
-	o.Set("v1", "apiVersion")
-	o.SetP(name, "metadata.name")
+	json.Set(kind, "kind")
+	json.Set("v1", "apiVersion")
+	json.SetP(name, "metadata.name")
 
-	return o
+	return json
 }
 
 func generateID() string {
