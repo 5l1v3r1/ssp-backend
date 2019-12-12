@@ -8,28 +8,27 @@ import (
 )
 
 type KafkaBackend struct {
-	Name string `json:"name"`
-	Url  string `json:"url"`
+	Url string `json:"url"`
 }
 
-func getAllKafkaBackendsFromConfig() []KafkaBackend {
-	kafka_backends := []KafkaBackend{}
-	err := config.Config().UnmarshalKey("kafka_backends", &kafka_backends)
+func getAllKafkaBackendsFromConfig() KafkaBackend {
+	kafka_backend := KafkaBackend{}
+	err := config.Config().UnmarshalKey("kafka_backend", &kafka_backend)
 
 	if err != nil {
 		log.Println("Error unmarshalling kafka config.", err.Error())
 	}
 
-	return kafka_backends
+	return kafka_backend
 }
 
 func RegisterRoutes(r *gin.RouterGroup) {
-	r.GET("/kafka/backends", listKafkaBackends)
+	r.GET("/kafka/backend", listKafkaBackends)
 }
 
 func listKafkaBackends(c *gin.Context) {
-	clusters := getAllKafkaBackendsFromConfig()
+	kafkaBackend := getAllKafkaBackendsFromConfig()
 
-	c.JSON(http.StatusOK, clusters)
+	c.JSON(http.StatusOK, kafkaBackend)
 	return
 }
