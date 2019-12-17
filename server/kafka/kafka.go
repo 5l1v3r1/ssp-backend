@@ -8,7 +8,7 @@ import (
 )
 
 type KafkaConfig struct {
-	BackendUrl string `json:"url"`
+	BackendUrl string `json:"backend_url"`
 }
 
 func getKafkaConfig() KafkaConfig {
