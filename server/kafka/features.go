@@ -8,6 +8,6 @@ func GetFeatures() Features {
 	kafkaBackend := getKafkaConfig()
 
 	return Features{
-		Enabled: kafkaBackend.BackendUrl != "",
+		Enabled: kafkaConfig.BackendUrl != "",
 	}
 }
