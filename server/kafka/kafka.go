@@ -28,6 +28,6 @@ func RegisterRoutes(r *gin.RouterGroup) {
 
 func getKafkaBackendHandler(c *gin.Context) {
 	kafkaConfig := getKafkaConfig()
-	c.JSON(http.StatusOK, kafkaBackend)
+	c.JSON(http.StatusOK, kafkaConfig)
 	return
 }
