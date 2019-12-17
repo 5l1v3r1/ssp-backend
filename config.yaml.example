@@ -37,7 +37,7 @@ sso_realm:
 sso_url:
 
 kafka:
-  backendUrl:
+  backend_url:
 
 openshift:
   - id: awsdev
