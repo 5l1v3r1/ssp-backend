@@ -7,29 +7,27 @@ import (
 	"net/http"
 )
 
-type KafkaBackend struct {
-	Name string `json:"name"`
-	Url  string `json:"url"`
+type KafkaConfig struct {
+	BackendUrl string `json:"backend_url"`
 }
 
-func getAllKafkaBackendsFromConfig() []KafkaBackend {
-	kafka_backends := []KafkaBackend{}
-	err := config.Config().UnmarshalKey("kafka_backends", &kafka_backends)
+func getKafkaConfig() KafkaConfig {
+	kafkaConfig := KafkaConfig{}
+	err := config.Config().UnmarshalKey("kafka", &kafkaConfig)
 
 	if err != nil {
 		log.Println("Error unmarshalling kafka config.", err.Error())
 	}
 
-	return kafka_backends
+	return kafkaConfig
 }
 
 func RegisterRoutes(r *gin.RouterGroup) {
-	r.GET("/kafka/backends", listKafkaBackends)
+	r.GET("/kafka/backend", getKafkaBackendHandler)
 }
 
-func listKafkaBackends(c *gin.Context) {
-	clusters := getAllKafkaBackendsFromConfig()
-
-	c.JSON(http.StatusOK, clusters)
+func getKafkaBackendHandler(c *gin.Context) {
+	kafkaConfig := getKafkaConfig()
+	c.JSON(http.StatusOK, kafkaConfig)
 	return
 }
