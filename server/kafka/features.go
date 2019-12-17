@@ -5,9 +5,9 @@ type Features struct {
 }
 
 func GetFeatures() Features {
-	kafkaBackend := getAllKafkaBackendsFromConfig()
+	kafkaBackend := getKafkaConfig()
 
 	return Features{
-		Enabled: kafkaBackend.Url != "",
+		Enabled: kafkaBackend.BackendUrl != "",
 	}
 }
