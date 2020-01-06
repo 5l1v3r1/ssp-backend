@@ -5,9 +5,11 @@ import (
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/config"
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/kafka"
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/keycloak"
+	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/ldap"
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/openshift"
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/otc"
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/sematext"
+	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/tower"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	log "github.com/sirupsen/logrus"
@@ -55,8 +57,14 @@ func main() {
 		// Sematext routes
 		sematext.RegisterRoutes(auth)
 
+		// Ansible Tower
+		tower.RegisterRoutes(auth)
+
 		// Kafka routes
 		kafka.RegisterRoutes(auth)
+
+		// LDAP routes
+		ldap.RegisterRoutes(auth)
 	}
 
 	log.Println("Cloud SSP is running")

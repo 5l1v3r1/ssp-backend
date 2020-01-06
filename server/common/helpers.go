@@ -6,6 +6,7 @@ import (
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/keycloak"
 	"github.com/gin-gonic/gin"
 	"log"
+	"strings"
 )
 
 // GetUserName returns the username based of the gin.Context
@@ -30,6 +31,15 @@ func RandomString(length int) string {
 func ContainsEmptyString(ss ...string) bool {
 	for _, s := range ss {
 		if s == "" {
+			return true
+		}
+	}
+	return false
+}
+
+func ContainsStringI(s []string, e string) bool {
+	for _, a := range s {
+		if strings.ToLower(a) == strings.ToLower(e) {
 			return true
 		}
 	}
