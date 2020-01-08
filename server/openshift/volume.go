@@ -26,7 +26,7 @@ const (
 	wrongSizeFormatError    = "Invalid size. Format: Digits followed by M/G (e.g. 500M)."
 	wrongSizeNFSFormatError = "Invalid size. Format: Digits followed by G (e.g. 1G)."
 	wrongSizeLimitError     = "This size is not allowed. Minimal size: 500M (1G for NFS). Maximal size: M: %v, G: %v"
-	apiCreateWorkflowUuid   = "64b3b95b-0d79-4563-8b88-f8c4486b40a0"
+	apiCreateWorkflowUuid   = "cf8017d2-061b-4ce4-b25f-9ef7e38a8db9"
 	apiChangeWorkflowUuid   = "186b1295-1b82-42e4-b04d-477da967e1d4"
 )
 
