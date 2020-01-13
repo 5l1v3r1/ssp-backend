@@ -308,7 +308,7 @@ func rebootECSHandler(c *gin.Context) {
 	}
 
 	for _, server := range data.ECServers {
-		rebootResult := servers.Reboot(client, server.Id, rebootOpts)
+		rebootResult := servers.Reboot(client, server.Id, &rebootOpts)
 
 		if rebootResult.Err != nil {
 			log.Println("Error while rebooting server.", err.Error())

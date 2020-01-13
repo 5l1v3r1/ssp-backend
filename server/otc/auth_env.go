@@ -1,15 +1,57 @@
 package otc
 
+// Copied and modified from https://raw.githubusercontent.com/huaweicloud/huaweicloud-sdk-go/master/auth/auth_env.go
+// Updated to use viper and fallback to env
+
 import (
+	"fmt"
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/config"
+	"os"
+
 	"github.com/gophercloud/gophercloud"
+	"github.com/gophercloud/gophercloud/auth/aksk"
+	"github.com/gophercloud/gophercloud/auth/token"
 )
 
-var nilOptions = gophercloud.AuthOptions{}
+var nilTokenOptions = token.TokenOptions{}
+var nilAKSKOptions = aksk.AKSKOptions{}
 
-// From https://github.com/gophercloud/gophercloud/blob/master/openstack/auth_env.go
-// Updated to use viper and fallback to env
-func authOptionsFromEnv() (gophercloud.AuthOptions, error) {
+/*
+TokenOptionsFromEnv fills out an token.TokenOptions structure with the
+settings found on the various OpenStack OS_* environment variables.
+
+The following variables provide sources of truth: OS_AUTH_URL, OS_USERNAME,
+OS_PASSWORD, OS_TENANT_ID, and OS_TENANT_NAME.
+
+Of these, OS_USERNAME, OS_PASSWORD, and OS_AUTH_URL must have settings,
+or an error will result.  OS_TENANT_ID, OS_TENANT_NAME, OS_PROJECT_ID, and
+OS_PROJECT_NAME are optional.
+
+OS_TENANT_ID and OS_TENANT_NAME are mutually exclusive to OS_PROJECT_ID and
+OS_PROJECT_NAME. If OS_PROJECT_ID and OS_PROJECT_NAME are set, they will
+still be referred as "tenant" in Gophercloud.
+
+To use this function, first set the OS_* environment variables (for example,
+by sourcing an `openrc` file),or use os.Setenv() function :
+    os.Setenv("OS_AUTH_URL", "https://iam.xxx.yyy.com/v3")
+    os.Setenv("OS_USERNAME", "{your user name}")
+    os.Setenv("OS_PASSWORD", "{your password }")
+
+then:
+
+    opts, err := auth.TokenOptionsFromEnv()
+    if err != nil {
+        if ue, ok := err.(*gophercloud.UnifiedError); ok {
+            fmt.Println("ErrCode:", ue.ErrorCode())
+            fmt.Println("Message:", ue.Message())
+        }
+        return
+    }
+    provider, err := openstack.AuthenticatedClient(opts)
+Now use the provider, you can initialize the serviceClient.
+*/
+func TokenOptionsFromEnv() (token.TokenOptions, error) {
+
 	cfg := config.Config()
 
 	authURL := cfg.GetString("os_auth_url")
@@ -20,9 +62,6 @@ func authOptionsFromEnv() (gophercloud.AuthOptions, error) {
 	tenantName := cfg.GetString("os_tenant_name")
 	domainID := cfg.GetString("os_domain_id")
 	domainName := cfg.GetString("os_domain_name")
-	applicationCredentialID := cfg.GetString("os_application_credential_id")
-	applicationCredentialName := cfg.GetString("os_application_credential_name")
-	applicationCredentialSecret := cfg.GetString("os_application_credential_secret")
 
 	// If OS_PROJECT_ID is set, overwrite tenantID with the value.
 	if v := cfg.GetString("os_project_id"); v != "" {
@@ -37,62 +76,110 @@ func authOptionsFromEnv() (gophercloud.AuthOptions, error) {
 	// end custom part
 
 	if authURL == "" {
-		err := gophercloud.ErrMissingEnvironmentVariable{
-			EnvironmentVariable: "OS_AUTH_URL",
-		}
-		return nilOptions, err
+		message := fmt.Sprintf(gophercloud.CE_MissingInputMessage, "authURL")
+		err := gophercloud.NewSystemCommonError(gophercloud.CE_MissingInputCode, message)
+		return nilTokenOptions, err
 	}
 
-	if userID == "" && username == "" {
-		// Empty username and userID could be ignored, when applicationCredentialID and applicationCredentialSecret are set
-		if applicationCredentialID == "" && applicationCredentialSecret == "" {
-			err := gophercloud.ErrMissingAnyoneOfEnvironmentVariables{
-				EnvironmentVariables: []string{"OS_USERID", "OS_USERNAME"},
-			}
-			return nilOptions, err
-		}
+	if username == "" && userID == "" {
+		message := fmt.Sprintf(gophercloud.CE_MissingInputMessage, "username")
+		err := gophercloud.NewSystemCommonError(gophercloud.CE_MissingInputCode, message)
+		return nilTokenOptions, err
 	}
 
-	if password == "" && applicationCredentialID == "" && applicationCredentialName == "" {
-		err := gophercloud.ErrMissingEnvironmentVariable{
-			EnvironmentVariable: "OS_PASSWORD",
-		}
-		return nilOptions, err
+	if password == "" {
+		message := fmt.Sprintf(gophercloud.CE_MissingInputMessage, "password")
+		err := gophercloud.NewSystemCommonError(gophercloud.CE_MissingInputCode, message)
+		return nilTokenOptions, err
 	}
 
-	if (applicationCredentialID != "" || applicationCredentialName != "") && applicationCredentialSecret == "" {
-		err := gophercloud.ErrMissingEnvironmentVariable{
-			EnvironmentVariable: "OS_APPLICATION_CREDENTIAL_SECRET",
-		}
-		return nilOptions, err
+	to := token.TokenOptions{
+		IdentityEndpoint: authURL,
+		UserID:           userID,
+		Username:         username,
+		Password:         password,
+		TenantID:         tenantID,
+		TenantName:       tenantName,
+		DomainID:         domainID,
+		DomainName:       domainName,
 	}
 
-	if applicationCredentialID == "" && applicationCredentialName != "" && applicationCredentialSecret != "" {
-		if userID == "" && username == "" {
-			return nilOptions, gophercloud.ErrMissingAnyoneOfEnvironmentVariables{
-				EnvironmentVariables: []string{"OS_USERID", "OS_USERNAME"},
-			}
-		}
-		if username != "" && domainID == "" && domainName == "" {
-			return nilOptions, gophercloud.ErrMissingAnyoneOfEnvironmentVariables{
-				EnvironmentVariables: []string{"OS_DOMAIN_ID", "OS_DOMAIN_NAME"},
-			}
-		}
+	return to, nil
+}
+
+/*
+AKSKOptionsFromEnv fills out an aksk.AKSKOptions structure with the
+settings found on the various HWCLOUD_* environment variables.
+
+The following variables provide sources of truth: HWCLOUD_AUTH_URL, HWCLOUD_ACCESS_KEY,
+HWCLOUD_SECRET_KEY, HWCLOUD_ACCESS_KEY_STS_TOKEN, and HWCLOUD_PROJECT_ID,HWCLOUD_DOMAIN_ID,HWCLOUD_REGION,HWCLOUD_DOMAIN_NAME.
+
+Of these, HWCLOUD_AUTH_URL, HWCLOUD_ACCESS_KEY, and HWCLOUD_SECRET_KEY must have settings,
+or an error will result.The rest of others are optional.
+
+To use this function, first set the HWCLOUD_* environment variables (for example,
+by sourcing an `openrc` file), or use os.Setenv() function :
+    os.Setenv("HWCLOUD_AUTH_URL", "https://iam.xxx.yyy.com/v3")
+    os.Setenv("HWCLOUD_ACCESS_KEY", "{your AK string}")
+    os.Setenv("HWCLOUD_SECRET_KEY", "{your SK string}")
+
+then:
+
+    opts, err := auth.AKSKOptionsFromEnv()
+    if err != nil {
+        if ue, ok := err.(*gophercloud.UnifiedError); ok {
+            fmt.Println("ErrCode:", ue.ErrorCode())
+            fmt.Println("Message:", ue.Message())
+        }
+        return
+    }
+    provider, err := openstack.AuthenticatedClient(opts)
+Now use the provider, you can initialize the serviceClient.
+*/
+func AKSKOptionsFromEnv() (aksk.AKSKOptions, error) {
+
+	authURL := os.Getenv("HWCLOUD_AUTH_URL")
+	ak := os.Getenv("HWCLOUD_ACCESS_KEY")
+	sk := os.Getenv("HWCLOUD_SECRET_KEY")
+	seToken := os.Getenv("HWCLOUD_ACCESS_KEY_STS_TOKEN")
+	projectID := os.Getenv("HWCLOUD_PROJECT_ID")
+	domainID := os.Getenv("HWCLOUD_DOMAIN_ID")
+	region := os.Getenv("HWCLOUD_REGION")
+	cloudName := os.Getenv("HWCLOUD_DOMAIN_NAME")
+
+	// If HWCLOUD_CLOUD_NAME is set, overwrite HWCLOUD_DOMAIN_NAME with the value.
+	if v := os.Getenv("HWCLOUD_CLOUD_NAME"); v != "" {
+		cloudName = v
 	}
 
-	ao := gophercloud.AuthOptions{
-		IdentityEndpoint:            authURL,
-		UserID:                      userID,
-		Username:                    username,
-		Password:                    password,
-		TenantID:                    tenantID,
-		TenantName:                  tenantName,
-		DomainID:                    domainID,
-		DomainName:                  domainName,
-		ApplicationCredentialID:     applicationCredentialID,
-		ApplicationCredentialName:   applicationCredentialName,
-		ApplicationCredentialSecret: applicationCredentialSecret,
+	if authURL == "" {
+		message := fmt.Sprintf(gophercloud.CE_MissingInputMessage, "authURL")
+		err := gophercloud.NewSystemCommonError(gophercloud.CE_MissingInputCode, message)
+		return nilAKSKOptions, err
 	}
 
-	return ao, nil
+	if ak == "" {
+		message := fmt.Sprintf(gophercloud.CE_MissingInputMessage, "AccessKey")
+		err := gophercloud.NewSystemCommonError(gophercloud.CE_MissingInputCode, message)
+		return nilAKSKOptions, err
+	}
+
+	if sk == "" {
+		message := fmt.Sprintf(gophercloud.CE_MissingInputMessage, "SecretKey")
+		err := gophercloud.NewSystemCommonError(gophercloud.CE_MissingInputCode, message)
+		return nilAKSKOptions, err
+	}
+
+	akskOptions := aksk.AKSKOptions{
+		IdentityEndpoint: authURL,
+		AccessKey:        ak,
+		SecretKey:        sk,
+		SecurityToken:    seToken,
+		ProjectID:        projectID,
+		DomainID:         domainID,
+		Region:           region,
+		Cloud:            cloudName,
+	}
+
+	return akskOptions, nil
 }
