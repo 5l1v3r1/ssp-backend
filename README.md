@@ -143,3 +143,11 @@ There is a small script for local API testing. It handles authorization (login, 
 ```
 go run curl.go [-X GET/POST] http://localhost:8000/api/...
 ```
+
+# Refactor in progress
+Every backend should be contained in its own `Plugin`. Examples are OTC, OpenShift etc. These plugins must have a `New()` and `RegisterRoutes()` method.
+
+To stay backwards compatible some things will remain in the codebase until the refactor is done. One example is the `config` package, which is now directly in the `main.go` file.
+
+During the transition period a package may fullfill the `Plugin` interface, but still implement this `config` package. The goal is to use the `config` and `log` from the Plugin interface.
+

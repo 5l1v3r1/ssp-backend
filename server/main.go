@@ -2,7 +2,7 @@ package main
 
 import (
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/aws"
-	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/config"
+	legacyConfig "github.com/SchweizerischeBundesbahnen/ssp-backend/server/config"
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/kafka"
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/keycloak"
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/ldap"
@@ -12,21 +12,55 @@ import (
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/tower"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
-	log "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus"
+	"github.com/spf13/viper"
+
 	"net/http"
+	"os"
+	"strings"
 )
 
+type Plugin interface {
+	RegisterRoutes()
+}
+
+func config() *viper.Viper {
+	c := viper.New()
+	c.SetConfigType("yaml")
+	c.SetConfigName("config")
+	c.AddConfigPath(".")
+	c.AddConfigPath("/etc/")
+	c.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+	c.AutomaticEnv()
+	if err := c.ReadInConfig(); err != nil {
+		logrus.Println("WARNING: could not load configuration file. Using ENV variables")
+	}
+	return c
+}
+
+func NewLogger() *logrus.Logger {
+	logger := &logrus.Logger{
+		Out:       os.Stdout,
+		Level:     logrus.InfoLevel,
+		Formatter: new(logrus.TextFormatter),
+	}
+	//logger.SetReportCaller(true)
+	return logger
+}
+
 func main() {
-	config.Init("bla")
+	log := NewLogger()
+	cfg := config()
 
-	log.SetReportCaller(true)
+	// Backwards compatibility
+	legacyConfig.Init("")
 
-	if config.Config().GetBool("debug") {
-		log.SetLevel(log.DebugLevel)
-		gin.SetMode(gin.DebugMode)
-	} else {
+	if !cfg.GetBool("debug") {
 		gin.SetMode(gin.ReleaseMode)
 	}
+
+	gin.DefaultWriter = log.Writer()
+	gin.DefaultErrorWriter = log.WriterLevel(logrus.ErrorLevel)
 
 	router := gin.New()
 	router.Use(gin.Recovery())
@@ -42,34 +76,41 @@ func main() {
 	router.GET("/features", featuresHandler)
 
 	// Protected routes
-	auth := router.Group("/api/")
-	auth.Use(keycloak.Auth(keycloak.LoggedInCheck()))
+	api := router.Group("/api/")
+	api.Use(keycloak.Auth(keycloak.LoggedInCheck()))
 	{
 		// Openshift routes
-		openshift.RegisterRoutes(auth)
+		openshift.RegisterRoutes(api)
 
 		// AWS routes
-		aws.RegisterRoutes(auth)
+		aws.RegisterRoutes(api)
 
 		// OTC routes
-		otc.RegisterRoutes(auth)
+		otc.RegisterRoutes(api)
 
 		// Sematext routes
-		sematext.RegisterRoutes(auth)
+		sematext.RegisterRoutes(api)
 
 		// Ansible Tower
-		tower.RegisterRoutes(auth)
+		tower.RegisterRoutes(api)
 
 		// Kafka routes
-		kafka.RegisterRoutes(auth)
+		kafka.RegisterRoutes(api)
 
 		// LDAP routes
-		ldap.RegisterRoutes(auth)
+		ldap.RegisterRoutes(api)
+	}
+
+	plugins := []Plugin{
+	}
+
+	for _, plugin := range plugins {
+		plugin.RegisterRoutes()
 	}
 
 	log.Println("Cloud SSP is running")
 
-	port := config.Config().GetString("port")
+	port := cfg.GetString("port")
 	if port == "" {
 		port = "8000"
 	}
