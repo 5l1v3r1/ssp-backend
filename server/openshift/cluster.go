@@ -35,7 +35,7 @@ type NfsApi struct {
 	StorageClass string `json:"-"`
 }
 
-func clustersHandler(c *gin.Context) {
+func (p Plugin) clustersHandler(c *gin.Context) {
 	//username := common.GetUserName(c)
 	clusters := getOpenshiftClusters(c.Query("feature"))
 	c.JSON(http.StatusOK, clusters)

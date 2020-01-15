@@ -25,7 +25,7 @@ type newJenkinsCredentialsCommand struct {
 	Description     string `json:"description"`
 }
 
-func newServiceAccountHandler(c *gin.Context) {
+func (p Plugin) newServiceAccountHandler(c *gin.Context) {
 	jenkinsUrl := config.Config().GetString("jenkins_url")
 	if jenkinsUrl == "" {
 		log.Fatal("Env variable 'JENKINS_URL' must be specified")

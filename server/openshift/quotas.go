@@ -20,7 +20,7 @@ const (
 	jsonDecodingError = "Error decoding json from ose api: %v"
 )
 
-func editQuotasHandler(c *gin.Context) {
+func (p Plugin) editQuotasHandler(c *gin.Context) {
 	username := common.GetUserName(c)
 
 	var data common.EditQuotasCommand

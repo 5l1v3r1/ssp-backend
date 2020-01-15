@@ -30,7 +30,7 @@ const (
 	apiChangeWorkflowUuid   = "186b1295-1b82-42e4-b04d-477da967e1d4"
 )
 
-func newVolumeHandler(c *gin.Context) {
+func (p Plugin) newVolumeHandler(c *gin.Context) {
 	username := common.GetUserName(c)
 
 	var data common.NewVolumeCommand
@@ -69,7 +69,7 @@ func newVolumeHandler(c *gin.Context) {
 	}
 }
 
-func jobStatusHandler(c *gin.Context) {
+func (p Plugin) jobStatusHandler(c *gin.Context) {
 	params := c.Request.URL.Query()
 	clusterId := params.Get("clusterid")
 	jobIdStr := params.Get("job")
@@ -89,7 +89,7 @@ func jobStatusHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, progress)
 }
 
-func fixVolumeHandler(c *gin.Context) {
+func (p Plugin) fixVolumeHandler(c *gin.Context) {
 	username := common.GetUserName(c)
 
 	var data common.FixVolumeCommand
@@ -112,7 +112,7 @@ func fixVolumeHandler(c *gin.Context) {
 	}
 }
 
-func growVolumeHandler(c *gin.Context) {
+func (p Plugin) growVolumeHandler(c *gin.Context) {
 	username := common.GetUserName(c)
 
 	var data common.GrowVolumeCommand

@@ -24,7 +24,7 @@ type Auth struct {
 	Auth []byte `json:"auth"`
 }
 
-func newPullSecretHandler(c *gin.Context) {
+func (p Plugin) newPullSecretHandler(c *gin.Context) {
 	username := common.GetUserName(c)
 	cfg := config.Config()
 	dockerRepository := cfg.GetString("docker_repository")

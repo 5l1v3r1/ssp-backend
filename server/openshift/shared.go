@@ -37,23 +37,23 @@ func New(routes *gin.RouterGroup, config *viper.Viper, log *logrus.Logger) Plugi
 
 func (p Plugin) RegisterRoutes() {
 	// OpenShift
-	p.routes.POST("/project", newProjectHandler)
-	p.routes.GET("/projects", getProjectsHandler)
-	p.routes.GET("/project/admins", getProjectAdminsHandler)
-	p.routes.POST("/testproject", newTestProjectHandler)
-	p.routes.POST("/serviceaccount", newServiceAccountHandler)
-	p.routes.GET("/project/info", getProjectInformationHandler)
-	p.routes.POST("/project/info", updateProjectInformationHandler)
-	p.routes.POST("/quotas", editQuotasHandler)
-	p.routes.POST("/secret/pull", newPullSecretHandler)
+	p.routes.POST("/project", p.newProjectHandler)
+	p.routes.GET("/projects", p.getProjectsHandler)
+	p.routes.GET("/project/admins", p.getProjectAdminsHandler)
+	p.routes.POST("/testproject", p.newTestProjectHandler)
+	p.routes.POST("/serviceaccount", p.newServiceAccountHandler)
+	p.routes.GET("/project/info", p.getProjectInformationHandler)
+	p.routes.POST("/project/info", p.updateProjectInformationHandler)
+	p.routes.POST("/quotas", p.editQuotasHandler)
+	p.routes.POST("/secret/pull", p.newPullSecretHandler)
 
 	// Volumes (Gluster and NFS)
-	p.routes.POST("/volume", newVolumeHandler)
-	p.routes.POST("/volume/grow", growVolumeHandler)
-	p.routes.POST("/volume/gluster/fix", fixVolumeHandler)
+	p.routes.POST("/volume", p.newVolumeHandler)
+	p.routes.POST("/volume/grow", p.growVolumeHandler)
+	p.routes.POST("/volume/gluster/fix", p.fixVolumeHandler)
 	// Get job status for NFS volumes because it takes a while
-	p.routes.GET("/volume/jobs", jobStatusHandler)
-	p.routes.GET("/clusters", clustersHandler)
+	p.routes.GET("/volume/jobs", p.jobStatusHandler)
+	p.routes.GET("/clusters", p.clustersHandler)
 }
 
 func getProjectAdminsAndOperators(clusterId, project string) ([]string, []string, error) {

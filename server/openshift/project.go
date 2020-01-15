@@ -18,7 +18,7 @@ import (
 	"os"
 )
 
-func newProjectHandler(c *gin.Context) {
+func (p Plugin) newProjectHandler(c *gin.Context) {
 	username := common.GetUserName(c)
 
 	var data common.NewProjectCommand
@@ -45,7 +45,7 @@ func newProjectHandler(c *gin.Context) {
 	}
 }
 
-func newTestProjectHandler(c *gin.Context) {
+func (p Plugin) newTestProjectHandler(c *gin.Context) {
 	username := common.GetUserName(c)
 
 	var data common.NewTestProjectCommand
@@ -71,7 +71,7 @@ func newTestProjectHandler(c *gin.Context) {
 	}
 }
 
-func getProjectsHandler(c *gin.Context) {
+func (p Plugin) getProjectsHandler(c *gin.Context) {
 	username := common.GetUserName(c)
 	params := c.Request.URL.Query()
 	clusterId := params.Get("clusterid")
@@ -114,7 +114,7 @@ func getUserProjects(clusterid, username string) ([]string, error) {
 	return projectNames, nil
 }
 
-func getProjectAdminsHandler(c *gin.Context) {
+func (p Plugin) getProjectAdminsHandler(c *gin.Context) {
 	username := common.GetUserName(c)
 
 	params := c.Request.URL.Query()
@@ -137,7 +137,7 @@ func getProjectAdminsHandler(c *gin.Context) {
 	}
 }
 
-func getProjectInformationHandler(c *gin.Context) {
+func (p Plugin) getProjectInformationHandler(c *gin.Context) {
 	username := common.GetUserName(c)
 
 	params := c.Request.URL.Query()
@@ -157,7 +157,7 @@ func getProjectInformationHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, pi)
 }
 
-func updateProjectInformationHandler(c *gin.Context) {
+func (p Plugin) updateProjectInformationHandler(c *gin.Context) {
 	username := common.GetUserName(c)
 
 	var data common.UpdateProjectInformationCommand
