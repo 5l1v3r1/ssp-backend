@@ -79,9 +79,6 @@ func main() {
 	api := router.Group("/api/")
 	api.Use(keycloak.Auth(keycloak.LoggedInCheck()))
 	{
-		// Openshift routes
-		openshift.RegisterRoutes(api)
-
 		// AWS routes
 		aws.RegisterRoutes(api)
 
@@ -102,6 +99,7 @@ func main() {
 	}
 
 	plugins := []Plugin{
+		openshift.New(api.Group("/ose/"), cfg.Sub("openshift"), log),
 	}
 
 	for _, plugin := range plugins {

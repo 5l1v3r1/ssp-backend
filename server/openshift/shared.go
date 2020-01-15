@@ -15,6 +15,8 @@ import (
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/common"
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/config"
 	"github.com/gin-gonic/gin"
+	"github.com/sirupsen/logrus"
+	"github.com/spf13/viper"
 )
 
 const (
@@ -23,26 +25,35 @@ const (
 	testProjectDeletionDays = "30"
 )
 
-// RegisterRoutes registers the routes for OpenShift
-func RegisterRoutes(r *gin.RouterGroup) {
+type Plugin struct {
+	routes *gin.RouterGroup
+	config *viper.Viper
+	log    *logrus.Logger
+}
+
+func New(routes *gin.RouterGroup, config *viper.Viper, log *logrus.Logger) Plugin {
+	return Plugin{routes, config, log}
+}
+
+func (p Plugin) RegisterRoutes() {
 	// OpenShift
-	r.POST("/ose/project", newProjectHandler)
-	r.GET("/ose/projects", getProjectsHandler)
-	r.GET("/ose/project/admins", getProjectAdminsHandler)
-	r.POST("/ose/testproject", newTestProjectHandler)
-	r.POST("/ose/serviceaccount", newServiceAccountHandler)
-	r.GET("/ose/project/info", getProjectInformationHandler)
-	r.POST("/ose/project/info", updateProjectInformationHandler)
-	r.POST("/ose/quotas", editQuotasHandler)
-	r.POST("/ose/secret/pull", newPullSecretHandler)
+	p.routes.POST("/project", newProjectHandler)
+	p.routes.GET("/projects", getProjectsHandler)
+	p.routes.GET("/project/admins", getProjectAdminsHandler)
+	p.routes.POST("/testproject", newTestProjectHandler)
+	p.routes.POST("/serviceaccount", newServiceAccountHandler)
+	p.routes.GET("/project/info", getProjectInformationHandler)
+	p.routes.POST("/project/info", updateProjectInformationHandler)
+	p.routes.POST("/quotas", editQuotasHandler)
+	p.routes.POST("/secret/pull", newPullSecretHandler)
 
 	// Volumes (Gluster and NFS)
-	r.POST("/ose/volume", newVolumeHandler)
-	r.POST("/ose/volume/grow", growVolumeHandler)
-	r.POST("/ose/volume/gluster/fix", fixVolumeHandler)
+	p.routes.POST("/volume", newVolumeHandler)
+	p.routes.POST("/volume/grow", growVolumeHandler)
+	p.routes.POST("/volume/gluster/fix", fixVolumeHandler)
 	// Get job status for NFS volumes because it takes a while
-	r.GET("/ose/volume/jobs", jobStatusHandler)
-	r.GET("/ose/clusters", clustersHandler)
+	p.routes.GET("/volume/jobs", jobStatusHandler)
+	p.routes.GET("/clusters", clustersHandler)
 }
 
 func getProjectAdminsAndOperators(clusterId, project string) ([]string, []string, error) {
