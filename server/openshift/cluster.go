@@ -43,7 +43,7 @@ func (p Plugin) clustersHandler(c *gin.Context) {
 func (p Plugin) getOpenshiftClusters(feature string) []OpenshiftCluster {
 	log.Printf("Looking up clusters with the following features %v", feature)
 	clusters := []OpenshiftCluster{}
-	p.config.Unmarshal(&clusters)
+	p.config.UnmarshalKey("clusters", &clusters)
 	if feature != "" {
 		tmp := []OpenshiftCluster{}
 		for _, p := range clusters {
