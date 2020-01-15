@@ -153,3 +153,4 @@ During the transition period a package may fullfill the `Plugin` interface, but 
 
 1. Use the Plugin interface: https://github.com/SchweizerischeBundesbahnen/ssp-backend/commit/d7d9a898a21987f8bf5bad2d5d41c44f29104891
 2. Update the handlers: https://github.com/SchweizerischeBundesbahnen/ssp-backend/commit/06976559e4907d78181d5fe99324d30dc9aa73e0
+3. Pass the Plugin interface around: https://github.com/SchweizerischeBundesbahnen/ssp-backend/commit/acf89f12234209ce458f0712f7aee3de21b3d0d0
