@@ -17,11 +17,11 @@ func listRDSFlavorsHandler(c *gin.Context) {
 		return
 	}
 
-    version := c.Request.URL.Query().Get("version_name")
-    if version == "" {
+	version := c.Request.URL.Query().Get("version_name")
+	if version == "" {
 		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: "Wrong API usage"})
 		return
-    }
+	}
 	dbFlavorsOpts := flavors.DbFlavorsOpts{
 		Versionname: version,
 	}
@@ -66,11 +66,11 @@ func listRDSVersionsHandler(c *gin.Context) {
 		return
 	}
 
-    versions := make([]string, len(datastores.DataStores))
+	versions := make([]string, len(datastores.DataStores))
 
-    for i, d := range datastores.DataStores {
-        versions[i] = d.Name
-    }
+	for i, d := range datastores.DataStores {
+		versions[i] = d.Name
+	}
 
 	c.JSON(http.StatusOK, versions)
 	return
