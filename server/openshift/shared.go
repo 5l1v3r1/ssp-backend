@@ -13,7 +13,6 @@ import (
 
 	"github.com/Jeffail/gabs/v2"
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/common"
-	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/config"
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
@@ -228,8 +227,8 @@ func getOseHTTPClient(method string, clusterId string, endURL string, body io.Re
 	return resp, nil
 }
 
-func getWZUBackendClient(method string, endUrl string, body io.Reader) (*http.Response, error) {
-	cfg := config.Config()
+func (p Plugin) getWZUBackendClient(method string, endUrl string, body io.Reader) (*http.Response, error) {
+	cfg := p.config
 	wzuBackendUrl := cfg.GetString("wzubackend_url")
 	wzuBackendSecret := cfg.GetString("wzubackend_secret")
 	if wzuBackendUrl == "" || wzuBackendSecret == "" {

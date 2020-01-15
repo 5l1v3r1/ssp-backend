@@ -56,7 +56,7 @@ func (p Plugin) newServiceAccountHandler(c *gin.Context) {
 
 	if len(data.OrganizationKey) > 0 {
 
-		if err := createJenkinsCredential(data.ClusterId, data.Project, data.ServiceAccount, data.OrganizationKey); err != nil {
+		if err := p.createJenkinsCredential(data.ClusterId, data.Project, data.ServiceAccount, data.OrganizationKey); err != nil {
 			c.JSON(http.StatusBadRequest, common.ApiResponse{Message: err.Error()})
 			return
 		}
@@ -285,14 +285,14 @@ func getSecret(clusterId, namespace, secret string) (*gabs.Container, error) {
 	return json, nil
 }
 
-func callWZUBackend(command newJenkinsCredentialsCommand) error {
+func (p Plugin) callWZUBackend(command newJenkinsCredentialsCommand) error {
 	byteJson, err := json.Marshal(command)
 	if err != nil {
 		log.Println(err.Error())
 		return errors.New(genericAPIError)
 	}
 
-	resp, err := getWZUBackendClient("POST", "sec/jenkins/credentials", bytes.NewReader(byteJson))
+	resp, err := p.getWZUBackendClient("POST", "sec/jenkins/credentials", bytes.NewReader(byteJson))
 	if err != nil {
 		return err
 	}
@@ -305,7 +305,7 @@ func callWZUBackend(command newJenkinsCredentialsCommand) error {
 	return nil
 }
 
-func createJenkinsCredential(clusterId, project, serviceaccount, organizationKey string) error {
+func (p Plugin) createJenkinsCredential(clusterId, project, serviceaccount, organizationKey string) error {
 	//Sleep which ensures that the serviceaccount is created completely before we take the Secret out of it.
 	time.Sleep(400 * time.Millisecond)
 
@@ -342,7 +342,7 @@ func createJenkinsCredential(clusterId, project, serviceaccount, organizationKey
 		Description:     fmt.Sprintf("OpenShift Deployer - cluster: %v, project: %v, service-account: %v", clusterId, project, serviceaccount),
 		Secret:          string(encodedTokenData),
 	}
-	if err := callWZUBackend(command); err != nil {
+	if err := p.callWZUBackend(command); err != nil {
 		return err
 	}
 
