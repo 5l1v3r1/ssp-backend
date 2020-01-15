@@ -5,7 +5,6 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/config"
 	"github.com/gin-gonic/gin"
 )
 
@@ -37,14 +36,14 @@ type NfsApi struct {
 
 func (p Plugin) clustersHandler(c *gin.Context) {
 	//username := common.GetUserName(c)
-	clusters := getOpenshiftClusters(c.Query("feature"))
+	clusters := p.getOpenshiftClusters(c.Query("feature"))
 	c.JSON(http.StatusOK, clusters)
 }
 
-func getOpenshiftClusters(feature string) []OpenshiftCluster {
+func (p Plugin) getOpenshiftClusters(feature string) []OpenshiftCluster {
 	log.Printf("Looking up clusters with the following features %v", feature)
 	clusters := []OpenshiftCluster{}
-	config.Config().UnmarshalKey("openshift", &clusters)
+	p.config.Unmarshal(&clusters)
 	if feature != "" {
 		tmp := []OpenshiftCluster{}
 		for _, p := range clusters {
@@ -66,12 +65,12 @@ func contains(list []string, search string) bool {
 	return false
 }
 
-func getOpenshiftCluster(clusterId string) (OpenshiftCluster, error) {
+func (p Plugin) getOpenshiftCluster(clusterId string) (OpenshiftCluster, error) {
 	if clusterId == "" {
 		log.Printf("WARNING: clusterId missing!")
 		return OpenshiftCluster{}, errors.New(genericAPIError)
 	}
-	clusters := getOpenshiftClusters("")
+	clusters := p.getOpenshiftClusters("")
 	for _, cluster := range clusters {
 		if cluster.ID == clusterId {
 			return cluster, nil
@@ -81,9 +80,9 @@ func getOpenshiftCluster(clusterId string) (OpenshiftCluster, error) {
 	return OpenshiftCluster{}, errors.New(genericAPIError)
 }
 
-func getStorageClass(clusterId, technology string) (string, error) {
+func (p Plugin) getStorageClass(clusterId, technology string) (string, error) {
 
-	cluster, err := getOpenshiftCluster(clusterId)
+	cluster, err := p.getOpenshiftCluster(clusterId)
 	if err != nil {
 		return "", err
 	}

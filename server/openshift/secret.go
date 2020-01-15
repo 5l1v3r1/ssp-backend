@@ -12,7 +12,6 @@ import (
 	"encoding/json"
 	"github.com/Jeffail/gabs/v2"
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/common"
-	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/config"
 	"github.com/gin-gonic/gin"
 )
 
@@ -26,7 +25,7 @@ type Auth struct {
 
 func (p Plugin) newPullSecretHandler(c *gin.Context) {
 	username := common.GetUserName(c)
-	cfg := config.Config()
+	cfg := p.config
 	dockerRepository := cfg.GetString("docker_repository")
 	if dockerRepository == "" {
 		log.Println("Env variable 'docker_repository' must be specified")
@@ -51,11 +50,11 @@ func (p Plugin) newPullSecretHandler(c *gin.Context) {
 
 	secret.Set(secretData, "data", ".dockerconfigjson")
 	secret.Set("kubernetes.io/dockerconfigjson", "type")
-	if err := createSecret(data.ClusterId, data.Project, secret); err != nil {
+	if err := p.createSecret(data.ClusterId, data.Project, secret); err != nil {
 		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: err.Error()})
 		return
 	}
-	if err := addPullSecretToServiceaccount(data.ClusterId, data.Project, "default"); err != nil {
+	if err := p.addPullSecretToServiceaccount(data.ClusterId, data.Project, "default"); err != nil {
 		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: err.Error()})
 		return
 	}
@@ -63,7 +62,7 @@ func (p Plugin) newPullSecretHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, common.ApiResponse{Message: "Das Pull-Secret wurde angelegt"})
 }
 
-func addPullSecretToServiceaccount(clusterId, namespace string, serviceaccount string) error {
+func (p Plugin) addPullSecretToServiceaccount(clusterId, namespace string, serviceaccount string) error {
 	url := fmt.Sprintf("api/v1/namespaces/%v/serviceaccounts/%v", namespace, serviceaccount)
 	patch := []common.JsonPatch{
 		{
@@ -83,7 +82,7 @@ func addPullSecretToServiceaccount(clusterId, namespace string, serviceaccount s
 		return errors.New(genericAPIError)
 	}
 
-	resp, err := getOseHTTPClient("PATCH", clusterId, url, bytes.NewBuffer(patchBytes))
+	resp, err := p.getOseHTTPClient("PATCH", clusterId, url, bytes.NewBuffer(patchBytes))
 	if err != nil {
 		return err
 	}
@@ -99,10 +98,10 @@ func addPullSecretToServiceaccount(clusterId, namespace string, serviceaccount s
 
 }
 
-func createSecret(clusterId, namespace string, secret *gabs.Container) error {
+func (p Plugin) createSecret(clusterId, namespace string, secret *gabs.Container) error {
 	url := fmt.Sprintf("api/v1/namespaces/%v/secrets", namespace)
 
-	resp, err := getOseHTTPClient("POST", clusterId, url, bytes.NewReader(secret.Bytes()))
+	resp, err := p.getOseHTTPClient("POST", clusterId, url, bytes.NewReader(secret.Bytes()))
 	if err != nil {
 		return err
 	}

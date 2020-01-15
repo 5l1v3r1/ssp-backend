@@ -11,7 +11,6 @@ import (
 
 	"github.com/Jeffail/gabs"
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/common"
-	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/config"
 	"github.com/gin-gonic/gin"
 )
 
@@ -25,12 +24,12 @@ func (p Plugin) editQuotasHandler(c *gin.Context) {
 
 	var data common.EditQuotasCommand
 	if c.BindJSON(&data) == nil {
-		if err := validateEditQuotas(data.ClusterId, username, data.Project, data.CPU, data.Memory); err != nil {
+		if err := p.validateEditQuotas(data.ClusterId, username, data.Project, data.CPU, data.Memory); err != nil {
 			c.JSON(http.StatusBadRequest, common.ApiResponse{Message: err.Error()})
 			return
 		}
 
-		if err := updateQuotas(data.ClusterId, username, data.Project, data.CPU, data.Memory); err != nil {
+		if err := p.updateQuotas(data.ClusterId, username, data.Project, data.CPU, data.Memory); err != nil {
 			c.JSON(http.StatusBadRequest, common.ApiResponse{Message: err.Error()})
 		} else {
 			c.JSON(http.StatusOK, common.ApiResponse{
@@ -43,8 +42,8 @@ func (p Plugin) editQuotasHandler(c *gin.Context) {
 	}
 }
 
-func validateEditQuotas(clusterId, username, project string, cpu int, memory int) error {
-	cfg := config.Config()
+func (p Plugin) validateEditQuotas(clusterId, username, project string, cpu int, memory int) error {
+	cfg := p.config
 	maxCPU := cfg.GetInt("max_quota_cpu")
 	maxMemory := cfg.GetInt("max_quota_memory")
 
@@ -71,12 +70,12 @@ func validateEditQuotas(clusterId, username, project string, cpu int, memory int
 	}
 
 	// Validate permissions
-	resp := checkAdminPermissions(clusterId, username, project)
+	resp := p.checkAdminPermissions(clusterId, username, project)
 	return resp
 }
 
-func updateQuotas(clusterId, username, project string, cpu int, memory int) error {
-	resp, err := getOseHTTPClient("GET", clusterId, "api/v1/namespaces/"+project+"/resourcequotas", nil)
+func (p Plugin) updateQuotas(clusterId, username, project string, cpu int, memory int) error {
+	resp, err := p.getOseHTTPClient("GET", clusterId, "api/v1/namespaces/"+project+"/resourcequotas", nil)
 	if err != nil {
 		return err
 	}
@@ -93,7 +92,7 @@ func updateQuotas(clusterId, username, project string, cpu int, memory int) erro
 	firstQuota.SetP(cpu, "spec.hard.cpu")
 	firstQuota.SetP(fmt.Sprintf("%vGi", memory), "spec.hard.memory")
 
-	resp, err = getOseHTTPClient("PUT",
+	resp, err = p.getOseHTTPClient("PUT",
 		clusterId,
 		"api/v1/namespaces/"+project+"/resourcequotas/"+firstQuota.Path("metadata.name").Data().(string),
 		bytes.NewReader(firstQuota.Bytes()))

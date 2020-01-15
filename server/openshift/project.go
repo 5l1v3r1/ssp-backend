@@ -28,7 +28,7 @@ func (p Plugin) newProjectHandler(c *gin.Context) {
 			return
 		}
 
-		if err := createNewProject(data.ClusterId, data.Project, username, data.Billing, data.MegaId, false); err != nil {
+		if err := p.createNewProject(data.ClusterId, data.Project, username, data.Billing, data.MegaId, false); err != nil {
 			c.JSON(http.StatusBadRequest, common.ApiResponse{Message: err.Error()})
 		} else {
 			err := sendNewProjectMail(data.ClusterId, data.Project, username, data.MegaId)
@@ -59,7 +59,7 @@ func (p Plugin) newTestProjectHandler(c *gin.Context) {
 			return
 		}
 
-		if err := createNewProject(data.ClusterId, data.Project, username, billing, "", true); err != nil {
+		if err := p.createNewProject(data.ClusterId, data.Project, username, billing, "", true); err != nil {
 			c.JSON(http.StatusBadRequest, common.ApiResponse{Message: err.Error()})
 		} else {
 			c.JSON(http.StatusOK, common.ApiResponse{
@@ -80,7 +80,7 @@ func (p Plugin) getProjectsHandler(c *gin.Context) {
 		return
 	}
 	log.Printf("%v has queried all his projects in clusterid: %v", username, clusterId)
-	projects, err := getUserProjects(clusterId, username)
+	projects, err := p.getUserProjects(clusterId, username)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: err.Error()})
 	} else {
@@ -88,9 +88,9 @@ func (p Plugin) getProjectsHandler(c *gin.Context) {
 	}
 }
 
-func getUserProjects(clusterid, username string) ([]string, error) {
+func (p Plugin) getUserProjects(clusterid, username string) ([]string, error) {
 	// TODO: only return projects, where the user has access
-	resp, err := getOseHTTPClient("GET", clusterid, "oapi/v1/projects", nil)
+	resp, err := p.getOseHTTPClient("GET", clusterid, "oapi/v1/projects", nil)
 	if err != nil {
 		return []string{}, err
 	}
@@ -128,7 +128,7 @@ func (p Plugin) getProjectAdminsHandler(c *gin.Context) {
 
 	log.Printf("%v has queried all the admins of project %v on cluster %v", username, project, clusterId)
 
-	if admins, _, err := getProjectAdminsAndOperators(clusterId, project); err != nil {
+	if admins, _, err := p.getProjectAdminsAndOperators(clusterId, project); err != nil {
 		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: err.Error()})
 	} else {
 		c.JSON(http.StatusOK, common.AdminList{
@@ -144,12 +144,12 @@ func (p Plugin) getProjectInformationHandler(c *gin.Context) {
 	clusterId := params.Get("clusterid")
 	project := params.Get("project")
 
-	if err := validateAdminAccess(clusterId, username, project); err != nil {
+	if err := p.validateAdminAccess(clusterId, username, project); err != nil {
 		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: err.Error()})
 		return
 	}
 
-	pi, err := getProjectInformation(clusterId, project)
+	pi, err := p.getProjectInformation(clusterId, project)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: err.Error()})
 	}
@@ -162,12 +162,12 @@ func (p Plugin) updateProjectInformationHandler(c *gin.Context) {
 
 	var data common.UpdateProjectInformationCommand
 	if c.BindJSON(&data) == nil {
-		if err := validateProjectInformation(data, username); err != nil {
+		if err := p.validateProjectInformation(data, username); err != nil {
 			c.JSON(http.StatusBadRequest, common.ApiResponse{Message: err.Error()})
 			return
 		}
 
-		if err := createOrUpdateMetadata(data.ClusterId, data.Project, data.Billing, data.MegaID, username, false); err != nil {
+		if err := p.createOrUpdateMetadata(data.ClusterId, data.Project, data.Billing, data.MegaID, username, false); err != nil {
 			c.JSON(http.StatusBadRequest, common.ApiResponse{Message: err.Error()})
 		} else {
 			c.JSON(http.StatusOK, common.ApiResponse{
@@ -191,7 +191,7 @@ func validateNewProject(project string, billing string, testProject bool) error 
 	return nil
 }
 
-func validateAdminAccess(clusterId, username, project string) error {
+func (p Plugin) validateAdminAccess(clusterId, username, project string) error {
 	if clusterId == "" {
 		return errors.New("Cluster must be provided")
 	}
@@ -201,14 +201,14 @@ func validateAdminAccess(clusterId, username, project string) error {
 	}
 
 	// Validate permissions
-	if err := checkAdminPermissions(clusterId, username, project); err != nil {
+	if err := p.checkAdminPermissions(clusterId, username, project); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func validateProjectInformation(data common.UpdateProjectInformationCommand, username string) error {
+func (p Plugin) validateProjectInformation(data common.UpdateProjectInformationCommand, username string) error {
 	if data.ClusterId == "" {
 		return errors.New("Cluster must be provided")
 	}
@@ -222,7 +222,7 @@ func validateProjectInformation(data common.UpdateProjectInformationCommand, use
 	}
 
 	// Validate permissions
-	if err := checkAdminPermissions(data.ClusterId, username, data.Project); err != nil {
+	if err := p.checkAdminPermissions(data.ClusterId, username, data.Project); err != nil {
 		return err
 	}
 
@@ -278,11 +278,11 @@ func sendNewProjectMail(clusterId string, projectName string, userName string, m
 	return nil
 }
 
-func createNewProject(clusterId string, project string, username string, billing string, megaid string, testProject bool) error {
+func (p Plugin) createNewProject(clusterId string, project string, username string, billing string, megaid string, testProject bool) error {
 	project = strings.ToLower(project)
-	p := newObjectRequest("ProjectRequest", project)
+	projectObject := newObjectRequest("ProjectRequest", project)
 
-	resp, err := getOseHTTPClient("POST", clusterId, "oapi/v1/projectrequests", bytes.NewReader(p.Bytes()))
+	resp, err := p.getOseHTTPClient("POST", clusterId, "oapi/v1/projectrequests", bytes.NewReader(projectObject.Bytes()))
 	if err != nil {
 		return err
 	}
@@ -291,11 +291,11 @@ func createNewProject(clusterId string, project string, username string, billing
 	if resp.StatusCode == http.StatusCreated {
 		log.Printf("%v created a new project: %v on cluster %v", username, project, clusterId)
 
-		if err := changeProjectPermission(clusterId, project, username); err != nil {
+		if err := p.changeProjectPermission(clusterId, project, username); err != nil {
 			return err
 		}
 
-		if err := createOrUpdateMetadata(clusterId, project, billing, megaid, username, testProject); err != nil {
+		if err := p.createOrUpdateMetadata(clusterId, project, billing, megaid, username, testProject); err != nil {
 			return err
 		}
 		return nil
@@ -310,8 +310,8 @@ func createNewProject(clusterId string, project string, username string, billing
 	return errors.New(genericAPIError)
 }
 
-func changeProjectPermission(clusterId string, project string, username string) error {
-	adminRoleBinding, err := getAdminRoleBinding(clusterId, project)
+func (p Plugin) changeProjectPermission(clusterId string, project string, username string) error {
+	adminRoleBinding, err := p.getAdminRoleBinding(clusterId, project)
 	if err != nil {
 		return err
 	}
@@ -320,7 +320,7 @@ func changeProjectPermission(clusterId string, project string, username string) 
 	adminRoleBinding.ArrayAppend(strings.ToUpper(username), "userNames")
 
 	// Update the policyBindings on the api
-	resp, err := getOseHTTPClient("PUT",
+	resp, err := p.getOseHTTPClient("PUT",
 		clusterId,
 		"oapi/v1/namespaces/"+project+"/rolebindings/admin",
 		bytes.NewReader(adminRoleBinding.Bytes()))
@@ -345,8 +345,8 @@ type ProjectInformation struct {
 	MegaID            string `json:"megaid"`
 }
 
-func getProjectInformation(clusterId, project string) (*ProjectInformation, error) {
-	resp, err := getOseHTTPClient("GET", clusterId, "api/v1/namespaces/"+project, nil)
+func (p Plugin) getProjectInformation(clusterId, project string) (*ProjectInformation, error) {
+	resp, err := p.getOseHTTPClient("GET", clusterId, "api/v1/namespaces/"+project, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -373,8 +373,8 @@ func getProjectInformation(clusterId, project string) (*ProjectInformation, erro
 	}, nil
 }
 
-func createOrUpdateMetadata(clusterId, project string, billing string, megaid string, username string, testProject bool) error {
-	resp, err := getOseHTTPClient("GET", clusterId, "api/v1/namespaces/"+project, nil)
+func (p Plugin) createOrUpdateMetadata(clusterId, project string, billing string, megaid string, username string, testProject bool) error {
+	resp, err := p.getOseHTTPClient("GET", clusterId, "api/v1/namespaces/"+project, nil)
 	if err != nil {
 		return err
 	}
@@ -400,7 +400,7 @@ func createOrUpdateMetadata(clusterId, project string, billing string, megaid st
 		annotations.Set(megaid, "openshift.io/MEGAID")
 	}
 
-	resp, err = getOseHTTPClient("PUT", clusterId, "api/v1/namespaces/"+project, bytes.NewReader(json.Bytes()))
+	resp, err = p.getOseHTTPClient("PUT", clusterId, "api/v1/namespaces/"+project, bytes.NewReader(json.Bytes()))
 	if err != nil {
 		return err
 	}

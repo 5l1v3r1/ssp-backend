@@ -13,7 +13,6 @@ import (
 	"encoding/json"
 	"github.com/Jeffail/gabs"
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/common"
-	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/config"
 	"github.com/gin-gonic/gin"
 	"strings"
 	"time"
@@ -26,7 +25,7 @@ type newJenkinsCredentialsCommand struct {
 }
 
 func (p Plugin) newServiceAccountHandler(c *gin.Context) {
-	jenkinsUrl := config.Config().GetString("jenkins_url")
+	jenkinsUrl := p.config.GetString("jenkins_url")
 	if jenkinsUrl == "" {
 		log.Fatal("Env variable 'JENKINS_URL' must be specified")
 	}
@@ -39,17 +38,17 @@ func (p Plugin) newServiceAccountHandler(c *gin.Context) {
 		return
 	}
 
-	if err := validateNewServiceAccount(data.ClusterId, username, data.Project, data.ServiceAccount); err != nil {
+	if err := p.validateNewServiceAccount(data.ClusterId, username, data.Project, data.ServiceAccount); err != nil {
 		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: err.Error()})
 		return
 	}
 
-	if err := createNewServiceAccount(data.ClusterId, username, data.Project, data.ServiceAccount); err != nil {
+	if err := p.createNewServiceAccount(data.ClusterId, username, data.Project, data.ServiceAccount); err != nil {
 		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: err.Error()})
 		return
 	}
 
-	if err := authorizeServiceAccount(data.ClusterId, data.Project, data.ServiceAccount); err != nil {
+	if err := p.authorizeServiceAccount(data.ClusterId, data.Project, data.ServiceAccount); err != nil {
 		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: err.Error()})
 		return
 	}
@@ -72,23 +71,23 @@ func (p Plugin) newServiceAccountHandler(c *gin.Context) {
 	}
 }
 
-func validateNewServiceAccount(clusterId, username string, project string, serviceAccountName string) error {
+func (p Plugin) validateNewServiceAccount(clusterId, username string, project string, serviceAccountName string) error {
 	if len(serviceAccountName) == 0 {
 		return errors.New("You have to create a service account")
 	}
 
 	// Validate permissions
-	if err := checkAdminPermissions(clusterId, username, project); err != nil {
+	if err := p.checkAdminPermissions(clusterId, username, project); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func createNewServiceAccount(clusterId, username, project, serviceaccount string) error {
-	p := newObjectRequest("ServiceAccount", serviceaccount)
+func (p Plugin) createNewServiceAccount(clusterId, username, project, serviceaccount string) error {
+	s := newObjectRequest("ServiceAccount", serviceaccount)
 
-	resp, err := getOseHTTPClient("POST", clusterId, "api/v1/namespaces/"+project+"/serviceaccounts", bytes.NewReader(p.Bytes()))
+	resp, err := p.getOseHTTPClient("POST", clusterId, "api/v1/namespaces/"+project+"/serviceaccounts", bytes.NewReader(s.Bytes()))
 	if err != nil {
 		return err
 	}
@@ -119,28 +118,28 @@ func createNewServiceAccount(clusterId, username, project, serviceaccount string
 	return nil
 }
 
-func authorizeServiceAccount(clusterId, namespace, serviceaccount string) error {
-	rolebinding, err := getEditRoleBinding(clusterId, namespace)
+func (p Plugin) authorizeServiceAccount(clusterId, namespace, serviceaccount string) error {
+	rolebinding, err := p.getEditRoleBinding(clusterId, namespace)
 	if err != nil {
 		return err
 	}
 	if rolebinding == nil {
-		if err := createEditRoleBinding(clusterId, namespace, serviceaccount); err != nil {
+		if err := p.createEditRoleBinding(clusterId, namespace, serviceaccount); err != nil {
 			return err
 		}
 		return nil
 	}
-	if err := addEditServiceAccountToRoleBinding(clusterId, namespace, serviceaccount, rolebinding); err != nil {
+	if err := p.addEditServiceAccountToRoleBinding(clusterId, namespace, serviceaccount, rolebinding); err != nil {
 		return err
 	}
 	return nil
 }
 
-func addEditServiceAccountToRoleBinding(clusterId, namespace, serviceaccount string, rolebinding *gabs.Container) error {
+func (p Plugin) addEditServiceAccountToRoleBinding(clusterId, namespace, serviceaccount string, rolebinding *gabs.Container) error {
 	rolebinding.ArrayAppend("system:serviceaccount:"+namespace+":"+serviceaccount, "userNames")
 
 	url := fmt.Sprintf("oapi/v1/namespaces/%v/rolebindings/edit", namespace)
-	resp, err := getOseHTTPClient("PUT", clusterId, url, bytes.NewReader(rolebinding.Bytes()))
+	resp, err := p.getOseHTTPClient("PUT", clusterId, url, bytes.NewReader(rolebinding.Bytes()))
 	if err != nil {
 		return err
 	}
@@ -167,10 +166,10 @@ func addEditServiceAccountToRoleBinding(clusterId, namespace, serviceaccount str
 	return nil
 }
 
-func getEditRoleBinding(clusterId, namespace string) (*gabs.Container, error) {
+func (p Plugin) getEditRoleBinding(clusterId, namespace string) (*gabs.Container, error) {
 	url := fmt.Sprintf("oapi/v1/namespaces/%v/rolebindings/edit", namespace)
 
-	resp, err := getOseHTTPClient("GET", clusterId, url, nil)
+	resp, err := p.getOseHTTPClient("GET", clusterId, url, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -197,7 +196,7 @@ func getEditRoleBinding(clusterId, namespace string) (*gabs.Container, error) {
 	return json, nil
 }
 
-func createEditRoleBinding(clusterId, namespace, serviceaccount string) error {
+func (p Plugin) createEditRoleBinding(clusterId, namespace, serviceaccount string) error {
 	rolebinding := newObjectRequest("RoleBinding", "edit")
 	rolebinding.Set("edit", "roleRef", "name")
 	rolebinding.Array("userNames")
@@ -205,7 +204,7 @@ func createEditRoleBinding(clusterId, namespace, serviceaccount string) error {
 
 	url := fmt.Sprintf("oapi/v1/namespaces/%v/rolebindings", namespace)
 
-	resp, err := getOseHTTPClient("POST", clusterId, url, bytes.NewReader(rolebinding.Bytes()))
+	resp, err := p.getOseHTTPClient("POST", clusterId, url, bytes.NewReader(rolebinding.Bytes()))
 	if err != nil {
 		return err
 	}
@@ -235,9 +234,9 @@ func createEditRoleBinding(clusterId, namespace, serviceaccount string) error {
 	return nil
 }
 
-func getServiceAccount(clusterId, namespace, serviceaccount string) (*gabs.Container, error) {
+func (p Plugin) getServiceAccount(clusterId, namespace, serviceaccount string) (*gabs.Container, error) {
 	url := fmt.Sprintf("api/v1/namespaces/%v/serviceaccounts/%v", namespace, serviceaccount)
-	resp, err := getOseHTTPClient("GET", clusterId, url, nil)
+	resp, err := p.getOseHTTPClient("GET", clusterId, url, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -263,9 +262,9 @@ func getServiceAccount(clusterId, namespace, serviceaccount string) (*gabs.Conta
 	return json, nil
 }
 
-func getSecret(clusterId, namespace, secret string) (*gabs.Container, error) {
+func (p Plugin) getSecret(clusterId, namespace, secret string) (*gabs.Container, error) {
 	url := fmt.Sprintf("api/v1/namespaces/%v/secrets/%v", namespace, secret)
-	resp, err := getOseHTTPClient("GET", clusterId, url, nil)
+	resp, err := p.getOseHTTPClient("GET", clusterId, url, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -309,7 +308,7 @@ func (p Plugin) createJenkinsCredential(clusterId, project, serviceaccount, orga
 	//Sleep which ensures that the serviceaccount is created completely before we take the Secret out of it.
 	time.Sleep(400 * time.Millisecond)
 
-	saJson, err := getServiceAccount(clusterId, project, serviceaccount)
+	saJson, err := p.getServiceAccount(clusterId, project, serviceaccount)
 	if err != nil {
 		return err
 	}
@@ -323,7 +322,7 @@ func (p Plugin) createJenkinsCredential(clusterId, project, serviceaccount, orga
 		secretName = strings.Trim(secret.Path("name").String(), "\"")
 	}
 
-	secretJson, err := getSecret(clusterId, project, secretName)
+	secretJson, err := p.getSecret(clusterId, project, secretName)
 	if err != nil {
 		return err
 	}

@@ -53,10 +53,11 @@ func (p Plugin) RegisterRoutes() {
 	// Get job status for NFS volumes because it takes a while
 	p.routes.GET("/volume/jobs", p.jobStatusHandler)
 	p.routes.GET("/clusters", p.clustersHandler)
+	p.routes.GET("/features", p.featuresHandler)
 }
 
-func getProjectAdminsAndOperators(clusterId, project string) ([]string, []string, error) {
-	adminRoleBinding, err := getAdminRoleBinding(clusterId, project)
+func (p Plugin) getProjectAdminsAndOperators(clusterId, project string) ([]string, []string, error) {
+	adminRoleBinding, err := p.getAdminRoleBinding(clusterId, project)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -75,7 +76,7 @@ func getProjectAdminsAndOperators(clusterId, project string) ([]string, []string
 	var operators []string
 	if hasOperatorGroup {
 		// Going to add the operator group to the admins
-		json, err := getOperatorGroup(clusterId)
+		json, err := p.getOperatorGroup(clusterId)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -89,10 +90,10 @@ func getProjectAdminsAndOperators(clusterId, project string) ([]string, []string
 	return common.RemoveDuplicates(admins), operators, nil
 }
 
-func checkAdminPermissions(clusterId, username, project string) error {
+func (p Plugin) checkAdminPermissions(clusterId, username, project string) error {
 	// Check if user has admin-access
 	hasAccess := false
-	admins, operators, err := getProjectAdminsAndOperators(clusterId, project)
+	admins, operators, err := p.getProjectAdminsAndOperators(clusterId, project)
 	if err != nil {
 		return err
 	}
@@ -120,8 +121,8 @@ func checkAdminPermissions(clusterId, username, project string) error {
 	return fmt.Errorf("You don't have admin permissions on the project: %v. The following users have admin permissions: %v", project, strings.Join(admins, ", "))
 }
 
-func getOperatorGroup(clusterId string) (*gabs.Container, error) {
-	resp, err := getOseHTTPClient("GET", clusterId, "oapi/v1/groups/operator", nil)
+func (p Plugin) getOperatorGroup(clusterId string) (*gabs.Container, error) {
+	resp, err := p.getOseHTTPClient("GET", clusterId, "oapi/v1/groups/operator", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -136,8 +137,8 @@ func getOperatorGroup(clusterId string) (*gabs.Container, error) {
 	return json, nil
 }
 
-func getAdminRoleBinding(clusterId, project string) (*gabs.Container, error) {
-	resp, err := getOseHTTPClient("GET", clusterId, "oapi/v1/namespaces/"+project+"/rolebindings", nil)
+func (p Plugin) getAdminRoleBinding(clusterId, project string) (*gabs.Container, error) {
+	resp, err := p.getOseHTTPClient("GET", clusterId, "oapi/v1/namespaces/"+project+"/rolebindings", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -187,8 +188,8 @@ func getAdminRoleBinding(clusterId, project string) (*gabs.Container, error) {
 	return adminRoleBinding, nil
 }
 
-func getOseHTTPClient(method string, clusterId string, endURL string, body io.Reader) (*http.Response, error) {
-	cluster, err := getOpenshiftCluster(clusterId)
+func (p Plugin) getOseHTTPClient(method string, clusterId string, endURL string, body io.Reader) (*http.Response, error) {
+	cluster, err := p.getOpenshiftCluster(clusterId)
 	if err != nil {
 		return nil, err
 	}
@@ -255,8 +256,8 @@ func (p Plugin) getWZUBackendClient(method string, endUrl string, body io.Reader
 	return resp, nil
 }
 
-func getGlusterHTTPClient(clusterId string, url string, body io.Reader) (*http.Response, error) {
-	cluster, err := getOpenshiftCluster(clusterId)
+func (p Plugin) getGlusterHTTPClient(clusterId string, url string, body io.Reader) (*http.Response, error) {
+	cluster, err := p.getOpenshiftCluster(clusterId)
 	if err != nil {
 		return nil, err
 	}
@@ -290,8 +291,8 @@ func getGlusterHTTPClient(clusterId string, url string, body io.Reader) (*http.R
 	return resp, nil
 }
 
-func getNfsHTTPClient(method, clusterId, apiPath string, body io.Reader) (*http.Response, error) {
-	cluster, err := getOpenshiftCluster(clusterId)
+func (p Plugin) getNfsHTTPClient(method, clusterId, apiPath string, body io.Reader) (*http.Response, error) {
+	cluster, err := p.getOpenshiftCluster(clusterId)
 	if err != nil {
 		return nil, err
 	}

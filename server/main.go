@@ -120,17 +120,13 @@ func main() {
 
 // not in common package, because that generates an import loop
 type featureToggleResponse struct {
-	Openshift openshift.Features `json:"openshift"`
-	OTC       otc.Features       `json:"otc"`
-	Kafka     kafka.Features     `json:"kafka"`
+	OTC   otc.Features   `json:"otc"`
+	Kafka kafka.Features `json:"kafka"`
 }
 
 func featuresHandler(c *gin.Context) {
-	params := c.Request.URL.Query()
-	clusterId := params.Get("clusterid")
 	c.JSON(http.StatusOK, featureToggleResponse{
-		Openshift: openshift.GetFeatures(clusterId),
-		OTC:       otc.GetFeatures(),
-		Kafka:     kafka.GetFeatures(),
+		OTC:   otc.GetFeatures(),
+		Kafka: kafka.GetFeatures(),
 	})
 }
