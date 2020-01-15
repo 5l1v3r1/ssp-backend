@@ -151,3 +151,4 @@ To stay backwards compatible some things will remain in the codebase until the r
 
 During the transition period a package may fullfill the `Plugin` interface, but still implement this `config` package. The goal is to use the `config` and `log` from the Plugin interface.
 
+1. Use the Plugin interface: https://github.com/SchweizerischeBundesbahnen/ssp-backend/commit/d7d9a898a21987f8bf5bad2d5d41c44f29104891
