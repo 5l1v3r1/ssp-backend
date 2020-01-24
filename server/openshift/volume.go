@@ -26,7 +26,7 @@ const (
 	wrongSizeFormatError    = "Invalid size. Format: Digits followed by M/G (e.g. 500M)."
 	wrongSizeNFSFormatError = "Invalid size. Format: Digits followed by G (e.g. 1G)."
 	wrongSizeLimitError     = "This size is not allowed. Minimal size: 500M (1G for NFS). Maximal size: M: %v, G: %v"
-	apiCreateWorkflowUuid   = "64b3b95b-0d79-4563-8b88-f8c4486b40a0"
+	apiCreateWorkflowUuid   = "cf8017d2-061b-4ce4-b25f-9ef7e38a8db9"
 	apiChangeWorkflowUuid   = "186b1295-1b82-42e4-b04d-477da967e1d4"
 )
 
@@ -631,7 +631,7 @@ func growGlusterVolume(clusterId string, pv *gabs.Container, newSize string, use
 }
 
 func createOpenShiftPV(clusterId, size, pvName, server, path, mode, technology, username, storageclass string) error {
-	p := newObjectRequest("PersistentVolume", pvName)
+	p := newObjectRequest("PersistentVolume", pvName, "v1")
 	p.SetP(size, "spec.capacity.storage")
 
 	if technology == "nfs" {
@@ -671,7 +671,7 @@ func createOpenShiftPV(clusterId, size, pvName, server, path, mode, technology, 
 }
 
 func createOpenShiftPVC(clusterId, project, size, pvcName, mode, username, storageclass string) error {
-	p := newObjectRequest("PersistentVolumeClaim", pvcName)
+	p := newObjectRequest("PersistentVolumeClaim", pvcName, "v1")
 
 	p.SetP(size, "spec.resources.requests.storage")
 	p.ArrayP("spec.accessModes")
@@ -712,7 +712,7 @@ func recreateGlusterObjects(clusterId, project, username string) error {
 }
 
 func createOpenShiftGlusterService(clusterId, project string, username string) error {
-	p := newObjectRequest("Service", "glusterfs-cluster")
+	p := newObjectRequest("Service", "glusterfs-cluster", "v1")
 
 	port := gabs.New()
 	port.Set(1, "port")
@@ -786,7 +786,7 @@ func getGlusterEndpointsContainer(clusterId string) (*gabs.Container, error) {
 		return nil, errors.New(common.ConfigNotSetError)
 	}
 
-	p := newObjectRequest("Endpoints", "glusterfs-cluster")
+	p := newObjectRequest("Endpoints", "glusterfs-cluster", "v1")
 	p.Array("subsets")
 
 	addresses := gabs.New()
