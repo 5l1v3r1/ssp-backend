@@ -29,8 +29,15 @@ rules:
   verbs:
   - get
 - apiGroups:
-  - ""
-  attributeRestrictions: null
+  - rbac.authorization.k8s.io
+  - authorization.openshift.io
+  resources:
+  - rolebindings
+  verbs:
+  - create
+  - update
+- apiGroups:
+  - project.openshift.io
   resources:
   - projectrequests
   verbs:
