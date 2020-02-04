@@ -111,7 +111,7 @@ func checkAdminPermissions(clusterId, username, project string) error {
 }
 
 func getOperatorGroup(clusterId string) (*gabs.Container, error) {
-	resp, err := getOseHTTPClient("GET", clusterId, "oapi/v1/groups/operator", nil)
+	resp, err := getOseHTTPClient("GET", clusterId, "apis/user.openshift.io/v1/groups/operator", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -127,7 +127,7 @@ func getOperatorGroup(clusterId string) (*gabs.Container, error) {
 }
 
 func getAdminRoleBinding(clusterId, project string) (*gabs.Container, error) {
-	resp, err := getOseHTTPClient("GET", clusterId, "oapi/v1/namespaces/"+project+"/rolebindings", nil)
+	resp, err := getOseHTTPClient("GET", clusterId, "apis/rbac.authorization.k8s.io/v1/namespaces/"+project+"/rolebindings", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -154,8 +154,8 @@ func getAdminRoleBinding(clusterId, project string) (*gabs.Container, error) {
 			if adminRoleBinding == nil {
 				adminRoleBinding = role
 			}
-			for _, name := range role.Path("userNames").Children() {
-				userNames = append(userNames, strings.ToLower(name.Data().(string)))
+			for _, name := range role.Path("subjects").Children() {
+				userNames = append(userNames, strings.ToLower(name.Path("name").Data().(string)))
 			}
 			for _, name := range role.Path("groupNames").Children() {
 				groupNames = append(groupNames, strings.ToLower(name.Data().(string)))
@@ -332,11 +332,11 @@ func getNfsHTTPClient(method, clusterId, apiPath string, body io.Reader) (*http.
 	return resp, err
 }
 
-func newObjectRequest(kind string, name string) *gabs.Container {
+func newObjectRequest(kind string, name string, apiVersion string) *gabs.Container {
 	json := gabs.New()
 
 	json.Set(kind, "kind")
-	json.Set("v1", "apiVersion")
+	json.Set(apiVersion, "apiVersion")
 	json.SetP(name, "metadata.name")
 
 	return json
