@@ -35,7 +35,7 @@ func RegisterRoutes(r *gin.RouterGroup) {
 	r.POST("/ose/project/info", updateProjectInformationHandler)
 	r.POST("/ose/quotas", editQuotasHandler)
 	r.POST("/ose/secret/pull", newPullSecretHandler)
-	r.GET("/ose/prometheus/query", prometheusQueryHandler)
+	r.GET("/ose/bestcluster", clusterCapacityHandler)
 
 	// Volumes (Gluster and NFS)
 	r.POST("/ose/volume", newVolumeHandler)
