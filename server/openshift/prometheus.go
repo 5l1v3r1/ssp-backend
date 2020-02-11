@@ -39,7 +39,7 @@ func setRecommendedCluster(clusters []OpenshiftCluster) error {
 		}
 		log.Printf("Cluster capacity %v: cpu: %v mem: %v pods: %v avg: %v", cluster.ID, cpuRequests, memRequests, podCapacity, value)
 	}
-	clusters[bestCluster].Name = clusters[bestCluster].Name + " best"
+	clusters[bestCluster].Recommended = true
 	return nil
 }
 
