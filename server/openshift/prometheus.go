@@ -17,6 +17,10 @@ func setRecommendedCluster(clusters []OpenshiftCluster) error {
 	var bestCluster int
 	var bestValue float64
 	for i, cluster := range clusters {
+		// skip private/deprecated clusters
+		if cluster.Optgroup != "" {
+			continue
+		}
 		cpuRequests, err := singleValuePrometheusQuery(cluster, "sum(kube_pod_container_resource_requests_cpu_cores and on(node) kube_node_labels{label_node_role_kubernetes_io_compute='true'}) / sum(node:node_num_cpu:sum and on(node) kube_node_labels{label_node_role_kubernetes_io_compute='true'})")
 		if err != nil {
 			log.Printf("%v", err)
