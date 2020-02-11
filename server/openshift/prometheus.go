@@ -11,43 +11,36 @@ import (
 
 	"github.com/Jeffail/gabs/v2"
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/common"
-	"github.com/gin-gonic/gin"
 )
 
-func clusterCapacityHandler(c *gin.Context) {
-	clusters := getOpenshiftClusters("")
-	var bestCluster string
+func setRecommendedCluster(clusters []OpenshiftCluster) error {
+	var bestCluster int
 	var bestValue float64
-	for _, cluster := range clusters {
-		cpuRequests, err := singleValuePrometheusQuery(cluster.ID, "sum(kube_pod_container_resource_requests_cpu_cores and on(node) kube_node_labels{label_node_role_kubernetes_io_compute='true'}) / sum(node:node_num_cpu:sum and on(node) kube_node_labels{label_node_role_kubernetes_io_compute='true'})")
+	for i, cluster := range clusters {
+		cpuRequests, err := singleValuePrometheusQuery(cluster, "sum(kube_pod_container_resource_requests_cpu_cores and on(node) kube_node_labels{label_node_role_kubernetes_io_compute='true'}) / sum(node:node_num_cpu:sum and on(node) kube_node_labels{label_node_role_kubernetes_io_compute='true'})")
 		if err != nil {
 			log.Printf("%v", err)
-			c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericAPIError})
-			return
+			return err
 		}
-		memRequests, err := singleValuePrometheusQuery(cluster.ID, "sum(kube_pod_container_resource_requests_memory_bytes and on(node) kube_node_labels{label_node_role_kubernetes_io_compute='true'}) / sum(node:node_memory_bytes_total:sum and on(node) kube_node_labels{label_node_role_kubernetes_io_compute='true'})")
+		memRequests, err := singleValuePrometheusQuery(cluster, "sum(kube_pod_container_resource_requests_memory_bytes and on(node) kube_node_labels{label_node_role_kubernetes_io_compute='true'}) / sum(node:node_memory_bytes_total:sum and on(node) kube_node_labels{label_node_role_kubernetes_io_compute='true'})")
 		if err != nil {
 			log.Printf("%v", err)
-			c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericAPIError})
-			return
+			return err
 		}
-		podCapacity, err := singleValuePrometheusQuery(cluster.ID, "count(kube_pod_info and on(pod) kube_pod_container_status_running == 1 and on(node) kube_node_labels{label_node_role_kubernetes_io_compute='true'}) / sum(kube_node_status_capacity_pods and on(node) kube_node_labels{label_node_role_kubernetes_io_compute='true'})")
+		podCapacity, err := singleValuePrometheusQuery(cluster, "count(kube_pod_info and on(pod) kube_pod_container_status_running == 1 and on(node) kube_node_labels{label_node_role_kubernetes_io_compute='true'}) / sum(kube_node_status_capacity_pods and on(node) kube_node_labels{label_node_role_kubernetes_io_compute='true'})")
 		if err != nil {
 			log.Printf("%v", err)
-			c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericAPIError})
-			return
+			return err
 		}
 		value, ok := avgIsBetterThan(bestValue, cpuRequests, memRequests, podCapacity)
 		if ok {
 			bestValue = value
-			bestCluster = cluster.ID
+			bestCluster = i
 		}
 		log.Printf("Cluster capacity %v: cpu: %v mem: %v pods: %v avg: %v", cluster.ID, cpuRequests, memRequests, podCapacity, value)
 	}
-
-	c.JSON(http.StatusBadRequest, common.ApiResponse{Message: bestCluster})
-	// Already encoded as JSON
-	//c.Data(http.StatusOK, gin.MIMEJSON, values.Bytes())
+	clusters[bestCluster].Name = clusters[bestCluster].Name + " best"
+	return nil
 }
 
 func avgIsBetterThan(bestValue float64, values ...float64) (float64, bool) {
@@ -62,8 +55,8 @@ func avgIsBetterThan(bestValue float64, values ...float64) (float64, bool) {
 	return avg, false
 }
 
-func singleValuePrometheusQuery(clusterId, query string) (float64, error) {
-	res, err := prometheusQuery(clusterId, query)
+func singleValuePrometheusQuery(cluster OpenshiftCluster, query string) (float64, error) {
+	res, err := prometheusQuery(cluster, query)
 	if err != nil {
 		return 0, err
 	}
@@ -79,12 +72,12 @@ func singleValuePrometheusQuery(clusterId, query string) (float64, error) {
 	return value, nil
 }
 
-func prometheusQuery(clusterId, query string) (*gabs.Container, error) {
-	if clusterId == "" || query == "" {
-		log.Printf("Missing clusterId or query parameter")
+func prometheusQuery(cluster OpenshiftCluster, query string) (*gabs.Container, error) {
+	if query == "" {
+		log.Printf("Missing query parameter")
 		return nil, errors.New(genericAPIError)
 	}
-	resp, err := getPrometheusHTTPClient("GET", clusterId, "api/v1/query?query="+url.QueryEscape(query), nil)
+	resp, err := getPrometheusHTTPClient("GET", cluster, "api/v1/query?query="+url.QueryEscape(query), nil)
 	if err != nil {
 		log.Printf("Error getting Prometheus client: %v", err)
 		return nil, errors.New(genericAPIError)
@@ -92,7 +85,7 @@ func prometheusQuery(clusterId, query string) (*gabs.Container, error) {
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		//	    b, _ := ioutil.ReadAll(resp.Body)
-		log.Printf("Error getting Prometheus http client (%v): %v", clusterId, resp.StatusCode)
+		log.Printf("Error getting Prometheus http client (%v): %v", cluster.ID, resp.StatusCode)
 		return nil, errors.New(genericAPIError)
 	}
 	body, err := gabs.ParseJSONBuffer(resp.Body)
@@ -103,8 +96,8 @@ func prometheusQuery(clusterId, query string) (*gabs.Container, error) {
 	return body, nil
 }
 
-func getPrometheusHTTPClient(method, clusterId, apiPath string, body io.Reader) (*http.Response, error) {
-	resp, err := getOseHTTPClient("GET", clusterId, "apis/route.openshift.io/v1/namespaces/openshift-monitoring/routes/prometheus-k8s", nil)
+func getPrometheusHTTPClient(method string, cluster OpenshiftCluster, apiPath string, body io.Reader) (*http.Response, error) {
+	resp, err := getOseHTTPClient("GET", cluster.ID, "apis/route.openshift.io/v1/namespaces/openshift-monitoring/routes/prometheus-k8s", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -117,20 +110,15 @@ func getPrometheusHTTPClient(method, clusterId, apiPath string, body io.Reader) 
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		log.Printf("Error getting Prometheus route (%v): %v", clusterId, json.Path("message").Data())
+		log.Printf("Error getting Prometheus route (%v): %v", cluster.ID, json.Path("message").Data())
 		return nil, errors.New(genericAPIError)
 	}
 
 	prometheusHost := json.Path("spec.host").Data().(string)
 
-	cluster, err := getOpenshiftCluster(clusterId)
-	if err != nil {
-		return nil, err
-	}
-
 	token := cluster.Token
 	if token == "" {
-		log.Printf("WARNING: Cluster token not found. Please see README for more details. ClusterId: %v", clusterId)
+		log.Printf("WARNING: Cluster token not found. Please see README for more details. ClusterId: %v", cluster.ID)
 		return nil, errors.New(common.ConfigNotSetError)
 	}
 

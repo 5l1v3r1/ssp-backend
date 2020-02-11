@@ -38,6 +38,7 @@ type NfsApi struct {
 func clustersHandler(c *gin.Context) {
 	//username := common.GetUserName(c)
 	clusters := getOpenshiftClusters(c.Query("feature"))
+	setRecommendedCluster(clusters)
 	c.JSON(http.StatusOK, clusters)
 }
 
