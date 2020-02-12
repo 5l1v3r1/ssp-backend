@@ -589,7 +589,7 @@ func getImages(client *gophercloud.ServiceClient) (*ImageListResponse, error) {
 
 	imagePrefix := config.Config().GetString("otc_image_prefix")
 	if imagePrefix == "" {
-		imagePrefix = "SBB-Managed-OS_"
+		imagePrefix = "SBB-UnifiedOS_"
 	}
 
 	for _, image := range allImages {
