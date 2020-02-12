@@ -11,6 +11,7 @@ rules:
   - resourcequotas
   verbs:
   - update
+  - get
 - apiGroups:
   - ""
   attributeRestrictions: null

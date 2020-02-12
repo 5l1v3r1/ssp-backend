@@ -14,7 +14,7 @@ import (
 )
 
 func setRecommendedCluster(clusters []OpenshiftCluster) error {
-	var bestCluster int
+	var bestClusterIndex int
 	var bestValue float64
 	for i, cluster := range clusters {
 		// skip private/deprecated clusters
@@ -36,27 +36,48 @@ func setRecommendedCluster(clusters []OpenshiftCluster) error {
 			log.Printf("%v", err)
 			return err
 		}
-		value, ok := avgIsBetterThan(bestValue, cpuRequests, memRequests, podCapacity)
-		if ok {
-			bestValue = value
-			bestCluster = i
+		avg := weightedAverage(cpuRequests, memRequests, podCapacity)
+		// Check if the weighted average is better than bestValue
+		if avg < bestValue || bestValue == 0 {
+			bestValue = avg
+			bestClusterIndex = i
 		}
-		log.Printf("Cluster capacity %v: cpu: %v mem: %v pods: %v avg: %v", cluster.ID, cpuRequests, memRequests, podCapacity, value)
+		log.Printf("Cluster capacity %v: cpu: %v mem: %v pods: %v avg: %v", cluster.ID, cpuRequests, memRequests, podCapacity, avg)
 	}
-	clusters[bestCluster].Recommended = true
+	clusters[bestClusterIndex].Recommended = true
 	return nil
 }
 
-func avgIsBetterThan(bestValue float64, values ...float64) (float64, bool) {
-	var total float64 = 0
-	for _, v := range values {
-		total += v
+func weightedAverage(values ...float64) float64 {
+	// Find the max value and index
+	maxValue := values[0]
+	maxIndex := 0
+	for i, v := range values {
+		if v > maxValue {
+			maxValue = v
+			maxIndex = i
+		}
 	}
-	avg := total / float64(len(values))
-	if avg < bestValue || bestValue == 0 {
-		return avg, true
+	// Subtract the maximum percentage to achieve the remaining percentage
+	maxComplement := 1 - maxValue
+	// Sum the remaining values in the array (without the maxValue)
+	var sumRemainingValues float64
+	for i, v := range values {
+		if i == maxIndex {
+			continue
+		}
+		sumRemainingValues += v
 	}
-	return avg, false
+	// Use the sumRemainingValues to weight the remaining values
+	total := maxValue * maxValue
+	for i, v := range values {
+		if i == maxIndex {
+			continue
+		}
+		total += v * (v / sumRemainingValues * maxComplement)
+
+	}
+	return total
 }
 
 func singleValuePrometheusQuery(cluster OpenshiftCluster, query string) (float64, error) {

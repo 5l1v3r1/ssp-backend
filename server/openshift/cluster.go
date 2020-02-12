@@ -37,8 +37,9 @@ type NfsApi struct {
 }
 
 func clustersHandler(c *gin.Context) {
-	//username := common.GetUserName(c)
 	clusters := getOpenshiftClusters(c.Query("feature"))
+	// This function directly modifies the clusters array
+	// We ignore errors, because then we just do not recommend a cluster
 	setRecommendedCluster(clusters)
 	c.JSON(http.StatusOK, clusters)
 }
