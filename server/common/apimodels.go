@@ -217,9 +217,3 @@ type JsonPatch struct {
 	Path      string      `json:"path"`
 	Value     interface{} `json:"value"`
 }
-
-type OpenshiftUser struct {
-	ApiGroup string `json:"apiGroup"`
-	Kind     string `json:"kind"`
-	Name     string `json:"name"`
-}
