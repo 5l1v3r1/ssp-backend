@@ -631,7 +631,7 @@ func growGlusterVolume(clusterId string, pv *gabs.Container, newSize string, use
 }
 
 func createOpenShiftPV(clusterId, size, pvName, server, path, mode, technology, username, storageclass string) error {
-	p := newObjectRequest("PersistentVolume", pvName, "v1")
+	p := newObjectRequest("PersistentVolume", pvName)
 	p.SetP(size, "spec.capacity.storage")
 
 	if technology == "nfs" {
@@ -671,7 +671,7 @@ func createOpenShiftPV(clusterId, size, pvName, server, path, mode, technology, 
 }
 
 func createOpenShiftPVC(clusterId, project, size, pvcName, mode, username, storageclass string) error {
-	p := newObjectRequest("PersistentVolumeClaim", pvcName, "v1")
+	p := newObjectRequest("PersistentVolumeClaim", pvcName)
 
 	p.SetP(size, "spec.resources.requests.storage")
 	p.ArrayP("spec.accessModes")
@@ -712,7 +712,7 @@ func recreateGlusterObjects(clusterId, project, username string) error {
 }
 
 func createOpenShiftGlusterService(clusterId, project string, username string) error {
-	p := newObjectRequest("Service", "glusterfs-cluster", "v1")
+	p := newObjectRequest("Service", "glusterfs-cluster")
 
 	port := gabs.New()
 	port.Set(1, "port")
@@ -786,7 +786,7 @@ func getGlusterEndpointsContainer(clusterId string) (*gabs.Container, error) {
 		return nil, errors.New(common.ConfigNotSetError)
 	}
 
-	p := newObjectRequest("Endpoints", "glusterfs-cluster", "v1")
+	p := newObjectRequest("Endpoints", "glusterfs-cluster")
 	p.Array("subsets")
 
 	addresses := gabs.New()
