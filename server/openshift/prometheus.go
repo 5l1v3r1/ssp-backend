@@ -5,6 +5,7 @@ import (
 	"errors"
 	log "github.com/sirupsen/logrus"
 	"io"
+	"math"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -70,14 +71,21 @@ func weightedAverage(values ...float64) float64 {
 	}
 	// Use the sumRemainingValues to weight the remaining values
 	total := maxValue * maxValue
+
+	// This could be 0 on a new cluster
+	if sumRemainingValues == 0 {
+		return math.Floor(total*100) / 100
+	}
+
+	// Add the remaining values to the total
 	for i, v := range values {
 		if i == maxIndex {
 			continue
 		}
 		total += v * (v / sumRemainingValues * maxComplement)
-
 	}
-	return total
+	// Round to two decimal places
+	return math.Floor(total*100) / 100
 }
 
 func singleValuePrometheusQuery(cluster OpenshiftCluster, query string) (float64, error) {
