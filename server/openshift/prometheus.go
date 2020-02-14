@@ -15,12 +15,8 @@ import (
 )
 
 func setRecommendedCluster(clusters []OpenshiftCluster) error {
-	// Variables for non-prod
 	var bestClusterIndex int
 	var bestValue float64
-	// Variables for production
-	var bestClusterIndexProd int
-	var bestValueProd float64
 	for i, cluster := range clusters {
 		// skip private/deprecated clusters
 		if cluster.Optgroup != "" {
@@ -43,22 +39,15 @@ func setRecommendedCluster(clusters []OpenshiftCluster) error {
 		}
 		avg := weightedAverage(cpuRequests, memRequests, podCapacity)
 		// Check if the weighted average is better than bestValue
-		if cluster.Production && (avg < bestValueProd || bestValueProd == 0) {
-			bestValueProd = avg
-			bestClusterIndexProd = i
-		} else if avg < bestValue || bestValue == 0 {
+		if avg < bestValue || bestValue == 0 {
 			bestValue = avg
 			bestClusterIndex = i
 		}
 		log.Printf("Cluster capacity %v: cpu: %v mem: %v pods: %v avg: %v", cluster.ID, cpuRequests, memRequests, podCapacity, avg)
 	}
-	// bestValue is 0 if there is no (non-prod) cluster
+	// bestValue is 0 if there is no cluster
 	if bestValue > 0 {
 		clusters[bestClusterIndex].Recommended = true
-	}
-	// bestValueProd is 0 if there is no (prod) cluster
-	if bestValueProd > 0 {
-		clusters[bestClusterIndexProd].Recommended = true
 	}
 	return nil
 }

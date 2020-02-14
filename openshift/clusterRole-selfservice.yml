@@ -30,6 +30,7 @@ rules:
   verbs:
   - get
 - apiGroups:
+  - ""
   - rbac.authorization.k8s.io
   - authorization.openshift.io
   resources:
@@ -38,12 +39,14 @@ rules:
   - create
   - update
 - apiGroups:
+  - ""
   - route.openshift.io
   resources:
   - routes
   verbs:
   - get
 - apiGroups:
+  - ""
   - project.openshift.io
   resources:
   - projectrequests
