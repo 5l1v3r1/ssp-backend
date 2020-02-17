@@ -5,6 +5,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/gophercloud/gophercloud/openstack/rds/v3/datastores"
 	"github.com/gophercloud/gophercloud/openstack/rds/v3/flavors"
+	"github.com/gophercloud/gophercloud/openstack/rds/v3/instances"
 	"log"
 	"net/http"
 )
@@ -71,6 +72,35 @@ func listRDSVersionsHandler(c *gin.Context) {
 	for i, d := range datastores.DataStores {
 		versions[i] = d.Name
 	}
+
+	c.JSON(http.StatusOK, versions)
+	return
+}
+
+func listRDSInstancesHandler(c *gin.Context) {
+	client, err := getRDSClient()
+	if err != nil {
+		log.Println("Error getting rds client.", err.Error())
+		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericOTCAPIError})
+		return
+	}
+
+	allPages, err := instances.List(client, nil).AllPages()
+	if err != nil {
+		log.Println("Error while listing instances.", err.Error())
+		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: "There was a problem getting the databases"})
+		return
+	}
+
+	instances, err := instances.ExtractRdsInstances(allPages)
+	if err != nil {
+		log.Println("Error while extracting instances.", err.Error())
+		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: "There was a problem getting the databases"})
+		return
+	}
+
+	log.Printf("%+v", instances)
+	versions := make([]string, 5)
 
 	c.JSON(http.StatusOK, versions)
 	return
