@@ -22,10 +22,12 @@ func RegisterRoutes(r *gin.RouterGroup) {
 	r.GET("/otc/images", listImagesHandler)
 	r.GET("/otc/availabilityzones", listAvailabilityZonesHandler)
 	r.GET("/otc/volumetypes", listVolumeTypesHandler)
+	r.GET("/otc/rds/versions", listRDSVersionsHandler)
+	r.GET("/otc/rds/flavors", listRDSFlavorsHandler)
 }
 
 func getProvider() (*gophercloud.ProviderClient, error) {
-	opts, err := authOptionsFromEnv()
+	opts, err := TokenOptionsFromEnv()
 	if err != nil {
 		return nil, err
 	}
@@ -48,6 +50,22 @@ func getComputeClient() (*gophercloud.ServiceClient, error) {
 		Region: "eu-ch",
 	})
 
+	if err != nil {
+		fmt.Println("Error getting client.", err.Error())
+		return nil, errors.New(genericOTCAPIError)
+	}
+
+	return client, nil
+}
+
+func getRDSClient() (*gophercloud.ServiceClient, error) {
+	provider, err := getProvider()
+	if err != nil {
+		fmt.Println("Error while authenticating.", err.Error())
+		return nil, errors.New(genericOTCAPIError)
+	}
+
+	client, err := openstack.NewRDSV3(provider, gophercloud.EndpointOpts{})
 	if err != nil {
 		fmt.Println("Error getting client.", err.Error())
 		return nil, errors.New(genericOTCAPIError)
