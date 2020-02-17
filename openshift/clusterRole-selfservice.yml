@@ -11,6 +11,7 @@ rules:
   - resourcequotas
   verbs:
   - update
+  - get
 - apiGroups:
   - ""
   attributeRestrictions: null
@@ -30,7 +31,23 @@ rules:
   - get
 - apiGroups:
   - ""
-  attributeRestrictions: null
+  - rbac.authorization.k8s.io
+  - authorization.openshift.io
+  resources:
+  - rolebindings
+  verbs:
+  - create
+  - update
+- apiGroups:
+  - ""
+  - route.openshift.io
+  resources:
+  - routes
+  verbs:
+  - get
+- apiGroups:
+  - ""
+  - project.openshift.io
   resources:
   - projectrequests
   verbs:

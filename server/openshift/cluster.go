@@ -10,10 +10,11 @@ import (
 )
 
 type OpenshiftCluster struct {
-	ID       string   `json:"id"`
-	Name     string   `json:"name"`
-	Optgroup string   `json:"optgroup"`
-	Features []string `json:"features"`
+	ID          string   `json:"id"`
+	Name        string   `json:"name"`
+	Optgroup    string   `json:"optgroup"`
+	Stages      []string `json:"stages"`
+	Recommended bool     `json:"recommended"`
 	// exclude token from json marshal
 	Token      string      `json:"-"`
 	URL        string      `json:"url"`
@@ -36,20 +37,24 @@ type NfsApi struct {
 }
 
 func clustersHandler(c *gin.Context) {
-	//username := common.GetUserName(c)
-	clusters := getOpenshiftClusters(c.Query("feature"))
+	clusters := getOpenshiftClusters(c.Query("stage"))
+	// if we filter by stage, then the user is creating a new project
+	if c.Query("stage") != "" {
+		// This function directly modifies the clusters array
+		// We ignore errors, because then we just do not recommend a cluster
+		setRecommendedCluster(clusters)
+	}
 	c.JSON(http.StatusOK, clusters)
 }
 
-func getOpenshiftClusters(feature string) []OpenshiftCluster {
-	log.Printf("Looking up clusters with the following features %v", feature)
+func getOpenshiftClusters(stage string) []OpenshiftCluster {
 	clusters := []OpenshiftCluster{}
 	config.Config().UnmarshalKey("openshift", &clusters)
-	if feature != "" {
+	if stage != "" {
 		tmp := []OpenshiftCluster{}
-		for _, p := range clusters {
-			if contains(p.Features, feature) {
-				tmp = append(tmp, p)
+		for _, c := range clusters {
+			if contains(c.Stages, stage) {
+				tmp = append(tmp, c)
 			}
 		}
 		return tmp
