@@ -3,6 +3,7 @@ package otc
 import (
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/common"
 	"github.com/gin-gonic/gin"
+	"github.com/gophercloud/gophercloud/openstack/rds/v1/tags"
 	"github.com/gophercloud/gophercloud/openstack/rds/v3/datastores"
 	"github.com/gophercloud/gophercloud/openstack/rds/v3/flavors"
 	"github.com/gophercloud/gophercloud/openstack/rds/v3/instances"
@@ -100,6 +101,28 @@ func listRDSInstancesHandler(c *gin.Context) {
 	}
 
 	log.Printf("%+v", instances)
+	versions := make([]string, 5)
+
+	c.JSON(http.StatusOK, versions)
+	return
+}
+
+func listRDSTagsHandler(c *gin.Context) {
+	client, err := getRDSClient()
+	if err != nil {
+		log.Println("Error getting rds client.", err.Error())
+		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericOTCAPIError})
+		return
+	}
+
+	tags, err := tags.GetTags(client, "b55721c7e5ac421c8acb528e291be3a7no03").Extract()
+	if err != nil {
+		log.Println("Error while listing tags.", err.Error())
+		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: "There was a problem getting the tags"})
+		return
+	}
+
+	log.Printf("%+v", tags)
 	versions := make([]string, 5)
 
 	c.JSON(http.StatusOK, versions)
