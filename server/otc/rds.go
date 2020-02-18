@@ -2,7 +2,9 @@ package otc
 
 import (
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/common"
+	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/ldap"
 	"github.com/gin-gonic/gin"
+	"github.com/gophercloud/gophercloud"
 	"github.com/gophercloud/gophercloud/openstack/rds/v1/tags"
 	"github.com/gophercloud/gophercloud/openstack/rds/v3/datastores"
 	"github.com/gophercloud/gophercloud/openstack/rds/v3/flavors"
@@ -79,6 +81,8 @@ func listRDSVersionsHandler(c *gin.Context) {
 }
 
 func listRDSInstancesHandler(c *gin.Context) {
+	username := common.GetUserName(c)
+
 	client, err := getRDSClient()
 	if err != nil {
 		log.Println("Error getting rds client.", err.Error())
@@ -86,45 +90,83 @@ func listRDSInstancesHandler(c *gin.Context) {
 		return
 	}
 
+	instances, err := getRDSInstancesByUsername(client, username)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericOTCAPIError})
+		return
+	}
+	c.JSON(http.StatusOK, instances)
+	return
+}
+
+type rdsInstance struct {
+	instances.RdsInstanceResponse
+	Tags map[string]string
+}
+
+func getRDSInstancesByUsername(client *gophercloud.ServiceClient, username string) ([]rdsInstance, error) {
+	var filteredInstances []rdsInstance
+	l, err := ldap.New()
+	if err != nil {
+		return nil, err
+	}
+	defer l.Close()
+
+	groups, err := l.GetGroupsOfUser(username)
+	if err != nil {
+		return nil, err
+	}
+	log.Printf("%v", groups)
+
+	instances, err := getRDSInstances(client)
+	if err != nil {
+		log.Println("Error getting rds client.", err.Error())
+		return nil, err
+	}
+
+	log.Printf("%+v", instances)
+	log.Printf("%v", len(instances))
+
+	for _, instance := range instances {
+		if instance.Type == "slave" {
+			continue
+		}
+		t, err := getRDSTags(client, instance.Id)
+		if err != nil {
+			log.Printf("%+v", instance)
+		}
+		if t["Group"] == "" {
+			continue
+		}
+		if !common.ContainsStringI(groups, t["Group"]) {
+			continue
+		}
+		filteredInstances = append(filteredInstances, rdsInstance{instance, t})
+		log.Printf("ALLOWED %v %v", username, instance.Id)
+	}
+	return filteredInstances, nil
+}
+
+func getRDSInstances(client *gophercloud.ServiceClient) ([]instances.RdsInstanceResponse, error) {
+
 	allPages, err := instances.List(client, nil).AllPages()
 	if err != nil {
-		log.Println("Error while listing instances.", err.Error())
-		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: "There was a problem getting the databases"})
-		return
+		return nil, err
 	}
 
 	instances, err := instances.ExtractRdsInstances(allPages)
 	if err != nil {
-		log.Println("Error while extracting instances.", err.Error())
-		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: "There was a problem getting the databases"})
-		return
+		return nil, err
 	}
 
-	log.Printf("%+v", instances)
-	versions := make([]string, 5)
-
-	c.JSON(http.StatusOK, versions)
-	return
+	return instances.Instances, nil
 }
 
-func listRDSTagsHandler(c *gin.Context) {
-	client, err := getRDSClient()
+func getRDSTags(client *gophercloud.ServiceClient, id string) (map[string]string, error) {
+	t, err := tags.GetTags(client, id).Extract()
 	if err != nil {
-		log.Println("Error getting rds client.", err.Error())
-		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericOTCAPIError})
-		return
+		log.Printf("Error while listing tags for instance: %v. %v", id, err.Error())
+		return nil, err
 	}
-
-	tags, err := tags.GetTags(client, "b55721c7e5ac421c8acb528e291be3a7no03").Extract()
-	if err != nil {
-		log.Println("Error while listing tags.", err.Error())
-		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: "There was a problem getting the tags"})
-		return
-	}
-
-	log.Printf("%+v", tags)
-	versions := make([]string, 5)
-
-	c.JSON(http.StatusOK, versions)
-	return
+	return t, nil
 }

@@ -6,7 +6,6 @@ package otc
 import (
 	"fmt"
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/config"
-	"log"
 	"os"
 
 	"github.com/gophercloud/gophercloud"
@@ -88,7 +87,6 @@ func TokenOptionsFromEnv(customTokenOptions *token.TokenOptions) (token.TokenOpt
 	to := token.TokenOptions(tmp)
 
 	if customTokenOptions != nil {
-		log.Printf("merging")
 		if err := mergo.Merge(&to, *customTokenOptions, mergo.WithOverride); err != nil {
 			message := "Error merging tokenOptions"
 			err := gophercloud.NewSystemCommonError(gophercloud.CE_MissingInputCode, message)
