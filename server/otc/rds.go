@@ -1,6 +1,7 @@
 package otc
 
 import (
+	"fmt"
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/common"
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/ldap"
 	"github.com/gin-gonic/gin"
@@ -129,13 +130,25 @@ func getRDSInstancesByUsername(client *gophercloud.ServiceClient, username strin
 	log.Printf("%+v", instances)
 	log.Printf("%v", len(instances))
 
+	clientV1, err := getRDSV1Client()
+	if err != nil {
+		log.Println("Error getting rdsV1 client.", err.Error())
+		return nil, err
+	}
+
 	for _, instance := range instances {
 		if instance.Type == "slave" {
 			continue
 		}
-		t, err := getRDSTags(client, instance.Id)
+		log.Printf("%v", instance.Nodes[0].Id)
+		id, err := getMasterNodeID(instance.Nodes)
 		if err != nil {
-			log.Printf("%+v", instance)
+			log.Printf("Error while getting the ID for: %v", instance.Id)
+			continue
+		}
+		t, err := getRDSTags(clientV1, id)
+		if err != nil {
+			continue
 		}
 		if t["Group"] == "" {
 			continue
@@ -147,6 +160,15 @@ func getRDSInstancesByUsername(client *gophercloud.ServiceClient, username strin
 		log.Printf("ALLOWED %v %v", username, instance.Id)
 	}
 	return filteredInstances, nil
+}
+
+func getMasterNodeID(nodes []instances.Nodes) (string, error) {
+	for _, n := range nodes {
+		if n.Role == "master" {
+			return n.Id, nil
+		}
+	}
+	return "", fmt.Errorf("Error getting master node id")
 }
 
 func getRDSInstances(client *gophercloud.ServiceClient) ([]instances.RdsInstanceResponse, error) {
