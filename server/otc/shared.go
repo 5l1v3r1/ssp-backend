@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/gophercloud/gophercloud"
+	"github.com/gophercloud/gophercloud/auth/token"
 	"github.com/gophercloud/gophercloud/openstack"
 )
 
@@ -24,10 +25,11 @@ func RegisterRoutes(r *gin.RouterGroup) {
 	r.GET("/otc/volumetypes", listVolumeTypesHandler)
 	r.GET("/otc/rds/versions", listRDSVersionsHandler)
 	r.GET("/otc/rds/flavors", listRDSFlavorsHandler)
+	r.GET("/otc/rds/instances", listRDSInstancesHandler)
 }
 
-func getProvider() (*gophercloud.ProviderClient, error) {
-	opts, err := TokenOptionsFromEnv()
+func getProvider(to *token.TokenOptions) (*gophercloud.ProviderClient, error) {
+	opts, err := TokenOptionsFromEnv(to)
 	if err != nil {
 		return nil, err
 	}
@@ -40,7 +42,7 @@ func getProvider() (*gophercloud.ProviderClient, error) {
 }
 
 func getComputeClient() (*gophercloud.ServiceClient, error) {
-	provider, err := getProvider()
+	provider, err := getProvider(nil)
 	if err != nil {
 		fmt.Println("Error while authenticating.", err.Error())
 		return nil, errors.New(genericOTCAPIError)
@@ -59,13 +61,16 @@ func getComputeClient() (*gophercloud.ServiceClient, error) {
 }
 
 func getRDSClient() (*gophercloud.ServiceClient, error) {
-	provider, err := getProvider()
+	to := token.TokenOptions{
+		TenantName: "eu-ch_rds",
+	}
+	provider, err := getProvider(&to)
 	if err != nil {
 		fmt.Println("Error while authenticating.", err.Error())
 		return nil, errors.New(genericOTCAPIError)
 	}
 
-	client, err := openstack.NewRDSV3(provider, gophercloud.EndpointOpts{})
+	client, err := openstack.NewRDSV1(provider, gophercloud.EndpointOpts{})
 	if err != nil {
 		fmt.Println("Error getting client.", err.Error())
 		return nil, errors.New(genericOTCAPIError)
@@ -75,7 +80,7 @@ func getRDSClient() (*gophercloud.ServiceClient, error) {
 }
 
 func getImageClient() (*gophercloud.ServiceClient, error) {
-	provider, err := getProvider()
+	provider, err := getProvider(nil)
 	if err != nil {
 		fmt.Println("Error while authenticating.", err.Error())
 		return nil, errors.New(genericOTCAPIError)
@@ -94,7 +99,7 @@ func getImageClient() (*gophercloud.ServiceClient, error) {
 }
 
 func getBlockStorageClient() (*gophercloud.ServiceClient, error) {
-	provider, err := getProvider()
+	provider, err := getProvider(nil)
 	if err != nil {
 		fmt.Println("Error while authenticating.", err.Error())
 		return nil, errors.New(genericOTCAPIError)

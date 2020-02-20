@@ -1,6 +1,7 @@
 module github.com/SchweizerischeBundesbahnen/ssp-backend
 
-replace github.com/gophercloud/gophercloud => github.com/huaweicloud/huaweicloud-sdk-go v1.0.20
+//replace github.com/gophercloud/gophercloud => github.com/huaweicloud/huaweicloud-sdk-go v1.0.20
+replace github.com/gophercloud/gophercloud => github.com/SchweizerischeBundesbahnen/huaweicloud-sdk-go v0.0.0-20200218121541-f9602c8941ee
 
 require (
 	github.com/BurntSushi/toml v0.3.1 // indirect
@@ -16,6 +17,7 @@ require (
 	github.com/google/go-querystring v1.0.0 // indirect
 	github.com/gophercloud/gophercloud v0.0.0-20190328013130-c923f33b1166
 	github.com/hashicorp/go-multierror v1.0.0 // indirect
+	github.com/imdario/mergo v0.3.8
 	github.com/jarcoal/httpmock v1.0.4
 	github.com/jinzhu/now v0.0.0-20181116074157-8ec929ed50c3
 	github.com/jtblin/go-ldap-client v0.0.0-20170223121919-b73f66626b33
