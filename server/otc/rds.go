@@ -105,7 +105,9 @@ type rdsInstance struct {
 }
 
 func getRDSInstancesByUsername(client *gophercloud.ServiceClient, username string) ([]rdsInstance, error) {
-	var filteredInstances []rdsInstance
+	// Use make because of the following behaviour:
+	// https://github.com/gin-gonic/gin/issues/125
+	filteredInstances := make([]rdsInstance, 0)
 	l, err := ldap.New()
 	if err != nil {
 		return nil, err

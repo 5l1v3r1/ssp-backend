@@ -26,7 +26,6 @@ func RegisterRoutes(r *gin.RouterGroup) {
 	r.GET("/otc/rds/versions", listRDSVersionsHandler)
 	r.GET("/otc/rds/flavors", listRDSFlavorsHandler)
 	r.GET("/otc/rds/instances", listRDSInstancesHandler)
-	//	r.GET("/otc/rds/instances", listRDSTagsHandler)
 }
 
 func getProvider(to *token.TokenOptions) (*gophercloud.ProviderClient, error) {
