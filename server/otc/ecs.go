@@ -391,27 +391,20 @@ func getServersByUsername(client *gophercloud.ServiceClient, username string, sh
 		return nil, err
 	}
 
-	allServers := mergeServers(cachedServers, newServers)
-	// update cache here, because we filter and modify allServers below
+	cachedServers = mergeServers(cachedServers, newServers)
 	lastRunTimestamp = time.Now().Format(time.RFC3339)
-	cachedServers = allServers
 
 	if showall && isAdmin(groups) {
-		return allServers, nil
+		return cachedServers, nil
 	}
 
-	// Filter array
-	// https://github.com/golang/go/wiki/SliceTricks#filter-in-place
-	n := 0
-	for _, server := range allServers {
+	var filteredServers []servers.Server
+	for _, server := range cachedServers {
 		if common.ContainsStringI(groups, server.Metadata["Group"]) {
-			allServers[n] = server
-			n++
+			filteredServers = append(filteredServers, server)
 		}
 	}
-	allServers = allServers[:n]
-
-	return allServers, nil
+	return filteredServers, nil
 }
 
 func mergeServers(cachedServers, newServers []servers.Server) []servers.Server {
