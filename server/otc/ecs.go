@@ -19,6 +19,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/crypto/ssh"
 	"net/http"
+	"strconv"
 	"strings"
 )
 
@@ -104,6 +105,14 @@ func listECSHandler(c *gin.Context) {
 
 	log.Printf("%v lists ECS instances @ OTC.", username)
 
+	params := c.Request.URL.Query()
+	showall, err := strconv.ParseBool(params.Get("showall"))
+	if err != nil {
+		log.Println("Error parsing showall", err.Error())
+		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericOTCAPIError})
+		return
+	}
+
 	client, err := getComputeClient()
 
 	if err != nil {
@@ -112,7 +121,7 @@ func listECSHandler(c *gin.Context) {
 		return
 	}
 
-	allServers, err := getServersByUsername(client, common.GetUserName(c))
+	allServers, err := getServersByUsername(client, common.GetUserName(c), showall)
 
 	if err != nil {
 		log.Println("Error getting ECS servers.", err.Error())
@@ -339,7 +348,7 @@ func createKeyPair(client *gophercloud.ServiceClient, publicKeyName string, publ
 	return keyPair, nil
 }
 
-func getServersByUsername(client *gophercloud.ServiceClient, username string) ([]servers.Server, error) {
+func getServersByUsername(client *gophercloud.ServiceClient, username string, showall bool) ([]servers.Server, error) {
 	log.WithFields(log.Fields{
 		"username": username,
 	}).Debug("Getting EC Servers.")
@@ -373,6 +382,10 @@ func getServersByUsername(client *gophercloud.ServiceClient, username string) ([
 		return nil, err
 	}
 
+	if showall && isAdmin(groups) {
+		return allServers, nil
+	}
+
 	// Filter array
 	// https://github.com/golang/go/wiki/SliceTricks#filter-in-place
 	n := 0
@@ -387,23 +400,14 @@ func getServersByUsername(client *gophercloud.ServiceClient, username string) ([
 	return allServers, nil
 }
 
-//func getMoreDetails() {
-//	imageClient, err := getImageClient()
-//
-//	if err != nil {
-//		log.Println("Error getting image service client.", err.Error())
-//		return nil, err
-//	}
-//
-//	volumeClient, err := getBlockStorageClient()
-//
-//	if err != nil {
-//		log.Println("Error getting block storage client.", err.Error())
-//		return nil, err
-//	}
-//
-//
-//}
+func isAdmin(groups []string) bool {
+	for _, g := range groups {
+		if g == "DG_RBT_UOS_ADMINS" {
+			return true
+		}
+	}
+	return false
+}
 
 func getVolumesByServerID(client *gophercloud.ServiceClient, serverId string) ([]volumes.Volume, error) {
 	var result []volumes.Volume
