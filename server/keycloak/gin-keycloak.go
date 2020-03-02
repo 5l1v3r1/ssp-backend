@@ -56,6 +56,7 @@ type KeyCloakToken struct {
 	ResourceAccess    map[string]ServiceRole `json:"resource_access"`
 	Name              string                 `json:"name"`
 	PreferredUsername string                 `json:"preferred_username"`
+	UID               string                 `json:"sbbuid_ad"`
 	GivenName         string                 `json:"given_name"`
 	FamilyName        string                 `json:"family_name"`
 	Email             string                 `json:"email"`
@@ -84,7 +85,8 @@ func GetUserName(ctx *gin.Context) string {
 	if !ok {
 		return ""
 	} else {
-		uid := strings.Split(tokenContainer.KeyCloakToken.PreferredUsername, "\\")[1]
+		//uid := strings.Split(tokenContainer.KeyCloakToken.PreferredUsername, "\\")[1]
+		uid := tokenContainer.KeyCloakToken.UID
 		if len(uid) == 0 {
 			return ""
 		}
