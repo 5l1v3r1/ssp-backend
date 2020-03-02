@@ -1,8 +1,7 @@
 package otc
 
 import (
-	"github.com/gophercloud/gophercloud/openstack/blockstorage/v3/volumes"
-	"time"
+	"github.com/gophercloud/gophercloud/openstack/compute/v2/servers"
 )
 
 type NewECSCommand struct {
@@ -53,21 +52,7 @@ type Image struct {
 }
 
 type ECServerListResponse struct {
-	ECServers []ECServer `json:"ecServers"`
-}
-
-type ECServer struct {
-	Id               string            `json:"id"`
-	IPv4             []string          `json:"ipv4"`
-	AvailabilityZone string            `json:"availabilityZone"`
-	Name             string            `json:"name"`
-	Created          time.Time         `json:"created"`
-	VCPUs            int               `json:"vcpus"`
-	RAM              int               `json:"ram"`
-	ImageName        string            `json:"imageName"`
-	Status           string            `json:"status"`
-	Metadata         map[string]string `json:"metadata"`
-	Volumes          []volumes.Volume  `json:"volumes"`
+	Servers []servers.Server `json:"servers"`
 }
 
 type VolumeTypesListResponse struct {
