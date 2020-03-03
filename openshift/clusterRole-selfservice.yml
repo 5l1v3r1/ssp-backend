@@ -39,6 +39,7 @@ rules:
   - create
   - update
 - apiGroups:
+  - ""
   - project.openshift.io
   attributeRestrictions: null
   resources:
