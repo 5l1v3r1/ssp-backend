@@ -19,6 +19,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/crypto/ssh"
 	"net/http"
+	"strconv"
 	"strings"
 )
 
@@ -104,6 +105,14 @@ func listECSHandler(c *gin.Context) {
 
 	log.Printf("%v lists ECS instances @ OTC.", username)
 
+	params := c.Request.URL.Query()
+	showall, err := strconv.ParseBool(params.Get("showall"))
+	if err != nil {
+		log.Println("Error parsing showall", err.Error())
+		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericOTCAPIError})
+		return
+	}
+
 	client, err := getComputeClient()
 
 	if err != nil {
@@ -112,7 +121,7 @@ func listECSHandler(c *gin.Context) {
 		return
 	}
 
-	allServers, err := getECServersByUsername(client, common.GetUserName(c))
+	allServers, err := getServersByUsername(client, common.GetUserName(c), showall)
 
 	if err != nil {
 		log.Println("Error getting ECS servers.", err.Error())
@@ -120,7 +129,7 @@ func listECSHandler(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, allServers)
+	c.JSON(http.StatusOK, ECServerListResponse{Servers: allServers})
 	return
 }
 
@@ -235,8 +244,8 @@ func stopECSHandler(c *gin.Context) {
 		return
 	}
 
-	for _, server := range data.ECServers {
-		stopResult := startstop.Stop(client, server.Id)
+	for _, server := range data.Servers {
+		stopResult := startstop.Stop(client, server.ID)
 
 		if stopResult.Err != nil {
 			log.Println("Error while stopping server.", err.Error())
@@ -269,8 +278,8 @@ func startECSHandler(c *gin.Context) {
 		return
 	}
 
-	for _, server := range data.ECServers {
-		stopResult := startstop.Start(client, server.Id)
+	for _, server := range data.Servers {
+		stopResult := startstop.Start(client, server.ID)
 
 		if stopResult.Err != nil {
 			log.Println("Error while starting server.", err.Error())
@@ -307,11 +316,11 @@ func rebootECSHandler(c *gin.Context) {
 		Type: servers.SoftReboot,
 	}
 
-	for _, server := range data.ECServers {
-		rebootResult := servers.Reboot(client, server.Id, rebootOpts)
+	for _, server := range data.Servers {
+		rebootResult := servers.Reboot(client, server.ID, rebootOpts)
 
 		if rebootResult.Err != nil {
-			log.Println("Error while rebooting server.", err.Error())
+			log.Printf("Error while rebooting server: %v", rebootResult.Err)
 			c.JSON(http.StatusBadRequest, common.ApiResponse{Message: "At least one server couldn't be rebooted."})
 			return
 		}
@@ -339,7 +348,7 @@ func createKeyPair(client *gophercloud.ServiceClient, publicKeyName string, publ
 	return keyPair, nil
 }
 
-func getECServersByUsername(client *gophercloud.ServiceClient, username string) (*ECServerListResponse, error) {
+func getServersByUsername(client *gophercloud.ServiceClient, username string, showall bool) ([]servers.Server, error) {
 	log.WithFields(log.Fields{
 		"username": username,
 	}).Debug("Getting EC Servers.")
@@ -359,13 +368,7 @@ func getECServersByUsername(client *gophercloud.ServiceClient, username string) 
 		"username": username,
 	}).Debug("LDAP groups")
 
-	result := ECServerListResponse{
-		ECServers: []ECServer{},
-	}
-
-	opts := servers.ListOpts{}
-
-	allPages, err := servers.List(client, opts).AllPages()
+	allPages, err := servers.List(client, servers.ListOpts{}).AllPages()
 
 	if err != nil {
 		log.Println("Error while listing servers.", err.Error())
@@ -379,75 +382,31 @@ func getECServersByUsername(client *gophercloud.ServiceClient, username string) 
 		return nil, err
 	}
 
-	imageClient, err := getImageClient()
-
-	if err != nil {
-		log.Println("Error getting image service client.", err.Error())
-		return nil, err
+	if showall && isAdmin(groups) {
+		return allServers, nil
 	}
 
-	volumeClient, err := getBlockStorageClient()
-
-	if err != nil {
-		log.Println("Error getting block storage client.", err.Error())
-		return nil, err
-	}
-
+	// Filter array
+	// https://github.com/golang/go/wiki/SliceTricks#filter-in-place
+	n := 0
 	for _, server := range allServers {
-		if !common.ContainsStringI(groups, server.Metadata["Group"]) {
-			continue
+		if common.ContainsStringI(groups, server.Metadata["Group"]) {
+			allServers[n] = server
+			n++
 		}
-
-		flavor, err := flavors.Get(client, server.Flavor["id"].(string)).Extract()
-
-		if err != nil {
-			log.Println("Error getting flavor for a server.", err.Error())
-			return nil, err
-		}
-
-		image, err := images.Get(imageClient, server.Image["id"].(string)).Extract()
-
-		if err != nil {
-			log.Println("Error getting image for a server.", err.Error())
-			return nil, err
-		}
-
-		var ipAddresses []string
-
-		for _, v := range server.Addresses {
-			for _, element := range v.([]interface{}) {
-				for key, value := range element.(map[string]interface{}) {
-					if key == "addr" {
-						ipAddresses = append(ipAddresses, value.(string))
-					}
-				}
-			}
-		}
-
-		serverVolumes, err := getVolumesByServerID(volumeClient, server.ID)
-
-		if err != nil {
-			log.Println("Error getting volumes for a server.", err.Error())
-			return nil, err
-		}
-
-		result.ECServers = append(result.ECServers,
-			ECServer{
-				Id:        server.ID,
-				IPv4:      ipAddresses,
-				Name:      server.Name,
-				Created:   server.Created,
-				VCPUs:     flavor.VCPUs,
-				RAM:       flavor.RAM,
-				ImageName: image.Name,
-				Status:    server.Status,
-				Metadata:  server.Metadata,
-				Volumes:   serverVolumes,
-			})
 	}
+	allServers = allServers[:n]
 
-	return &result, nil
+	return allServers, nil
+}
 
+func isAdmin(groups []string) bool {
+	for _, g := range groups {
+		if g == "DG_RBT_UOS_ADMINS" {
+			return true
+		}
+	}
+	return false
 }
 
 func getVolumesByServerID(client *gophercloud.ServiceClient, serverId string) ([]volumes.Volume, error) {
