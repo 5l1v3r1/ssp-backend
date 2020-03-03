@@ -21,6 +21,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 )
 
 func validateUserInput(data NewECSCommand) error {
@@ -114,7 +115,6 @@ func listECSHandler(c *gin.Context) {
 	}
 
 	client, err := getComputeClient()
-
 	if err != nil {
 		log.Println("Error getting compute client.", err.Error())
 		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericOTCAPIError})
@@ -122,11 +122,14 @@ func listECSHandler(c *gin.Context) {
 	}
 
 	allServers, err := getServersByUsername(client, common.GetUserName(c), showall)
-
 	if err != nil {
 		log.Println("Error getting ECS servers.", err.Error())
 		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericOTCAPIError})
 		return
+	}
+
+	if allServers == nil {
+		allServers = []servers.Server{}
 	}
 
 	c.JSON(http.StatusOK, ECServerListResponse{Servers: allServers})
@@ -348,6 +351,9 @@ func createKeyPair(client *gophercloud.ServiceClient, publicKeyName string, publ
 	return keyPair, nil
 }
 
+var lastRunTimestamp string
+var cachedServers []servers.Server
+
 func getServersByUsername(client *gophercloud.ServiceClient, username string, showall bool) ([]servers.Server, error) {
 	log.WithFields(log.Fields{
 		"username": username,
@@ -368,36 +374,53 @@ func getServersByUsername(client *gophercloud.ServiceClient, username string, sh
 		"username": username,
 	}).Debug("LDAP groups")
 
-	allPages, err := servers.List(client, servers.ListOpts{}).AllPages()
+	// this seems to work even if lastRunTimestamp is empty
+	opts := servers.ListOpts{
+		ChangesSince: lastRunTimestamp,
+	}
 
+	allPages, err := servers.List(client, opts).AllPages()
 	if err != nil {
 		log.Println("Error while listing servers.", err.Error())
 		return nil, err
 	}
 
-	allServers, err := servers.ExtractServers(allPages)
-
+	newServers, err := servers.ExtractServers(allPages)
 	if err != nil {
 		log.Println("Error while extracting servers.", err.Error())
 		return nil, err
 	}
 
+	cachedServers = mergeServers(cachedServers, newServers)
+	lastRunTimestamp = time.Now().Format(time.RFC3339)
+
 	if showall && isAdmin(groups) {
-		return allServers, nil
+		return cachedServers, nil
 	}
 
-	// Filter array
-	// https://github.com/golang/go/wiki/SliceTricks#filter-in-place
-	n := 0
-	for _, server := range allServers {
+	var filteredServers []servers.Server
+	for _, server := range cachedServers {
 		if common.ContainsStringI(groups, server.Metadata["Group"]) {
-			allServers[n] = server
-			n++
+			filteredServers = append(filteredServers, server)
 		}
 	}
-	allServers = allServers[:n]
+	return filteredServers, nil
+}
 
-	return allServers, nil
+func mergeServers(cachedServers, newServers []servers.Server) []servers.Server {
+	unique := make(map[string]servers.Server)
+
+	for _, s := range cachedServers {
+		unique[s.ID] = s
+	}
+	for _, s := range newServers {
+		unique[s.ID] = s
+	}
+	final := make([]servers.Server, 0)
+	for _, s := range unique {
+		final = append(final, s)
+	}
+	return final
 }
 
 func isAdmin(groups []string) bool {
