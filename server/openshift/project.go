@@ -316,12 +316,12 @@ func changeProjectPermission(clusterId string, project string, username string) 
 		return err
 	}
 
-	current_user_low := common.OpenshiftUser{
+	current_user_low := OpenshiftSubject{
 		ApiGroup: "rbac.authorization.k8s.io",
 		Kind:     "User",
 		Name:     strings.ToLower(username),
 	}
-	current_user_up := common.OpenshiftUser{
+	current_user_up := OpenshiftSubject{
 		ApiGroup: "rbac.authorization.k8s.io",
 		Kind:     "User",
 		Name:     strings.ToUpper(username),

@@ -138,7 +138,7 @@ func authorizeServiceAccount(clusterId, namespace, serviceaccount string) error 
 
 func addEditServiceAccountToRoleBinding(clusterId, namespace, serviceaccount string, rolebinding *gabs.Container) error {
 
-	service_account := common.OpenshiftUser{
+	service_account := OpenshiftSubject{
 		Kind:      "ServiceAccount",
 		Name:      serviceaccount,
 		Namespace: namespace,
