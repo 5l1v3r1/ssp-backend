@@ -39,7 +39,7 @@ func newPullSecretHandler(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: wrongAPIUsageError})
 		return
 	}
-	secret := newObjectRequest("Secret", "external-registry")
+	secret := newObjectRequest("Secret", "external-registry", "v1")
 	dockerConfig := DockerConfig{
 		Auths: make(map[string]*Auth),
 	}

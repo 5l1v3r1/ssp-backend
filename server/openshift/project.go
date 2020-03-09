@@ -90,7 +90,7 @@ func getProjectsHandler(c *gin.Context) {
 
 func getUserProjects(clusterid, username string) ([]string, error) {
 	// TODO: only return projects, where the user has access
-	resp, err := getOseHTTPClient("GET", clusterid, "oapi/v1/projects", nil)
+	resp, err := getOseHTTPClient("GET", clusterid, "apis/project.openshift.io/v1/projects", nil)
 	if err != nil {
 		return []string{}, err
 	}
@@ -280,9 +280,9 @@ func sendNewProjectMail(clusterId string, projectName string, userName string, m
 
 func createNewProject(clusterId string, project string, username string, billing string, megaid string, testProject bool) error {
 	project = strings.ToLower(project)
-	p := newObjectRequest("ProjectRequest", project)
+	p := newObjectRequest("ProjectRequest", project, "project.openshift.io/v1")
 
-	resp, err := getOseHTTPClient("POST", clusterId, "oapi/v1/projectrequests", bytes.NewReader(p.Bytes()))
+	resp, err := getOseHTTPClient("POST", clusterId, "apis/project.openshift.io/v1/projectrequests", bytes.NewReader(p.Bytes()))
 	if err != nil {
 		return err
 	}
@@ -316,13 +316,24 @@ func changeProjectPermission(clusterId string, project string, username string) 
 		return err
 	}
 
-	adminRoleBinding.ArrayAppend(strings.ToLower(username), "userNames")
-	adminRoleBinding.ArrayAppend(strings.ToUpper(username), "userNames")
+	current_user_low := OpenshiftSubject{
+		ApiGroup: "rbac.authorization.k8s.io",
+		Kind:     "User",
+		Name:     strings.ToLower(username),
+	}
+	current_user_up := OpenshiftSubject{
+		ApiGroup: "rbac.authorization.k8s.io",
+		Kind:     "User",
+		Name:     strings.ToUpper(username),
+	}
+
+	adminRoleBinding.ArrayAppend(current_user_low, "subjects")
+	adminRoleBinding.ArrayAppend(current_user_up, "subjects")
 
 	// Update the policyBindings on the api
 	resp, err := getOseHTTPClient("PUT",
 		clusterId,
-		"oapi/v1/namespaces/"+project+"/rolebindings/admin",
+		"apis/rbac.authorization.k8s.io/v1/namespaces/"+project+"/rolebindings/admin",
 		bytes.NewReader(adminRoleBinding.Bytes()))
 	if err != nil {
 		return err

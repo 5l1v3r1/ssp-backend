@@ -10,6 +10,7 @@ rules:
   - namespaces
   - resourcequotas
   verbs:
+  - get
   - update
 - apiGroups:
   - ""
@@ -29,9 +30,26 @@ rules:
   verbs:
   - get
 - apiGroups:
+  - rbac.authorization.k8s.io
+  - authorization.openshift.io
+  attributeRestrictions: null
+  resources:
+  - rolebindings
+  verbs:
+  - create
+  - update
+- apiGroups:
   - ""
+  - project.openshift.io
   attributeRestrictions: null
   resources:
   - projectrequests
   verbs:
   - create
+- apiGroups:
+  - route.openshift.io
+  attributeRestrictions: null
+  resources:
+  - routes
+  verbs:
+  - get
