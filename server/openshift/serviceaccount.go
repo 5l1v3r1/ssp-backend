@@ -86,7 +86,7 @@ func validateNewServiceAccount(clusterId, username string, project string, servi
 }
 
 func createNewServiceAccount(clusterId, username, project, serviceaccount string) error {
-	p := newObjectRequest("ServiceAccount", serviceaccount)
+	p := newObjectRequest("ServiceAccount", serviceaccount, "v1")
 
 	resp, err := getOseHTTPClient("POST", clusterId, "api/v1/namespaces/"+project+"/serviceaccounts", bytes.NewReader(p.Bytes()))
 	if err != nil {
@@ -137,9 +137,15 @@ func authorizeServiceAccount(clusterId, namespace, serviceaccount string) error 
 }
 
 func addEditServiceAccountToRoleBinding(clusterId, namespace, serviceaccount string, rolebinding *gabs.Container) error {
-	rolebinding.ArrayAppend("system:serviceaccount:"+namespace+":"+serviceaccount, "userNames")
 
-	url := fmt.Sprintf("oapi/v1/namespaces/%v/rolebindings/edit", namespace)
+	service_account := OpenshiftSubject{
+		Kind:      "ServiceAccount",
+		Name:      serviceaccount,
+		Namespace: namespace,
+	}
+	rolebinding.ArrayAppend(service_account, "subjects")
+
+	url := fmt.Sprintf("apis/rbac.authorization.k8s.io/v1/namespaces/%v/rolebindings/edit", namespace)
 	resp, err := getOseHTTPClient("PUT", clusterId, url, bytes.NewReader(rolebinding.Bytes()))
 	if err != nil {
 		return err
@@ -168,8 +174,8 @@ func addEditServiceAccountToRoleBinding(clusterId, namespace, serviceaccount str
 }
 
 func getEditRoleBinding(clusterId, namespace string) (*gabs.Container, error) {
-	url := fmt.Sprintf("oapi/v1/namespaces/%v/rolebindings/edit", namespace)
 
+	url := fmt.Sprintf("apis/rbac.authorization.k8s.io/v1/namespaces/%v/rolebindings/edit", namespace)
 	resp, err := getOseHTTPClient("GET", clusterId, url, nil)
 	if err != nil {
 		return nil, err
@@ -197,13 +203,14 @@ func getEditRoleBinding(clusterId, namespace string) (*gabs.Container, error) {
 	return json, nil
 }
 
+//FIXME: why does this work?
 func createEditRoleBinding(clusterId, namespace, serviceaccount string) error {
-	rolebinding := newObjectRequest("RoleBinding", "edit")
+	rolebinding := newObjectRequest("RoleBinding", "edit", "authorization.openshift.io/v1")
 	rolebinding.Set("edit", "roleRef", "name")
 	rolebinding.Array("userNames")
 	rolebinding.ArrayAppend("system:serviceaccount:"+namespace+":"+serviceaccount, "userNames")
 
-	url := fmt.Sprintf("oapi/v1/namespaces/%v/rolebindings", namespace)
+	url := fmt.Sprintf("apis/authorization.openshift.io/v1/namespaces/%v/rolebindings", namespace)
 
 	resp, err := getOseHTTPClient("POST", clusterId, url, bytes.NewReader(rolebinding.Bytes()))
 	if err != nil {
