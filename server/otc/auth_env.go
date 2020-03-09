@@ -11,10 +11,35 @@ import (
 	"github.com/gophercloud/gophercloud"
 	"github.com/gophercloud/gophercloud/auth/aksk"
 	"github.com/gophercloud/gophercloud/auth/token"
+	"github.com/imdario/mergo"
 )
 
 var nilTokenOptions = token.TokenOptions{}
 var nilAKSKOptions = aksk.AKSKOptions{}
+
+// Same as here: https://github.com/huaweicloud/huaweicloud-sdk-go/blob/master/auth/token/token_options.go#L39
+// Modified to work with Viper (mapstructure)
+type tokenOptions struct {
+	IdentityEndpoint string `mapstructure:"auth_url"`
+	Username         string
+	UserID           string
+
+	Password string
+
+	// At most one of DomainID and DomainName must be provided if using Username
+	// with Identity V3. Otherwise, either are optional.
+	DomainID   string
+	DomainName string `mapstructure:"domain_name"`
+
+	TenantID   string `mapstructure:"tenant_id"`
+	TenantName string `mapstructure:"tenant_name"`
+
+	ProjectID   string `mapstructure:"project_id"`
+	ProjectName string `mapstructure:"project_name"`
+
+	AllowReauth bool
+	TokenID     string
+}
 
 /*
 TokenOptionsFromEnv fills out an token.TokenOptions structure with the
@@ -50,60 +75,52 @@ then:
     provider, err := openstack.AuthenticatedClient(opts)
 Now use the provider, you can initialize the serviceClient.
 */
-func TokenOptionsFromEnv() (token.TokenOptions, error) {
+func TokenOptionsFromEnv(customTokenOptions *token.TokenOptions) (token.TokenOptions, error) {
 
 	cfg := config.Config()
 
-	authURL := cfg.GetString("os_auth_url")
-	username := cfg.GetString("os_username")
-	userID := cfg.GetString("os_userid")
-	password := cfg.GetString("os_password")
-	tenantID := cfg.GetString("os_tenant_id")
-	tenantName := cfg.GetString("os_tenant_name")
-	domainID := cfg.GetString("os_domain_id")
-	domainName := cfg.GetString("os_domain_name")
+	var tmp tokenOptions
+	err := cfg.UnmarshalKey("openstack", &tmp)
+	if err != nil {
+		return nilTokenOptions, err
+	}
+	to := token.TokenOptions(tmp)
+
+	if customTokenOptions != nil {
+		if err := mergo.Merge(&to, *customTokenOptions, mergo.WithOverride); err != nil {
+			message := "Error merging tokenOptions"
+			err := gophercloud.NewSystemCommonError(gophercloud.CE_MissingInputCode, message)
+			return nilTokenOptions, err
+		}
+	}
 
 	// If OS_PROJECT_ID is set, overwrite tenantID with the value.
-	if v := cfg.GetString("os_project_id"); v != "" {
-		tenantID = v
+	if v := to.ProjectID; v != "" {
+		to.TenantID = v
 	}
 
 	// If OS_PROJECT_NAME is set, overwrite tenantName with the value.
-	if v := cfg.GetString("os_project_name"); v != "" {
-		tenantName = v
+	if v := to.ProjectName; v != "" {
+		to.TenantName = v
 	}
 
-	// end custom part
-
-	if authURL == "" {
+	if to.IdentityEndpoint == "" {
 		message := fmt.Sprintf(gophercloud.CE_MissingInputMessage, "authURL")
 		err := gophercloud.NewSystemCommonError(gophercloud.CE_MissingInputCode, message)
 		return nilTokenOptions, err
 	}
 
-	if username == "" && userID == "" {
+	if to.Username == "" && to.UserID == "" {
 		message := fmt.Sprintf(gophercloud.CE_MissingInputMessage, "username")
 		err := gophercloud.NewSystemCommonError(gophercloud.CE_MissingInputCode, message)
 		return nilTokenOptions, err
 	}
 
-	if password == "" {
+	if to.Password == "" {
 		message := fmt.Sprintf(gophercloud.CE_MissingInputMessage, "password")
 		err := gophercloud.NewSystemCommonError(gophercloud.CE_MissingInputCode, message)
 		return nilTokenOptions, err
 	}
-
-	to := token.TokenOptions{
-		IdentityEndpoint: authURL,
-		UserID:           userID,
-		Username:         username,
-		Password:         password,
-		TenantID:         tenantID,
-		TenantName:       tenantName,
-		DomainID:         domainID,
-		DomainName:       domainName,
-	}
-
 	return to, nil
 }
 
