@@ -127,16 +127,12 @@ func getRDSInstancesByUsername(client *gophercloud.ServiceClient, username strin
 	if err != nil {
 		return nil, err
 	}
-	log.Printf("%v", groups)
 
 	instances, err := getRDSInstances(client)
 	if err != nil {
 		log.Println("Error getting rds client.", err.Error())
 		return nil, err
 	}
-
-	log.Printf("%+v", instances)
-	log.Printf("%v", len(instances))
 
 	clientV1, err := getRDSV1Client(client.ProviderClient)
 	if err != nil {
@@ -158,10 +154,10 @@ func getRDSInstancesByUsername(client *gophercloud.ServiceClient, username strin
 		if err != nil {
 			continue
 		}
-		if t["Group"] == "" {
+		if t["rds_group"] == "" {
 			continue
 		}
-		if !common.ContainsStringI(groups, t["Group"]) {
+		if !common.ContainsStringI(groups, t["rds_group"]) {
 			continue
 		}
 		filteredInstances = append(filteredInstances, rdsInstance{instance, t})
