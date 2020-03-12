@@ -60,16 +60,7 @@ func getComputeClient() (*gophercloud.ServiceClient, error) {
 	return client, nil
 }
 
-func getRDSV1Client() (*gophercloud.ServiceClient, error) {
-	to := token.TokenOptions{
-		TenantName: "eu-ch_rds",
-	}
-	provider, err := getProvider(&to)
-	if err != nil {
-		fmt.Println("Error while authenticating.", err.Error())
-		return nil, errors.New(genericOTCAPIError)
-	}
-
+func getRDSV1Client(provider *gophercloud.ProviderClient) (*gophercloud.ServiceClient, error) {
 	client, err := openstack.NewRDSV1(provider, gophercloud.EndpointOpts{})
 	if err != nil {
 		fmt.Println("Error getting client.", err.Error())
@@ -79,9 +70,10 @@ func getRDSV1Client() (*gophercloud.ServiceClient, error) {
 	return client, nil
 }
 
-func getRDSClient() (*gophercloud.ServiceClient, error) {
+func getRDSClient(domain string) (*gophercloud.ServiceClient, error) {
 	to := token.TokenOptions{
 		TenantName: "eu-ch_rds",
+		DomainName: domain,
 	}
 	provider, err := getProvider(&to)
 	if err != nil {
