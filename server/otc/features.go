@@ -5,14 +5,17 @@ import (
 )
 
 type Features struct {
-	Enabled bool `json:"enabled"`
+	UOS bool `json:"uos"`
+	RDS bool `json:"rds"`
 }
 
 func GetFeatures() Features {
 	cfg := config.Config()
-	otcApi := cfg.GetString("otc_api")
+	uosEnabled := cfg.GetString("uos_enabled")
+	rdsEnabled := cfg.GetString("rds_enabled")
 
 	return Features{
-		Enabled: otcApi != "",
+		UOS: uosEnabled == "true",
+		RDS: rdsEnabled == "true",
 	}
 }
