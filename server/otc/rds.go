@@ -15,7 +15,7 @@ import (
 )
 
 func listRDSFlavorsHandler(c *gin.Context) {
-	client, err := getRDSClient()
+	client, err := getRDSClient("SBB_RZ_T_001")
 	if err != nil {
 		log.Println("Error getting rds client.", err.Error())
 		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericOTCAPIError})
@@ -50,7 +50,7 @@ func listRDSFlavorsHandler(c *gin.Context) {
 }
 
 func listRDSVersionsHandler(c *gin.Context) {
-	client, err := getRDSClient()
+	client, err := getRDSClient("SBB_RZ_T_001")
 	if err != nil {
 		log.Println("Error getting rds client.", err.Error())
 		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericOTCAPIError})
@@ -84,19 +84,27 @@ func listRDSVersionsHandler(c *gin.Context) {
 func listRDSInstancesHandler(c *gin.Context) {
 	username := common.GetUserName(c)
 
-	client, err := getRDSClient()
-	if err != nil {
-		log.Println("Error getting rds client.", err.Error())
-		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericOTCAPIError})
-		return
+	var response []rdsInstance
+	tenants := []string{
+		"SBB_RZ_T_001",
+		"SBB_RZ_P_001",
 	}
+	for _, tenant := range tenants {
+		client, err := getRDSClient(tenant)
+		if err != nil {
+			log.Println("Error getting rds client.", err.Error())
+			c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericOTCAPIError})
+			return
+		}
 
-	instances, err := getRDSInstancesByUsername(client, username)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericOTCAPIError})
-		return
+		instances, err := getRDSInstancesByUsername(client, username)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericOTCAPIError})
+			return
+		}
+		response = append(response, instances...)
 	}
-	c.JSON(http.StatusOK, instances)
+	c.JSON(http.StatusOK, response)
 	return
 }
 
@@ -130,7 +138,7 @@ func getRDSInstancesByUsername(client *gophercloud.ServiceClient, username strin
 	log.Printf("%+v", instances)
 	log.Printf("%v", len(instances))
 
-	clientV1, err := getRDSV1Client()
+	clientV1, err := getRDSV1Client(client.ProviderClient)
 	if err != nil {
 		log.Println("Error getting rdsV1 client.", err.Error())
 		return nil, err
