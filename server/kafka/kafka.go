@@ -9,6 +9,7 @@ import (
 
 type KafkaConfig struct {
 	BackendUrl string `json:"backend_url" mapstructure:"backend_url"`
+	BillingUrl string `json:"billing_url" mapstructure:"billing_url"`
 }
 
 func getKafkaConfig() KafkaConfig {

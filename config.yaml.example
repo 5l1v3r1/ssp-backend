@@ -47,6 +47,7 @@ tower:
 
 kafka:
   backend_url:
+  billing_url:
 
 ldap:
   host: ldap.domain.ch
