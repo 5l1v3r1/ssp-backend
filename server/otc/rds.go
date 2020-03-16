@@ -15,18 +15,24 @@ import (
 )
 
 func listRDSFlavorsHandler(c *gin.Context) {
-	client, err := getRDSClient("SBB_RZ_T_001")
+	version := c.Request.URL.Query().Get("version_name")
+	if version == "" {
+		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: "Wrong API usage"})
+		return
+	}
+	stage := c.Request.URL.Query().Get("stage")
+	if stage != "p" && stage != "t" {
+		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: "Wrong API usage"})
+		return
+	}
+	tenant := fmt.Sprintf("SBB_RZ_%v_001", strings.ToUpper(stage))
+	client, err := getRDSClient(tenant)
 	if err != nil {
 		log.Println("Error getting rds client.", err.Error())
 		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericOTCAPIError})
 		return
 	}
 
-	version := c.Request.URL.Query().Get("version_name")
-	if version == "" {
-		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: "Wrong API usage"})
-		return
-	}
 	dbFlavorsOpts := flavors.DbFlavorsOpts{
 		Versionname: version,
 	}
@@ -50,7 +56,13 @@ func listRDSFlavorsHandler(c *gin.Context) {
 }
 
 func listRDSVersionsHandler(c *gin.Context) {
-	client, err := getRDSClient("SBB_RZ_T_001")
+	stage := c.Request.URL.Query().Get("stage")
+	if stage != "p" && stage != "t" {
+		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: "Wrong API usage"})
+		return
+	}
+	tenant := fmt.Sprintf("SBB_RZ_%v_001", strings.ToUpper(stage))
+	client, err := getRDSClient(tenant)
 	if err != nil {
 		log.Println("Error getting rds client.", err.Error())
 		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericOTCAPIError})
