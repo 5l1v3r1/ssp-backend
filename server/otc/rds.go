@@ -12,6 +12,7 @@ import (
 	"github.com/gophercloud/gophercloud/openstack/rds/v3/instances"
 	"log"
 	"net/http"
+	"strings"
 )
 
 func listRDSFlavorsHandler(c *gin.Context) {
