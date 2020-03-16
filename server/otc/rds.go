@@ -22,8 +22,12 @@ func listRDSFlavorsHandler(c *gin.Context) {
 		return
 	}
 	stage := c.Request.URL.Query().Get("stage")
-	if stage != "p" && stage != "t" {
+	if stage == "" {
 		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: "Wrong API usage. Missing parameter stage"})
+		return
+	}
+	if stage != "p" && stage != "t" {
+		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: "Wrong API usage. Parameter stage is: %v. Should be p or t", stage})
 		return
 	}
 	tenant := fmt.Sprintf("SBB_RZ_%v_001", strings.ToUpper(stage))
@@ -58,6 +62,10 @@ func listRDSFlavorsHandler(c *gin.Context) {
 
 func listRDSVersionsHandler(c *gin.Context) {
 	stage := c.Request.URL.Query().Get("stage")
+	if stage == "" {
+		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: "Wrong API usage. Missing parameter stage"})
+		return
+	}
 	if stage != "p" && stage != "t" {
 		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: "Wrong API usage. Parameter stage is: %v. Should be p or t", stage})
 		return
