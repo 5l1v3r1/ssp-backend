@@ -49,6 +49,12 @@ kafka:
   backend_url:
   billing_url:
 
+rds:
+  # if this list is empty, all versions are shown
+  version_whitelist:
+    - 10
+    - 11
+
 ldap:
   host: ldap.domain.ch
   base: dc=domain,dc=ch
