@@ -3,6 +3,7 @@ package otc
 import (
 	"fmt"
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/common"
+	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/config"
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/ldap"
 	"github.com/gin-gonic/gin"
 	"github.com/gophercloud/gophercloud"
@@ -27,7 +28,7 @@ func listRDSFlavorsHandler(c *gin.Context) {
 		return
 	}
 	if stage != "p" && stage != "t" {
-		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: fmt.Sprintf("Wrong API usage. Parameter stage is: %v. Should be p or t", stage) })
+		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: fmt.Sprintf("Wrong API usage. Parameter stage is: %v. Should be p or t", stage)})
 		return
 	}
 	tenant := fmt.Sprintf("SBB_RZ_%v_001", strings.ToUpper(stage))
@@ -67,7 +68,7 @@ func listRDSVersionsHandler(c *gin.Context) {
 		return
 	}
 	if stage != "p" && stage != "t" {
-		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: fmt.Sprintf("Wrong API usage. Parameter stage is: %v. Should be p or t", stage) })
+		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: fmt.Sprintf("Wrong API usage. Parameter stage is: %v. Should be p or t", stage)})
 		return
 	}
 	tenant := fmt.Sprintf("SBB_RZ_%v_001", strings.ToUpper(stage))
@@ -92,10 +93,15 @@ func listRDSVersionsHandler(c *gin.Context) {
 		return
 	}
 
-	versions := make([]string, len(datastores.DataStores))
+	cfg := config.Config()
+	versionWhitelist := cfg.GetStringSlice("rds.version_whitelist")
 
-	for i, d := range datastores.DataStores {
-		versions[i] = d.Name
+	versions := make([]string, 0)
+
+	for _, d := range datastores.DataStores {
+		if len(versionWhitelist) == 0 || common.ContainsStringI(versionWhitelist, d.Name) {
+			versions = append(versions, d.Name)
+		}
 	}
 
 	c.JSON(http.StatusOK, versions)
