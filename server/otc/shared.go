@@ -21,8 +21,6 @@ func RegisterRoutes(r *gin.RouterGroup) {
 	r.POST("/otc/rebootecs", rebootECSHandler)
 	r.GET("/otc/flavors", listFlavorsHandler)
 	r.GET("/otc/images", listImagesHandler)
-	r.GET("/otc/availabilityzones", listAvailabilityZonesHandler)
-	r.GET("/otc/volumetypes", listVolumeTypesHandler)
 	r.GET("/otc/rds/versions", listRDSVersionsHandler)
 	r.GET("/otc/rds/flavors", listRDSFlavorsHandler)
 	r.GET("/otc/rds/instances", listRDSInstancesHandler)
@@ -41,8 +39,12 @@ func getProvider(to *token.TokenOptions) (*gophercloud.ProviderClient, error) {
 	return provider, nil
 }
 
-func getComputeClient() (*gophercloud.ServiceClient, error) {
-	provider, err := getProvider(nil)
+func getComputeClient(domain string) (*gophercloud.ServiceClient, error) {
+	to := token.TokenOptions{
+		TenantName: "eu-ch_managed",
+		DomainName: domain,
+	}
+	provider, err := getProvider(&to)
 	if err != nil {
 		fmt.Println("Error while authenticating.", err.Error())
 		return nil, errors.New(genericOTCAPIError)

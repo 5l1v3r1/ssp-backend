@@ -15,91 +15,13 @@ import (
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/flavors"
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/servers"
 	"github.com/gophercloud/gophercloud/openstack/imageservice/v2/images"
-	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
-	"golang.org/x/crypto/ssh"
 	"net/http"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
 )
-
-func validateUserInput(data NewECSCommand) error {
-	log.Println("Validating user input for ECS creation.")
-
-	_, _, _, _, err := ssh.ParseAuthorizedKey([]byte(data.PublicKey))
-
-	if err != nil {
-		log.Println("Can't parse public key.", err.Error())
-		return errors.New("SSH public key can't be parsed")
-	}
-
-	if len(data.ECSName) == 0 {
-		return errors.New("ECS name must be provided.")
-	}
-
-	if len(data.Billing) == 0 {
-		return errors.New("Accounting number must be provided.")
-	}
-
-	if len(data.MegaId) == 0 {
-		return errors.New("Mega ID must be provided.")
-	}
-
-	if len(data.AvailabilityZone) == 0 {
-		return errors.New("Availability Zone must be provided.")
-	}
-
-	if len(data.FlavorName) == 0 {
-		return errors.New("Flavor must be provided.")
-	}
-
-	if len(data.ImageId) == 0 {
-		return errors.New("Flavor must be provided.")
-	}
-
-	imageClient, err := getImageClient()
-
-	if err != nil {
-		log.Println("Error getting compute client.", err.Error())
-		return errors.New(genericOTCAPIError)
-	}
-
-	image, err := images.Get(imageClient, data.ImageId).Extract()
-
-	if err != nil {
-		log.Println("Error while extracting image.", err.Error())
-		return errors.New(genericOTCAPIError)
-	}
-
-	if image.MinDiskGigabytes > data.RootDiskSize {
-		return errors.New(fmt.Sprintf("The chosen image requires a minimal system disk size of  %vGB .", image.MinDiskGigabytes))
-	}
-
-	computeClient, err := getComputeClient()
-
-	if err != nil {
-		log.Println("Error getting compute client.", err.Error())
-		return errors.New(genericOTCAPIError)
-	}
-
-	flavor, err := flavors.Get(computeClient, data.FlavorName).Extract()
-
-	if err != nil {
-		log.Println("Error while extracting flavor.", err.Error())
-		return errors.New(genericOTCAPIError)
-	}
-
-	if image.MinRAMMegabytes > flavor.RAM {
-		return errors.New(fmt.Sprintf("The chosen image requires a minimal RAM size of %vGB.", image.MinRAMMegabytes/1024))
-	}
-
-	if len(data.SystemVolumeTypeId) == 0 {
-		return errors.New("System disk type must be provided")
-	}
-
-	return nil
-}
 
 func listECSHandler(c *gin.Context) {
 	username := common.GetUserName(c)
@@ -109,23 +31,25 @@ func listECSHandler(c *gin.Context) {
 	params := c.Request.URL.Query()
 	showall, err := strconv.ParseBool(params.Get("showall"))
 	if err != nil {
-		log.Println("Error parsing showall", err.Error())
+		log.Printf("Error parsing showall: %v", err)
 		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericOTCAPIError})
 		return
 	}
-
-	client, err := getComputeClient()
+	var allServers []servers.Server
+	clients, err := getComputeClients()
 	if err != nil {
-		log.Println("Error getting compute client.", err.Error())
+		log.Printf("Error getting compute clients: %v", err)
 		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericOTCAPIError})
 		return
 	}
-
-	allServers, err := getServersByUsername(client, common.GetUserName(c), showall)
-	if err != nil {
-		log.Println("Error getting ECS servers.", err.Error())
-		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericOTCAPIError})
-		return
+	for _, client := range clients {
+		serversInTenant, err := getServersByUsername(client, common.GetUserName(c), showall)
+		if err != nil {
+			log.Println("Error getting ECS servers.", err.Error())
+			c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericOTCAPIError})
+			return
+		}
+		allServers = append(allServers, serversInTenant...)
 	}
 
 	if allServers == nil {
@@ -138,8 +62,17 @@ func listECSHandler(c *gin.Context) {
 
 func listFlavorsHandler(c *gin.Context) {
 	log.Println("Querying flavors @ OTC.")
-
-	client, err := getComputeClient()
+	stage := c.Request.URL.Query().Get("stage")
+	if stage == "" {
+		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: "Wrong API usage. Missing parameter stage"})
+		return
+	}
+	if stage != "p" && stage != "t" {
+		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: fmt.Sprintf("Wrong API usage. Parameter stage is: %v. Should be p or t", stage)})
+		return
+	}
+	tenant := fmt.Sprintf("SBB_RZ_%v_001", strings.ToUpper(stage))
+	client, err := getComputeClient(tenant)
 
 	if err != nil {
 		fmt.Println("Error getting compute client.", err.Error())
@@ -181,66 +114,44 @@ func listImagesHandler(c *gin.Context) {
 	return
 }
 
-func listAvailabilityZonesHandler(c *gin.Context) {
-	log.Println("Querying availability zones @ OTC.")
-
-	client, err := getComputeClient()
-
-	if err != nil {
-		fmt.Println("Error getting compute client.", err.Error())
-		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericOTCAPIError})
-		return
+func getComputeClients() (map[string]*gophercloud.ServiceClient, error) {
+	tenants := []string{
+		"SBB_RZ_T_001",
+		"SBB_RZ_P_001",
 	}
-
-	allAvailabilityZones, err := getAvailabilityZones(client)
-
-	if err != nil {
-		log.Println("Error getting availability zones.", err.Error())
-		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericOTCAPIError})
-		return
+	clients := make(map[string]*gophercloud.ServiceClient)
+	var err error
+	for _, tenant := range tenants {
+		clients[tenant], err = getComputeClient(tenant)
+		if err != nil {
+			return clients, err
+		}
 	}
-
-	c.JSON(http.StatusOK, allAvailabilityZones)
-	return
+	return clients, nil
 }
 
-func listVolumeTypesHandler(c *gin.Context) {
-	log.Println("Querying volume types @ OTC.")
-
-	client, err := getBlockStorageClient()
-
-	if err != nil {
-		fmt.Println("Error getting compute client.", err.Error())
-		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericOTCAPIError})
-		return
+func getTenantName(servername string) string {
+	pattern := regexp.MustCompile(`(.)\d{2}\.sbb\.ch`)
+	matches := pattern.FindStringSubmatch(servername)
+	if len(matches) == 2 {
+		stage := matches[1]
+		return fmt.Sprintf("SBB_RZ_%v_001", strings.ToUpper(stage))
 	}
-
-	allVolumeTypes, err := getVolumeTypes(client)
-
-	if err != nil {
-		log.Println("Error getting volume types.", err.Error())
-		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericOTCAPIError})
-		return
-	}
-
-	c.JSON(http.StatusOK, allVolumeTypes)
-	return
+	return ""
 }
 
 func stopECSHandler(c *gin.Context) {
 	log.Println("Stopping ECS @ OTC.")
 
-	client, err := getComputeClient()
-
+	clients, err := getComputeClients()
 	if err != nil {
-		log.Println("Error getting compute client.", err.Error())
+		log.Printf("Error getting compute client: %v", err)
 		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericOTCAPIError})
 		return
 	}
 
 	var data ECServerListResponse
 	err = c.BindJSON(&data)
-
 	if err != nil {
 		log.Println("Binding request to Go struct failed.", err.Error())
 		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: wrongAPIUsageError})
@@ -248,7 +159,8 @@ func stopECSHandler(c *gin.Context) {
 	}
 
 	for _, server := range data.Servers {
-		stopResult := startstop.Stop(client, server.ID)
+		tenant := getTenantName(server.Name)
+		stopResult := startstop.Stop(clients[tenant], server.ID)
 
 		if stopResult.Err != nil {
 			log.Println("Error while stopping server.", err.Error())
@@ -264,17 +176,15 @@ func stopECSHandler(c *gin.Context) {
 func startECSHandler(c *gin.Context) {
 	log.Println("Starting ECS @ OTC.")
 
-	client, err := getComputeClient()
-
+	clients, err := getComputeClients()
 	if err != nil {
-		log.Println("Error getting compute client.", err.Error())
+		log.Printf("Error getting compute clients: %v", err)
 		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericOTCAPIError})
 		return
 	}
 
 	var data ECServerListResponse
 	err = c.BindJSON(&data)
-
 	if err != nil {
 		log.Println("Binding request to Go struct failed.", err.Error())
 		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: wrongAPIUsageError})
@@ -282,7 +192,8 @@ func startECSHandler(c *gin.Context) {
 	}
 
 	for _, server := range data.Servers {
-		stopResult := startstop.Start(client, server.ID)
+		tenant := getTenantName(server.Name)
+		stopResult := startstop.Start(clients[tenant], server.ID)
 
 		if stopResult.Err != nil {
 			log.Println("Error while starting server.", err.Error())
@@ -298,10 +209,9 @@ func startECSHandler(c *gin.Context) {
 func rebootECSHandler(c *gin.Context) {
 	log.Println("Rebooting ECS @ OTC.")
 
-	client, err := getComputeClient()
-
+	clients, err := getComputeClients()
 	if err != nil {
-		log.Println("Error getting compute client.", err.Error())
+		log.Printf("Error getting compute client: %v", err)
 		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericOTCAPIError})
 		return
 	}
@@ -320,7 +230,8 @@ func rebootECSHandler(c *gin.Context) {
 	}
 
 	for _, server := range data.Servers {
-		rebootResult := servers.Reboot(client, server.ID, &rebootOpts)
+		tenant := getTenantName(server.Name)
+		rebootResult := servers.Reboot(clients[tenant], server.ID, &rebootOpts)
 
 		if rebootResult.Err != nil {
 			log.Printf("Error while rebooting server: %v", rebootResult.Err)
@@ -351,10 +262,18 @@ func createKeyPair(client *gophercloud.ServiceClient, publicKeyName string, publ
 	return keyPair, nil
 }
 
-var lastRunTimestamp string
-var cachedServers []servers.Server
+type otcTenantCache struct {
+	LastRunTimestamp string
+	Servers          []servers.Server
+}
+
+// Cache for all tenants
+var otcCache map[string]otcTenantCache
 
 func getServersByUsername(client *gophercloud.ServiceClient, username string, showall bool) ([]servers.Server, error) {
+	if otcCache == nil {
+		otcCache = make(map[string]otcTenantCache)
+	}
 	log.WithFields(log.Fields{
 		"username": username,
 	}).Debug("Getting EC Servers.")
@@ -374,9 +293,10 @@ func getServersByUsername(client *gophercloud.ServiceClient, username string, sh
 		"username": username,
 	}).Debug("LDAP groups")
 
+	cacheKey := client.Endpoint
 	// this seems to work even if lastRunTimestamp is empty
 	opts := servers.ListOpts{
-		ChangesSince: lastRunTimestamp,
+		ChangesSince: otcCache[cacheKey].LastRunTimestamp,
 	}
 
 	allPages, err := servers.List(client, opts).AllPages()
@@ -391,15 +311,17 @@ func getServersByUsername(client *gophercloud.ServiceClient, username string, sh
 		return nil, err
 	}
 
-	cachedServers = mergeServers(cachedServers, newServers)
-	lastRunTimestamp = time.Now().Format(time.RFC3339)
+	otcCache[cacheKey] = otcTenantCache{
+		LastRunTimestamp: time.Now().Format(time.RFC3339),
+		Servers:          mergeServers(otcCache[cacheKey].Servers, newServers),
+	}
 
 	if showall && isAdmin(groups) {
-		return cachedServers, nil
+		return otcCache[cacheKey].Servers, nil
 	}
 
 	var filteredServers []servers.Server
-	for _, server := range cachedServers {
+	for _, server := range otcCache[cacheKey].Servers {
 		if common.ContainsStringI(groups, server.Metadata["Group"]) {
 			filteredServers = append(filteredServers, server)
 		}
