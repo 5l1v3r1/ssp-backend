@@ -6,6 +6,7 @@ import (
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/config"
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/ldap"
 	"github.com/gin-gonic/gin"
+	"github.com/google/go-cmp/cmp"
 	"github.com/gophercloud/gophercloud"
 	"github.com/gophercloud/gophercloud/openstack/blockstorage/v1/volumetypes"
 	"github.com/gophercloud/gophercloud/openstack/blockstorage/v3/volumes"
@@ -142,6 +143,7 @@ func getTenantName(servername string) string {
 
 func stopECSHandler(c *gin.Context) {
 	log.Println("Stopping ECS @ OTC.")
+	username := common.GetUserName(c)
 
 	clients, err := getComputeClients()
 	if err != nil {
@@ -155,6 +157,11 @@ func stopECSHandler(c *gin.Context) {
 	if err != nil {
 		log.Println("Binding request to Go struct failed.", err.Error())
 		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: wrongAPIUsageError})
+		return
+	}
+	if err := validatePermissions(clients, data.Servers, username); err != nil {
+		log.Printf("Failed to validate permissions: %v", err.Error())
+		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericOTCAPIError})
 		return
 	}
 
@@ -175,6 +182,7 @@ func stopECSHandler(c *gin.Context) {
 
 func startECSHandler(c *gin.Context) {
 	log.Println("Starting ECS @ OTC.")
+	username := common.GetUserName(c)
 
 	clients, err := getComputeClients()
 	if err != nil {
@@ -190,7 +198,11 @@ func startECSHandler(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: wrongAPIUsageError})
 		return
 	}
-
+	if err := validatePermissions(clients, data.Servers, username); err != nil {
+		log.Printf("Failed to validate permissions: %v", err.Error())
+		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericOTCAPIError})
+		return
+	}
 	for _, server := range data.Servers {
 		tenant := getTenantName(server.Name)
 		stopResult := startstop.Start(clients[tenant], server.ID)
@@ -208,6 +220,7 @@ func startECSHandler(c *gin.Context) {
 
 func rebootECSHandler(c *gin.Context) {
 	log.Println("Rebooting ECS @ OTC.")
+	username := common.GetUserName(c)
 
 	clients, err := getComputeClients()
 	if err != nil {
@@ -229,6 +242,11 @@ func rebootECSHandler(c *gin.Context) {
 		Type: servers.SoftReboot,
 	}
 
+	if err := validatePermissions(clients, data.Servers, username); err != nil {
+		log.Printf("Failed to validate permissions: %v", err.Error())
+		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericOTCAPIError})
+		return
+	}
 	for _, server := range data.Servers {
 		tenant := getTenantName(server.Name)
 		rebootResult := servers.Reboot(clients[tenant], server.ID, &rebootOpts)
@@ -239,9 +257,47 @@ func rebootECSHandler(c *gin.Context) {
 			return
 		}
 	}
-
 	c.JSON(http.StatusOK, common.ApiResponse{Message: "Reboot initiated."})
 	return
+}
+
+func validatePermissions(clients map[string]*gophercloud.ServiceClient, untrustedServers []servers.Server, username string) error {
+	groups, err := getGroups(username)
+	if err != nil {
+		return err
+	}
+	var allServers []servers.Server
+	for _, client := range clients {
+		serversInTenant, err := getServersByUsername(client, username, false)
+		if err != nil {
+			return err
+		}
+		allServers = append(allServers, serversInTenant...)
+	}
+	for _, untrustedServer := range untrustedServers {
+		// do not trust user data, because the metadata could have been modified
+		var server *servers.Server
+		for _, s := range allServers {
+			if untrustedServer.ID == s.ID {
+				if !cmp.Equal(untrustedServer.Metadata, s.Metadata) {
+					return fmt.Errorf("The server metadata couldn't be validated. Please try again.")
+				}
+				server = &s
+				break
+			}
+		}
+		if server == nil {
+			return fmt.Errorf("Server not found. Please try again.")
+		}
+		group := server.Metadata["Group"]
+		if group == "" {
+			return fmt.Errorf("Server group not found in metadata")
+		}
+		if !common.ContainsStringI(groups, group) {
+			return fmt.Errorf("Wrong permissions")
+		}
+	}
+	return nil
 }
 
 func createKeyPair(client *gophercloud.ServiceClient, publicKeyName string, publicKey string) (*keypairs.KeyPair, error) {
@@ -278,13 +334,7 @@ func getServersByUsername(client *gophercloud.ServiceClient, username string, sh
 		"username": username,
 	}).Debug("Getting EC Servers.")
 
-	l, err := ldap.New()
-	if err != nil {
-		return nil, err
-	}
-	defer l.Close()
-
-	groups, err := l.GetGroupsOfUser(username)
+	groups, err := getGroups(username)
 	if err != nil {
 		return nil, err
 	}
@@ -316,7 +366,7 @@ func getServersByUsername(client *gophercloud.ServiceClient, username string, sh
 		Servers:          mergeServers(otcCache[cacheKey].Servers, newServers),
 	}
 
-	if showall && isAdmin(groups) {
+	if showall && common.ContainsStringI(groups, "DG_RBT_UOS_ADMINS") {
 		return otcCache[cacheKey].Servers, nil
 	}
 
@@ -327,6 +377,20 @@ func getServersByUsername(client *gophercloud.ServiceClient, username string, sh
 		}
 	}
 	return filteredServers, nil
+}
+
+func getGroups(username string) ([]string, error) {
+	l, err := ldap.New()
+	if err != nil {
+		return nil, err
+	}
+	defer l.Close()
+
+	groups, err := l.GetGroupsOfUser(username)
+	if err != nil {
+		return nil, err
+	}
+	return groups, nil
 }
 
 func mergeServers(cachedServers, newServers []servers.Server) []servers.Server {
@@ -343,15 +407,6 @@ func mergeServers(cachedServers, newServers []servers.Server) []servers.Server {
 		final = append(final, s)
 	}
 	return final
-}
-
-func isAdmin(groups []string) bool {
-	for _, g := range groups {
-		if g == "DG_RBT_UOS_ADMINS" {
-			return true
-		}
-	}
-	return false
 }
 
 func getVolumesByServerID(client *gophercloud.ServiceClient, serverId string) ([]volumes.Volume, error) {
