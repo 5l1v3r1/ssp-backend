@@ -9,7 +9,7 @@ import (
 
 	"fmt"
 
-	"github.com/Jeffail/gabs"
+	"github.com/Jeffail/gabs/v2"
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/common"
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/config"
 	"github.com/gin-gonic/gin"
@@ -19,6 +19,42 @@ const (
 	getQuotasApiError = "Error getting quotas from ose-api: %v"
 	jsonDecodingError = "Error decoding json from ose api: %v"
 )
+
+func getQuotasHandler(c *gin.Context) {
+	username := common.GetUserName(c)
+
+	params := c.Request.URL.Query()
+	clusterId := params.Get("clusterid")
+	project := params.Get("project")
+
+	if err := validateAdminAccess(clusterId, username, project); err != nil {
+		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: err.Error()})
+		return
+	}
+
+	quotas, err := getQuotas(clusterId, project)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: err.Error()})
+	}
+
+	c.JSON(http.StatusOK, quotas.String())
+}
+
+func getQuotas(clusterId, project string) (*gabs.Container, error) {
+	resp, err := getOseHTTPClient("GET", clusterId, "api/v1/namespaces/"+project+"/resourcequotas", nil)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	json, err := gabs.ParseJSONBuffer(resp.Body)
+	if err != nil {
+		log.Printf(jsonDecodingError, err)
+		return nil, errors.New(genericAPIError)
+	}
+
+	return json.S("items").Index(0), nil
+}
 
 func editQuotasHandler(c *gin.Context) {
 	username := common.GetUserName(c)
@@ -76,27 +112,17 @@ func validateEditQuotas(clusterId, username, project string, cpu int, memory int
 }
 
 func updateQuotas(clusterId, username, project string, cpu int, memory int) error {
-	resp, err := getOseHTTPClient("GET", clusterId, "api/v1/namespaces/"+project+"/resourcequotas", nil)
+	quotas, err := getQuotas(clusterId, project)
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	quotas.SetP(cpu, "spec.hard.cpu")
+	quotas.SetP(fmt.Sprintf("%vGi", memory), "spec.hard.memory")
 
-	json, err := gabs.ParseJSONBuffer(resp.Body)
-	if err != nil {
-		log.Printf(jsonDecodingError, err)
-		return errors.New(genericAPIError)
-	}
-
-	firstQuota := json.S("items").Index(0)
-
-	firstQuota.SetP(cpu, "spec.hard.cpu")
-	firstQuota.SetP(fmt.Sprintf("%vGi", memory), "spec.hard.memory")
-
-	resp, err = getOseHTTPClient("PUT",
+	resp, err := getOseHTTPClient("PUT",
 		clusterId,
-		"api/v1/namespaces/"+project+"/resourcequotas/"+firstQuota.Path("metadata.name").Data().(string),
-		bytes.NewReader(firstQuota.Bytes()))
+		"api/v1/namespaces/"+project+"/resourcequotas/"+quotas.Path("metadata.name").Data().(string),
+		bytes.NewReader(quotas.Bytes()))
 	if err != nil {
 		return err
 	}

@@ -34,6 +34,7 @@ func RegisterRoutes(r *gin.RouterGroup) {
 	r.POST("/ose/serviceaccount", newServiceAccountHandler)
 	r.GET("/ose/project/info", getProjectInformationHandler)
 	r.POST("/ose/project/info", updateProjectInformationHandler)
+	r.GET("/ose/quotas", getQuotasHandler)
 	r.POST("/ose/quotas", editQuotasHandler)
 	r.POST("/ose/secret/pull", newPullSecretHandler)
 
