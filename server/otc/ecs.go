@@ -160,8 +160,7 @@ func stopECSHandler(c *gin.Context) {
 		return
 	}
 	if err := validatePermissions(clients, data.Servers, username); err != nil {
-		log.Printf("Failed to validate permissions: %v", err.Error())
-		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericOTCAPIError})
+		c.JSON(http.StatusForbidden, common.ApiResponse{Message: err.Error()})
 		return
 	}
 
@@ -199,8 +198,7 @@ func startECSHandler(c *gin.Context) {
 		return
 	}
 	if err := validatePermissions(clients, data.Servers, username); err != nil {
-		log.Printf("Failed to validate permissions: %v", err.Error())
-		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericOTCAPIError})
+		c.JSON(http.StatusForbidden, common.ApiResponse{Message: err.Error()})
 		return
 	}
 	for _, server := range data.Servers {
@@ -243,8 +241,7 @@ func rebootECSHandler(c *gin.Context) {
 	}
 
 	if err := validatePermissions(clients, data.Servers, username); err != nil {
-		log.Printf("Failed to validate permissions: %v", err.Error())
-		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericOTCAPIError})
+		c.JSON(http.StatusForbidden, common.ApiResponse{Message: err.Error()})
 		return
 	}
 	for _, server := range data.Servers {
@@ -266,6 +263,10 @@ func validatePermissions(clients map[string]*gophercloud.ServiceClient, untruste
 	if err != nil {
 		return err
 	}
+	if common.ContainsStringI(groups, "DG_RBT_UOS_ADMINS") {
+		// skip checks
+		return nil
+	}
 	var allServers []servers.Server
 	for _, client := range clients {
 		serversInTenant, err := getServersByUsername(client, username, false)
@@ -280,21 +281,42 @@ func validatePermissions(clients map[string]*gophercloud.ServiceClient, untruste
 		for _, s := range allServers {
 			if untrustedServer.ID == s.ID {
 				if !cmp.Equal(untrustedServer.Metadata, s.Metadata) {
-					return fmt.Errorf("The server metadata couldn't be validated. Please try again.")
+					log.WithFields(log.Fields{
+						"username": username,
+						"server":   s.ID,
+						"received": untrustedServer.Metadata,
+						"metadata": s.Metadata,
+					}).Error("Server metadata doesn't match received metadata")
+					return fmt.Errorf(genericOTCAPIError)
 				}
 				server = &s
 				break
 			}
 		}
 		if server == nil {
-			return fmt.Errorf("Server not found. Please try again.")
+			log.WithFields(log.Fields{
+				"username": username,
+				"server":   untrustedServer.ID,
+			}).Error("Server not found")
+			return fmt.Errorf(genericOTCAPIError)
 		}
-		group := server.Metadata["Group"]
+		group := server.Metadata["uos_group"]
 		if group == "" {
-			return fmt.Errorf("Server group not found in metadata")
+			log.WithFields(log.Fields{
+				"username": username,
+				"server":   server.ID,
+				"metadata": server.Metadata,
+			}).Error("uos_group not found in metadata")
+			return fmt.Errorf(genericOTCAPIError)
 		}
 		if !common.ContainsStringI(groups, group) {
-			return fmt.Errorf("Wrong permissions")
+			log.WithFields(log.Fields{
+				"username": username,
+				"groups":   groups,
+				"server":   server.ID,
+				"metadata": server.Metadata,
+			}).Error("uos_group not found in user groups")
+			return fmt.Errorf(genericOTCAPIError)
 		}
 	}
 	return nil
