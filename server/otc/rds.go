@@ -220,7 +220,7 @@ func getRDSInstances(client *gophercloud.ServiceClient) ([]instances.RdsInstance
 
 func getRDSTags(client *gophercloud.ServiceClient, id string) (map[string]string, error) {
 	var t map[string]string
-	err := retry(3, 5*time.Second, func() error {
+	err := retry(5, 5*time.Second, func() error {
 		var err error
 		t, err = tags.GetTags(client, id).Extract()
 		if err != nil {
