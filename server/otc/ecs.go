@@ -6,7 +6,6 @@ import (
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/config"
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/ldap"
 	"github.com/gin-gonic/gin"
-	"github.com/google/go-cmp/cmp"
 	"github.com/gophercloud/gophercloud"
 	"github.com/gophercloud/gophercloud/openstack/blockstorage/v1/volumetypes"
 	"github.com/gophercloud/gophercloud/openstack/blockstorage/v3/volumes"
@@ -275,32 +274,15 @@ func validatePermissions(clients map[string]*gophercloud.ServiceClient, untruste
 		}
 		allServers = append(allServers, serversInTenant...)
 	}
-	for _, untrustedServer := range untrustedServers {
+	for _, server := range untrustedServers {
 		// do not trust user data, because the metadata could have been modified
-		var server *servers.Server
+		group := ""
 		for _, s := range allServers {
-			if untrustedServer.ID == s.ID {
-				if !cmp.Equal(untrustedServer.Metadata, s.Metadata) {
-					log.WithFields(log.Fields{
-						"username": username,
-						"server":   s.ID,
-						"received": untrustedServer.Metadata,
-						"metadata": s.Metadata,
-					}).Error("Server metadata doesn't match received metadata")
-					return fmt.Errorf(genericOTCAPIError)
-				}
-				server = &s
+			if server.ID == s.ID {
+				group = s.Metadata["uos_group"]
 				break
 			}
 		}
-		if server == nil {
-			log.WithFields(log.Fields{
-				"username": username,
-				"server":   untrustedServer.ID,
-			}).Error("Server not found")
-			return fmt.Errorf(genericOTCAPIError)
-		}
-		group := server.Metadata["uos_group"]
 		if group == "" {
 			log.WithFields(log.Fields{
 				"username": username,
@@ -373,14 +355,20 @@ func getServersByUsername(client *gophercloud.ServiceClient, username string, sh
 
 	allPages, err := servers.List(client, opts).AllPages()
 	if err != nil {
-		log.Println("Error while listing servers.", err.Error())
-		return nil, err
+		log.WithFields(log.Fields{
+			"username": username,
+			"err":      err.Error(),
+		}).Error("Error while listing servers")
+		return nil, fmt.Errorf(genericOTCAPIError)
 	}
 
 	newServers, err := servers.ExtractServers(allPages)
 	if err != nil {
-		log.Println("Error while extracting servers.", err.Error())
-		return nil, err
+		log.WithFields(log.Fields{
+			"username": username,
+			"err":      err.Error(),
+		}).Error("Error while extracting servers")
+		return nil, fmt.Errorf(genericOTCAPIError)
 	}
 
 	otcCache[cacheKey] = otcTenantCache{
@@ -404,13 +392,21 @@ func getServersByUsername(client *gophercloud.ServiceClient, username string, sh
 func getGroups(username string) ([]string, error) {
 	l, err := ldap.New()
 	if err != nil {
-		return nil, err
+		log.WithFields(log.Fields{
+			"username": username,
+			"err":      err.Error(),
+		}).Error("Error creating ldap object")
+		return nil, fmt.Errorf(genericOTCAPIError)
 	}
 	defer l.Close()
 
 	groups, err := l.GetGroupsOfUser(username)
 	if err != nil {
-		return nil, err
+		log.WithFields(log.Fields{
+			"username": username,
+			"err":      err.Error(),
+		}).Error("Error getting ldap groups")
+		return nil, fmt.Errorf(genericOTCAPIError)
 	}
 	return groups, nil
 }
