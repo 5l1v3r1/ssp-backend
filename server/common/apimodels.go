@@ -54,6 +54,11 @@ type UpdateProjectInformationCommand struct {
 	MegaID  string `json:"megaid"`
 }
 
+type AddProjectAdminCommand struct {
+	OpenshiftBase
+	Username string `json:"username"`
+}
+
 type CreateLogseneAppCommand struct {
 	AppName      string `json:"appName"`
 	DiscountCode string `json:"discountCode"`

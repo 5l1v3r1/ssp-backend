@@ -179,6 +179,45 @@ func updateProjectInformationHandler(c *gin.Context) {
 	}
 }
 
+// Used by ESTA frontend
+func addProjectAdminHandler(c *gin.Context) {
+	username := common.GetUserName(c)
+
+	var data common.AddProjectAdminCommand
+	if c.BindJSON(&data) != nil {
+		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: wrongAPIUsageError})
+	}
+
+	if data.ClusterId == "" {
+		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: "ClusterId must be provided"})
+		return
+	}
+
+	if data.Project == "" {
+		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: "Project must be provided"})
+		return
+	}
+
+	if data.Username == "" {
+		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: "Username must be provided"})
+		return
+	}
+
+	// Validate permissions
+	if err := checkAdminPermissions(data.ClusterId, username, data.Project); err != nil {
+		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: err.Error()})
+		return
+	}
+
+	if err := changeProjectPermission(data.ClusterId, data.Project, data.Username); err != nil {
+		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, common.ApiResponse{
+		Message: fmt.Sprintf("The user %v has been sucessfully added to the %v project", data.Username, data.Project),
+	})
+}
+
 func validateNewProject(project string, billing string, testProject bool) error {
 	if len(project) == 0 {
 		return errors.New("Project name has to be provided")
