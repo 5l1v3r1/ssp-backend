@@ -14,6 +14,7 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"time"
 )
 
 func listRDSFlavorsHandler(c *gin.Context) {
@@ -218,9 +219,17 @@ func getRDSInstances(client *gophercloud.ServiceClient) ([]instances.RdsInstance
 }
 
 func getRDSTags(client *gophercloud.ServiceClient, id string) (map[string]string, error) {
-	t, err := tags.GetTags(client, id).Extract()
+	var t map[string]string
+	err := retry(5, 5*time.Second, func() error {
+		var err error
+		t, err = tags.GetTags(client, id).Extract()
+		if err != nil {
+			log.Println("Retrying...")
+		}
+		return err
+	})
 	if err != nil {
-		log.Printf("Error while listing tags for instance: %v. %v", id, err.Error())
+		log.Printf("Error while listing tags for instance: %v. %v", id, err)
 		return nil, err
 	}
 	return t, nil

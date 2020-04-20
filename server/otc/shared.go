@@ -7,6 +7,7 @@ import (
 	"github.com/gophercloud/gophercloud"
 	"github.com/gophercloud/gophercloud/auth/token"
 	"github.com/gophercloud/gophercloud/openstack"
+	"time"
 )
 
 const (
@@ -128,4 +129,25 @@ func getBlockStorageClient() (*gophercloud.ServiceClient, error) {
 	}
 
 	return client, nil
+}
+
+// https://upgear.io/blog/simple-golang-retry-function/
+func retry(attempts int, sleep time.Duration, fn func() error) error {
+	if err := fn(); err != nil {
+		if s, ok := err.(Stop); ok {
+			// Return the original error for later checking
+			return s.error
+		}
+
+		if attempts--; attempts > 0 {
+			time.Sleep(sleep)
+			return retry(attempts, 2*sleep, fn)
+		}
+		return err
+	}
+	return nil
+}
+
+type Stop struct {
+	error
 }
