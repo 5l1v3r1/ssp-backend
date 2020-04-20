@@ -14,6 +14,7 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"time"
 )
 
 func listRDSFlavorsHandler(c *gin.Context) {
@@ -117,6 +118,7 @@ func listRDSInstancesHandler(c *gin.Context) {
 		"SBB_RZ_P_001",
 	}
 	for _, tenant := range tenants {
+		log.Printf("Tenant: %v", tenant)
 		client, err := getRDSClient(tenant)
 		if err != nil {
 			log.Println("Error getting rds client.", err.Error())
@@ -217,11 +219,36 @@ func getRDSInstances(client *gophercloud.ServiceClient) ([]instances.RdsInstance
 	return instances.Instances, nil
 }
 
+type rdsTagCacheItem struct {
+	LastUpdate time.Time
+	Tags       map[string]string
+}
+
+var rdsTagCache map[string]rdsTagCacheItem
+
 func getRDSTags(client *gophercloud.ServiceClient, id string) (map[string]string, error) {
-	t, err := tags.GetTags(client, id).Extract()
+	if rdsTagCache == nil {
+		rdsTagCache = make(map[string]rdsTagCacheItem)
+	}
+	log.Printf("%v", rdsTagCache[id])
+	log.Printf("%v", time.Since(rdsTagCache[id].LastUpdate).Minutes())
+	var t map[string]string
+	err := retry(5, 5*time.Second, func() error {
+		var err error
+		t, err = tags.GetTags(client, id).Extract()
+		if err != nil {
+			log.Printf("%v", err)
+			log.Println("Retrying...")
+		}
+		return err
+	})
 	if err != nil {
-		log.Printf("Error while listing tags for instance: %v. %v", id, err.Error())
+		log.Printf("Error while listing tags for instance: %v. %v", id, err)
 		return nil, err
+	}
+	rdsTagCache[id] = rdsTagCacheItem{
+		Tags:       t,
+		LastUpdate: time.Now(),
 	}
 	return t, nil
 }
