@@ -14,6 +14,7 @@ require (
 	github.com/gin-gonic/gin v1.3.0
 	github.com/gofrs/uuid v3.2.0+incompatible
 	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b
+	github.com/google/go-cmp v0.4.0
 	github.com/google/go-querystring v1.0.0 // indirect
 	github.com/gophercloud/gophercloud v0.0.0-20190328013130-c923f33b1166
 	github.com/hashicorp/go-multierror v1.0.0 // indirect
