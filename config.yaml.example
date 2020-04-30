@@ -36,6 +36,9 @@ https_proxy:
 sso_realm:
 sso_url:
 
+uos_enabled: true
+rds_enabled: true
+
 tower:
   base_url: https://deploy.domain.ch/api/v2/
   username: user
@@ -54,6 +57,15 @@ rds:
   version_whitelist:
     - 10
     - 11
+
+uos:
+  images:
+  - label: 'RHEL 7'
+    value: 'Rhel-7-image_2020-04-21'
+  - label: 'Windows 2016'
+    value: 'Windows-2016_2020-04-21'
+  - label: 'Windows 2019'
+    value: 'Windows-2019_2020-04-21'
 
 ldap:
   host: ldap.domain.ch
