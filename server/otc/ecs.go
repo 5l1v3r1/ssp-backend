@@ -9,12 +9,10 @@ import (
 	"github.com/gophercloud/gophercloud"
 	"github.com/gophercloud/gophercloud/openstack/blockstorage/v1/volumetypes"
 	"github.com/gophercloud/gophercloud/openstack/blockstorage/v3/volumes"
-	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/availabilityzones"
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/keypairs"
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/startstop"
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/flavors"
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/servers"
-	"github.com/gophercloud/gophercloud/openstack/imageservice/v2/images"
 	log "github.com/sirupsen/logrus"
 	"net/http"
 	"regexp"
@@ -517,76 +515,6 @@ func getFlavors(client *gophercloud.ServiceClient) (*FlavorListResponse, error) 
 
 	for _, flavor := range allFlavors {
 		result.Flavors = append(result.Flavors, Flavor{Name: flavor.Name, VCPUs: flavor.VCPUs, RAM: flavor.RAM})
-	}
-
-	return &result, nil
-}
-
-func getAvailabilityZones(client *gophercloud.ServiceClient) (*AvailabilityZoneListResponse, error) {
-	log.Println("Getting availability zones @ OTC.")
-
-	result := AvailabilityZoneListResponse{}
-
-	allPages, err := availabilityzones.List(client).AllPages()
-
-	if err != nil {
-		log.Println("Error while listing availability zones.", err.Error())
-		return nil, err
-	}
-
-	allAvailabilityZones, err := availabilityzones.ExtractAvailabilityZones(allPages)
-
-	if err != nil {
-		log.Println("Error while extracting availability zones.", err.Error())
-		return nil, err
-	}
-
-	for _, az := range allAvailabilityZones {
-		result.AvailabilityZones = append(result.AvailabilityZones, az.ZoneName)
-	}
-
-	return &result, nil
-}
-
-func getImages(client *gophercloud.ServiceClient) (*ImageListResponse, error) {
-	log.Println("Getting images @ OTC.")
-
-	result := ImageListResponse{
-		Images: []Image{},
-	}
-
-	opts := images.ListOpts{}
-
-	allPages, err := images.List(client, opts).AllPages()
-
-	if err != nil {
-		log.Println("Error while listing images.", err.Error())
-		return nil, err
-	}
-
-	allImages, err := images.ExtractImages(allPages)
-
-	if err != nil {
-		log.Println("Error while extracting images.", err.Error())
-		return nil, err
-	}
-
-	imagePrefix := config.Config().GetString("otc_image_prefix")
-	if imagePrefix == "" {
-		imagePrefix = "SBB-UnifiedOS_"
-	}
-
-	for _, image := range allImages {
-		if !strings.HasPrefix(image.Name, imagePrefix) {
-			continue
-		}
-		result.Images = append(result.Images, Image{
-			TrimmedName:      strings.TrimPrefix(image.Name, imagePrefix),
-			Name:             image.Name,
-			Id:               image.ID,
-			MinDiskGigabytes: image.MinDiskGigabytes,
-			MinRAMMegabytes:  image.MinRAMMegabytes,
-		})
 	}
 
 	return &result, nil
