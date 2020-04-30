@@ -93,24 +93,31 @@ func listFlavorsHandler(c *gin.Context) {
 }
 
 func listImagesHandler(c *gin.Context) {
-	log.Println("Querying images @ OTC.")
-
-	client, err := getImageClient()
+	type labelValue struct {
+		Label string `json:"label"`
+		Value string `json:"value"`
+	}
+	images := []labelValue{}
+	err := config.Config().UnmarshalKey("uos.images", &images)
 	if err != nil {
-		log.Println("Error getting compute client.", err.Error())
-		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericOTCAPIError})
+		log.Printf("Error getting images: %v", err)
+		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: common.ConfigNotSetError})
 		return
 	}
-
-	allImages, err := getImages(client)
-
-	if err != nil {
-		log.Println("Error getting images.", err.Error())
-		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericOTCAPIError})
+	if len(images) == 0 {
+		log.Printf("Error: no images found in config (uos.images)")
+		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: common.ConfigNotSetError})
 		return
 	}
+	for _, i := range images {
+		if i.Label == "" || i.Value == "" {
+			log.Printf("Error: missing label or value in image: %+v", i)
+			c.JSON(http.StatusBadRequest, common.ApiResponse{Message: common.ConfigNotSetError})
+			return
+		}
+	}
 
-	c.JSON(http.StatusOK, allImages)
+	c.JSON(http.StatusOK, images)
 	return
 }
 
