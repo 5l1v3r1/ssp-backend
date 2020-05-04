@@ -49,10 +49,12 @@ oc adm policy add-cluster-role-to-user admin system:serviceaccount:ose-selfservi
 
 Just create a 'oc new-app' from the dockerfile.
 
-### Parameters
-[openshift/ssp-backend-template.json#L254](https://github.com/SchweizerischeBundesbahnen/ssp-backend/blob/master/openshift/ssp-backend-template.json#L254)
+### Config
+[openshift/ssp-backend-template.json#L303](https://github.com/SchweizerischeBundesbahnen/ssp-backend/blob/master/openshift/ssp-backend-template.json#L303)
 
-Openshift config must be in a configmap named `config.yaml`:
+We are currently migrating from environment variables (with OpenShift template parameters) to a yaml config file. Most of the config options are compatible with bot formats (and can be set as environment variables or in the `config.yaml` file). The yaml config was introduced, because we needed more complex data structures.
+
+e.g. The Openshift config must be set in `config.yaml` (see `config.yaml.example`):
 
 ```
 openshift:
@@ -128,7 +130,14 @@ Content-Length: 70
 For the other (internal) endpoints take a look at the code (glusterapi/main.go)
 
 # Contributing
-The backend can be started with Docker. All required environment variables must be set in the `env_vars` file.
+All required configuration must be set in `config.yaml`. See the `config.yaml.example` file for a sample config.
+## Go
+```
+go run server/main.go
+```
+
+## Docker
+The backend can be started with Docker.
 ```
 # without proxy:
 docker build -p 8000:8000 -t ssp-backend .
@@ -136,10 +145,5 @@ docker build -p 8000:8000 -t ssp-backend .
 docker build -p 8000:8000 --build-arg https_proxy=http://proxy.ch:9000 -t ssp-backend .
 
 # env_vars must not contain export and quotes
-docker run -it --rm --env-file <(sed "s/export\s//" env_vars | tr -d "'") ssp-backend
-```
-
-There is a small script for local API testing. It handles authorization (login, token etc).
-```
-go run curl.go [-X GET/POST] http://localhost:8000/api/...
+docker run -it --rm ssp-backend
 ```
