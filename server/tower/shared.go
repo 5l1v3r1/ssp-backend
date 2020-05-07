@@ -7,6 +7,7 @@ import (
 	"github.com/Jeffail/gabs/v2"
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/common"
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/config"
+	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/otc"
 	"github.com/gin-gonic/gin"
 	log "github.com/sirupsen/logrus"
 	"io"
@@ -53,7 +54,7 @@ func postJobTemplateLaunchHandler(c *gin.Context) {
 }
 
 func launchJobTemplate(job_template string, json *gabs.Container, username string) (string, error) {
-	if err := checkPermissions(job_template, username); err != nil {
+	if err := checkPermissions(job_template, json, username); err != nil {
 		return "", err
 	}
 
@@ -107,8 +108,13 @@ func removeBlacklistedParameters(json *gabs.Container) *gabs.Container {
 	return json
 }
 
-func checkPermissions(job_template, username string) error {
+func checkPermissions(job_template string, json *gabs.Container, username string) error {
 	cfg := config.Config()
+	if job_template == "19299" || job_template == "19298" {
+		if err := checkDeletePermissions(json, username); err != nil {
+			return err
+		}
+	}
 
 	job_templates := []jobTemplatePermission{}
 	if err := cfg.UnmarshalKey("tower.job_templates", &job_templates); err != nil {
@@ -119,9 +125,17 @@ func checkPermissions(job_template, username string) error {
 			log.Printf("Job template %v allowed", job_template)
 			return nil
 		}
-
 	}
 	return fmt.Errorf("Username %v tried to launch job template %v. Not in allowed job_templates", username, job_template)
+}
+
+func checkDeletePermissions(json *gabs.Container, username string) error {
+	servername := json.Path("extra_vars.unifiedos_hostname").Data().(string)
+
+	if err := otc.ValidatePermissionsByHostname(servername, username); err != nil {
+		return err
+	}
+	return fmt.Errorf("Deleting not implemented yet")
 }
 
 func getJobOutputHandler(c *gin.Context) {
