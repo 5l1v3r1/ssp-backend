@@ -110,7 +110,7 @@ func removeBlacklistedParameters(json *gabs.Container) *gabs.Container {
 
 func checkPermissions(job_template string, json *gabs.Container, username string) error {
 	cfg := config.Config()
-	if job_template == "19299" || job_template == "19298" {
+	if job_template == "21911" || job_template == "21910" {
 		if err := checkDeletePermissions(json, username); err != nil {
 			return err
 		}
