@@ -135,7 +135,7 @@ func checkDeletePermissions(json *gabs.Container, username string) error {
 	if err := otc.ValidatePermissionsByHostname(servername, username); err != nil {
 		return err
 	}
-	return fmt.Errorf("Deleting not implemented yet")
+	return nil
 }
 
 func getJobOutputHandler(c *gin.Context) {
