@@ -88,7 +88,8 @@ func launchJobTemplate(job_template string, json *gabs.Container, username strin
 }
 
 type jobTemplatePermission struct {
-	ID string
+	ID       string
+	Validate string
 }
 
 func removeBlacklistedParameters(json *gabs.Container) *gabs.Container {
@@ -110,32 +111,35 @@ func removeBlacklistedParameters(json *gabs.Container) *gabs.Container {
 
 func checkPermissions(job_template string, json *gabs.Container, username string) error {
 	cfg := config.Config()
-	if job_template == "21911" || job_template == "21910" {
-		if err := checkDeletePermissions(json, username); err != nil {
-			return err
-		}
-	}
 
 	job_templates := []jobTemplatePermission{}
 	if err := cfg.UnmarshalKey("tower.job_templates", &job_templates); err != nil {
 		return err
 	}
 	for _, template := range job_templates {
-		if template.ID == job_template {
-			log.Printf("Job template %v allowed", job_template)
-			return nil
+		if template.ID != job_template {
+			continue
 		}
+		if template.Validate != "" {
+			if err := checkServicePermissions(template, json, username); err != nil {
+				return err
+			}
+		}
+		log.Printf("Job template %v allowed for %v", job_template, username)
+		return nil
 	}
 	return fmt.Errorf("Username %v tried to launch job template %v. Not in allowed job_templates", username, job_template)
 }
 
-func checkDeletePermissions(json *gabs.Container, username string) error {
-	servername := json.Path("extra_vars.unifiedos_hostname").Data().(string)
-
-	if err := otc.ValidatePermissionsByHostname(servername, username); err != nil {
-		return err
+func checkServicePermissions(template jobTemplatePermission, json *gabs.Container, username string) error {
+	if template.Validate == "extra_vars.unifiedos_hostname" {
+		servername := json.Path(template.Validate).Data().(string)
+		if err := otc.ValidatePermissionsByHostname(servername, username); err != nil {
+			return err
+		}
+		return nil
 	}
-	return nil
+	return fmt.Errorf("No existing validation matches: %v Check the configuration", template.Validate)
 }
 
 func getJobOutputHandler(c *gin.Context) {

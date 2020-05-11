@@ -259,6 +259,13 @@ func rebootECSHandler(c *gin.Context) {
 }
 
 func ValidatePermissionsByHostname(servername string, username string) error {
+	if servername == "" || username == "" {
+		log.WithFields(log.Fields{
+			"username":   username,
+			"servername": servername,
+		}).Error("Empty servername or username")
+		return fmt.Errorf(genericOTCAPIError)
+	}
 	groups, err := getGroups(username)
 	if err != nil {
 		return err
