@@ -132,8 +132,8 @@ func checkPermissions(job_template string, json *gabs.Container, username string
 }
 
 func checkServicePermissions(template jobTemplatePermission, json *gabs.Container, username string) error {
-	if template.Validate == "extra_vars.unifiedos_hostname" {
-		servername := json.Path(template.Validate).Data().(string)
+	if template.Validate == "metadata.uos_group" {
+		servername := json.Path("extra_vars.unifiedos_hostname").Data().(string)
 		if err := otc.ValidatePermissionsByHostname(servername, username); err != nil {
 			return err
 		}
