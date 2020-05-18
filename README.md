@@ -52,7 +52,7 @@ Just create a 'oc new-app' from the dockerfile.
 ### Config
 [openshift/ssp-backend-template.json#L303](https://github.com/SchweizerischeBundesbahnen/ssp-backend/blob/master/openshift/ssp-backend-template.json#L303)
 
-We are currently migrating from environment variables (with OpenShift template parameters) to a yaml config file. Most of the config options are compatible with bot formats (and can be set as environment variables or in the `config.yaml` file). The yaml config was introduced, because we needed more complex data structures.
+We are currently migrating from environment variables (with OpenShift template parameters) to a yaml config file. Most of the config options are compatible with both formats (can be set as environment variable or in the `config.yaml` file). The yaml config was introduced, because we needed more complex data structures.
 
 e.g. The Openshift config must be set in `config.yaml` (see `config.yaml.example`):
 
