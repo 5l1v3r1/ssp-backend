@@ -47,6 +47,8 @@ tower:
     - unifiedos_creator
   job_templates:
     - id: 11111
+    - id: 12345
+      validate: metadata.uos_group
 
 kafka:
   backend_url:

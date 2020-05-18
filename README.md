@@ -73,6 +73,30 @@ openshift:
       secret: s3Cr3T
       proxy: http://nfsproxy.com:8000
 ```
+To enable support for Ansible Tower jobs, add the following:
+```
+tower:
+  base_url: https://deploy.domain.ch/api/v2/
+  username: user
+  password: pass
+  parameter_blacklist:
+    - unifiedos_creator
+  job_templates:
+    - id: 11111
+    - id: 12345
+      validate: metadata.uos_group
+```
+All variables set in `parameter_blacklist` will be removed from the `extra_vars`.
+The list of `job_templates` is a whitelist and only templates included here may be started.
+If `validate` is not set, then no further validation will be executed.
+
+**Validations**
+
+Currently only `metadata.uos_group` is supported as a validation.
+The validation checks if the users AD groups contains the group defined in `metadata.uos_group`.
+The parameter `unifiedos_hostname` must be included in the `extra_vars`.
+
+To add more validations: edit `server/tower/shared.go`
 
 ### Route timeout
 The `api/aws/ec2` endpoints wait until VMs have the desired state.
