@@ -62,6 +62,11 @@ func launchJobTemplate(job_template string, json *gabs.Container, username strin
 	json.SetP(username, "extra_vars.custom_tower_user_name")
 	log.Printf("%+v", json)
 
+	// Add an Ansible skip tag for filtering in the SSP.
+	// The skip tag normally skips any Ansible code with this tag,
+	// but since there is none, it is ignored.
+	// We need this because filtering on extra_vars is not possible
+	// and artifacts only appear when the job is done.
 	json.SetP("ssp_filter_"+username, "skip_tags")
 
 	resp, err := getTowerHTTPClient("POST", "job_templates/"+job_template+"/launch/", bytes.NewReader(json.Bytes()))
@@ -183,6 +188,7 @@ func getJobsHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, finishedJobs.S("results").String())
 }
 
+// TODO: wait a few weeks, switch to skip tag filtering and remove this code
 func getFinishedJobs(username string) (*gabs.Container, error) {
 	resp, err := getTowerHTTPClient("GET", "jobs/?order_by=-created&artifacts__contains="+username, nil)
 	if err != nil {
@@ -196,6 +202,7 @@ func getFinishedJobs(username string) (*gabs.Container, error) {
 	return gabs.ParseJSON(body)
 }
 
+// TODO: wait a few weeks, switch to skip tag filtering and remove this code
 func getFailedOrRunningJobs(username string) (*gabs.Container, error) {
 	resp, err := getTowerHTTPClient("GET", "jobs/?order_by=-created&or__status=failed&or__finished__isnull=true", nil)
 	if err != nil {
