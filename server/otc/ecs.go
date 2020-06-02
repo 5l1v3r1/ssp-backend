@@ -270,11 +270,10 @@ func ValidatePermissionsByHostname(servername string, username string) error {
 	if err != nil {
 		return err
 	}
-	//if common.ContainsStringI(groups, "DG_RBT_UOS_ADMINS") {
-	//	// skip checks
-	//	return nil
-	//}
-	//tenant := getTenantName(servername)
+	if common.ContainsStringI(groups, "DG_RBT_UOS_ADMINS") {
+		// skip checks
+		return nil
+	}
 	allServers, err := getAllServers(username)
 	if err != nil {
 		return err

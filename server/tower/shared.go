@@ -25,12 +25,12 @@ func RegisterRoutes(r *gin.RouterGroup) {
 	r.GET("/tower/jobs/:job/stdout", getJobOutputHandler)
 	r.GET("/tower/jobs/:job", getJobHandler)
 	r.GET("/tower/jobs", getJobsHandler)
-	r.POST("/tower/job_templates/:job_template/launch", postJobTemplateLaunchHandler)
+	r.POST("/tower/job_templates/:jobTemplate/launch", postJobTemplateLaunchHandler)
 }
 
 func postJobTemplateLaunchHandler(c *gin.Context) {
 	username := common.GetUserName(c)
-	job_template := c.Param("job_template")
+	jobTemplate := c.Param("jobTemplate")
 
 	request, err := ioutil.ReadAll(c.Request.Body)
 	if err != nil {
@@ -44,7 +44,7 @@ func postJobTemplateLaunchHandler(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericAPIError})
 		return
 	}
-	job, err := launchJobTemplate(job_template, json, username)
+	job, err := launchJobTemplate(jobTemplate, json, username)
 	if err != nil {
 		log.Errorf("%v", err)
 		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericAPIError})
@@ -53,10 +53,10 @@ func postJobTemplateLaunchHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, job)
 }
 
-func launchJobTemplate(job_template string, json *gabs.Container, username string) (string, error) {
-	// Check if the user is allowed to execute this job_template.
-	// This also checks if the job_template is whitelisted (see sample config)
-	if err := checkPermissions(job_template, json, username); err != nil {
+func launchJobTemplate(jobTemplate string, json *gabs.Container, username string) (string, error) {
+	// Check if the user is allowed to execute this jobTemplate.
+	// This also checks if the jobTemplate is whitelisted (see sample config)
+	if err := checkPermissions(jobTemplate, json, username); err != nil {
 		return "", err
 	}
 
@@ -68,7 +68,7 @@ func launchJobTemplate(job_template string, json *gabs.Container, username strin
 	json.SetP(username, "extra_vars.custom_tower_user_name")
 	log.Printf("%+v", json)
 
-	resp, err := getTowerHTTPClient("POST", "job_templates/"+job_template+"/launch/", bytes.NewReader(json.Bytes()))
+	resp, err := getTowerHTTPClient("POST", "job_templates/"+jobTemplate+"/launch/", bytes.NewReader(json.Bytes()))
 	if err != nil {
 		return "", err
 	}
@@ -92,7 +92,7 @@ func launchJobTemplate(job_template string, json *gabs.Container, username strin
 	return string(body), nil
 }
 
-type jobTemplatePermission struct {
+type jobTemplateConfig struct {
 	ID       string
 	Validate string
 }
@@ -114,36 +114,36 @@ func removeBlacklistedParameters(json *gabs.Container) *gabs.Container {
 	return json
 }
 
-func checkPermissions(job_template string, json *gabs.Container, username string) error {
+func checkPermissions(jobTemplate string, json *gabs.Container, username string) error {
 	cfg := config.Config()
 
-	job_templates := []jobTemplatePermission{}
-	if err := cfg.UnmarshalKey("tower.job_templates", &job_templates); err != nil {
+	jobTemplateConfigs := []jobTemplateConfig{}
+	if err := cfg.UnmarshalKey("tower.job_templates", &jobTemplateConfigs); err != nil {
 		return err
 	}
 	// Check if the template id is whitelisted in the config file (see sample config)
-	for _, template := range job_templates {
-		if template.ID != job_template {
+	for _, t := range jobTemplateConfigs {
+		if t.ID != jobTemplate {
 			continue
 		}
 		// This is an optional setting in the configfile (see sample config)
 		// It means that additional checks are needed. This is mostly done
 		// by calling an external service/package.
-		if template.Validate != "" {
-			if err := checkServicePermissions(template, json, username); err != nil {
+		if t.Validate != "" {
+			if err := checkServicePermissions(t, json, username); err != nil {
 				return err
 			}
 		}
-		log.Printf("Job template %v allowed for %v", job_template, username)
+		log.Printf("Job template %v allowed for %v", jobTemplate, username)
 		return nil
 	}
-	return fmt.Errorf("Username %v tried to launch job template %v. Not in allowed job_templates", username, job_template)
+	return fmt.Errorf("Username %v tried to launch job template %v. Not in allowed job_templates", username, jobTemplate)
 }
 
 // This function is only executed if "validate" is specified in the configfile
 // There can be multiple validations (see below), if the specified validation
 // doesn't exist in the below code, then the check will fail.
-func checkServicePermissions(template jobTemplatePermission, json *gabs.Container, username string) error {
+func checkServicePermissions(template jobTemplateConfig, json *gabs.Container, username string) error {
 	// Validate the uos_group metadata on the server, that is being modified/deleted.
 	// Permission only has to be checked if the server already exists.
 	if template.Validate == "metadata.uos_group" {
@@ -156,7 +156,7 @@ func checkServicePermissions(template jobTemplatePermission, json *gabs.Containe
 		// When there are more tenants/projects it might be necessary to somehow evaluate
 		// which tenant/project the server hostname belongs to. This could be achieved by parsing the
 		// job templates name (from Tower), if these are consistent. Another possibility would be to
-		// add tenant and project fields to every job_template in the config file (see jobTemplatePermission struct).
+		// add tenant and project fields to every job_template in the config file (see jobTemplateConfig struct).
 		servername := json.Path("extra_vars.unifiedos_hostname").Data().(string)
 		// this function gets the server data and validates the groups of username against the metadata
 		if err := otc.ValidatePermissionsByHostname(servername, username); err != nil {
