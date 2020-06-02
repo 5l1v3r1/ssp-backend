@@ -455,7 +455,7 @@ func filterServersByUsername(username string, s []servers.Server, showall bool) 
 
 	var filteredServers []servers.Server
 	for _, server := range s {
-		if common.ContainsStringI(groups, server.Metadata["Group"]) {
+		if common.ContainsStringI(groups, server.Metadata["uos_group"]) {
 			filteredServers = append(filteredServers, server)
 		}
 	}
