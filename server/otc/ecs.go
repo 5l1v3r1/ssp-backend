@@ -33,29 +33,25 @@ func listECSHandler(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericOTCAPIError})
 		return
 	}
-	var allServers []servers.Server
-	clients, err := getComputeClients()
+	allServers, err := getAllServers(username)
 	if err != nil {
-		log.Printf("Error getting compute clients: %v", err)
+		log.Printf("Error getting the servers: %v", err)
 		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericOTCAPIError})
 		return
 	}
-	for _, client := range clients {
-		serversInTenant, err := getServersByUsername(client, common.GetUserName(c), showall)
-		if err != nil {
-			log.Println("Error getting ECS servers.", err.Error())
-			c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericOTCAPIError})
-			return
-		}
-		allServers = append(allServers, serversInTenant...)
+
+	filteredServers, err := filterServersByUsername(username, allServers, showall)
+	if err != nil {
+		log.Printf("Error filtering ECS servers: %v", err)
+		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericOTCAPIError})
+		return
 	}
 
-	if allServers == nil {
-		allServers = []servers.Server{}
+	if filteredServers == nil {
+		filteredServers = []servers.Server{}
 	}
 
-	c.JSON(http.StatusOK, ECServerListResponse{Servers: allServers})
-	return
+	c.JSON(http.StatusOK, ECServerListResponse{Servers: filteredServers})
 }
 
 func listFlavorsHandler(c *gin.Context) {
@@ -163,7 +159,7 @@ func stopECSHandler(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: wrongAPIUsageError})
 		return
 	}
-	if err := validatePermissions(clients, data.Servers, username); err != nil {
+	if err := validatePermissions(data.Servers, username); err != nil {
 		c.JSON(http.StatusForbidden, common.ApiResponse{Message: err.Error()})
 		return
 	}
@@ -201,7 +197,7 @@ func startECSHandler(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: wrongAPIUsageError})
 		return
 	}
-	if err := validatePermissions(clients, data.Servers, username); err != nil {
+	if err := validatePermissions(data.Servers, username); err != nil {
 		c.JSON(http.StatusForbidden, common.ApiResponse{Message: err.Error()})
 		return
 	}
@@ -244,7 +240,7 @@ func rebootECSHandler(c *gin.Context) {
 		Type: servers.SoftReboot,
 	}
 
-	if err := validatePermissions(clients, data.Servers, username); err != nil {
+	if err := validatePermissions(data.Servers, username); err != nil {
 		c.JSON(http.StatusForbidden, common.ApiResponse{Message: err.Error()})
 		return
 	}
@@ -262,7 +258,14 @@ func rebootECSHandler(c *gin.Context) {
 	return
 }
 
-func validatePermissions(clients map[string]*gophercloud.ServiceClient, untrustedServers []servers.Server, username string) error {
+func ValidatePermissionsByHostname(servername string, username string) error {
+	if servername == "" || username == "" {
+		log.WithFields(log.Fields{
+			"username":   username,
+			"servername": servername,
+		}).Error("Empty servername or username")
+		return fmt.Errorf(genericOTCAPIError)
+	}
 	groups, err := getGroups(username)
 	if err != nil {
 		return err
@@ -271,13 +274,58 @@ func validatePermissions(clients map[string]*gophercloud.ServiceClient, untruste
 		// skip checks
 		return nil
 	}
-	var allServers []servers.Server
-	for _, client := range clients {
-		serversInTenant, err := getServersByUsername(client, username, false)
-		if err != nil {
-			return err
+	allServers, err := getAllServers(username)
+	if err != nil {
+		return err
+	}
+	var server servers.Server
+	for _, s := range allServers {
+		if servername == s.Name {
+			server = s
+			break
 		}
-		allServers = append(allServers, serversInTenant...)
+	}
+	if server.ID == "" {
+		log.WithFields(log.Fields{
+			"username":   username,
+			"servername": servername,
+		}).Error("No server found with that name")
+		return fmt.Errorf(genericOTCAPIError)
+	}
+	group := server.Metadata["uos_group"]
+	if group == "" {
+		log.WithFields(log.Fields{
+			"username": username,
+			"server":   server.ID,
+			"metadata": server.Metadata,
+		}).Error("uos_group not found in metadata")
+		return fmt.Errorf(genericOTCAPIError)
+	}
+	log.Printf("group: %v", group)
+	if !common.ContainsStringI(groups, group) {
+		log.WithFields(log.Fields{
+			"username": username,
+			"groups":   groups,
+			"server":   server.ID,
+			"metadata": server.Metadata,
+		}).Error("uos_group not found in user groups")
+		return fmt.Errorf(genericOTCAPIError)
+	}
+	return nil
+}
+
+func validatePermissions(untrustedServers []servers.Server, username string) error {
+	groups, err := getGroups(username)
+	if err != nil {
+		return err
+	}
+	if common.ContainsStringI(groups, "DG_RBT_UOS_ADMINS") {
+		// skip checks
+		return nil
+	}
+	allServers, err := getAllServers(username)
+	if err != nil {
+		return err
 	}
 	for _, server := range untrustedServers {
 		// do not trust user data, because the metadata could have been modified
@@ -335,22 +383,29 @@ type otcTenantCache struct {
 // Cache for all tenants
 var otcCache map[string]otcTenantCache
 
-func getServersByUsername(client *gophercloud.ServiceClient, username string, showall bool) ([]servers.Server, error) {
+func getAllServers(username string) ([]servers.Server, error) {
+	clients, err := getComputeClients()
+	if err != nil {
+		return nil, err
+	}
+	var allServers []servers.Server
+	for _, client := range clients {
+		serversInTenant, err := getServers(client, username)
+		if err != nil {
+			return nil, err
+		}
+		allServers = append(allServers, serversInTenant...)
+	}
+	return allServers, nil
+}
+
+func getServers(client *gophercloud.ServiceClient, username string) ([]servers.Server, error) {
 	if otcCache == nil {
 		otcCache = make(map[string]otcTenantCache)
 	}
 	log.WithFields(log.Fields{
 		"username": username,
 	}).Debug("Getting EC Servers.")
-
-	groups, err := getGroups(username)
-	if err != nil {
-		return nil, err
-	}
-	log.WithFields(log.Fields{
-		"groups":   groups,
-		"username": username,
-	}).Debug("LDAP groups")
 
 	cacheKey := client.Endpoint
 	// this seems to work even if lastRunTimestamp is empty
@@ -381,12 +436,25 @@ func getServersByUsername(client *gophercloud.ServiceClient, username string, sh
 		Servers:          mergeServers(otcCache[cacheKey].Servers, newServers),
 	}
 
+	return otcCache[cacheKey].Servers, nil
+}
+
+func filterServersByUsername(username string, s []servers.Server, showall bool) ([]servers.Server, error) {
+	groups, err := getGroups(username)
+	if err != nil {
+		return nil, err
+	}
+	log.WithFields(log.Fields{
+		"groups":   groups,
+		"username": username,
+	}).Debug("LDAP groups")
+
 	if showall && common.ContainsStringI(groups, "DG_RBT_UOS_ADMINS") {
-		return otcCache[cacheKey].Servers, nil
+		return s, nil
 	}
 
 	var filteredServers []servers.Server
-	for _, server := range otcCache[cacheKey].Servers {
+	for _, server := range s {
 		if common.ContainsStringI(groups, server.Metadata["Group"]) {
 			filteredServers = append(filteredServers, server)
 		}
