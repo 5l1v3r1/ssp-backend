@@ -101,17 +101,14 @@ func filterProjects(projects *gabs.Container, accountingNumber, megaID string) *
 	}
 	filtered := gabs.New()
 	for _, project := range projects.Children() {
-		// The second parameter is needed, or else a runtime error is thrown.
-		// We ignore it though, because we do not care.
-		m, _ := project.Search("metadata", "annotations", "openshift.io/MEGAID").Data().(string)
-		a, _ := project.Search("metadata", "annotations", "openshift.io/kontierung-element").Data().(string)
-		// only compare if the project has a accountingNumber
-		if a != "" && a == accountingNumber {
+		m, ok := project.Search("metadata", "annotations", "openshift.io/MEGAID").Data().(string)
+		if ok && m == megaID {
 			filtered.ArrayAppend(project.Data())
 			// This is an OR operation, if this is true, then the second case is irelevant
 			continue
 		}
-		if m != "" && m == megaID {
+		a, ok := project.Search("metadata", "annotations", "openshift.io/kontierung-element").Data().(string)
+		if ok && a == accountingNumber {
 			filtered.ArrayAppend(project.Data())
 		}
 	}
