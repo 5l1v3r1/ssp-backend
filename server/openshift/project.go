@@ -11,7 +11,7 @@ import (
 	"fmt"
 
 	"crypto/tls"
-	"github.com/Jeffail/gabs"
+	"github.com/Jeffail/gabs/v2"
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/common"
 	"github.com/gin-gonic/gin"
 	"gopkg.in/gomail.v2"
@@ -75,24 +75,61 @@ func getProjectsHandler(c *gin.Context) {
 	username := common.GetUserName(c)
 	params := c.Request.URL.Query()
 	clusterId := params.Get("clusterid")
+	accountingNumber := params.Get("sbb_accounting_number")
+	megaID := params.Get("sbb_mega_id")
 	if clusterId == "" {
 		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: wrongAPIUsageError})
 		return
 	}
 	log.Printf("%v has queried all his projects in clusterid: %v", username, clusterId)
-	projects, err := getUserProjects(clusterId, username)
+	projects, err := getProjects(clusterId, username)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: err.Error()})
-	} else {
-		c.JSON(http.StatusOK, projects)
+		return
 	}
+	// only return projects that have accountingNumber OR megaID
+	// if both are empty (no filtering), then all projects are returned
+	filteredProjects := filterProjects(projects, accountingNumber, megaID)
+	c.JSON(http.StatusOK, getProjectNames(filteredProjects))
 }
 
-func getUserProjects(clusterid, username string) ([]string, error) {
-	// TODO: only return projects, where the user has access
+// filter projects by accountingNumber OR megaID
+// this is used by ESTA
+func filterProjects(projects *gabs.Container, accountingNumber, megaID string) *gabs.Container {
+	if accountingNumber == "" && megaID == "" {
+		return projects
+	}
+	filtered := gabs.New()
+	for _, project := range projects.Children() {
+		m, ok := project.Search("metadata", "annotations", "openshift.io/MEGAID").Data().(string)
+		if ok && m == megaID {
+			filtered.ArrayAppend(project.Data())
+			// This is an OR operation, if this is true, then the second case is irelevant
+			continue
+		}
+		a, ok := project.Search("metadata", "annotations", "openshift.io/kontierung-element").Data().(string)
+		if ok && a == accountingNumber {
+			filtered.ArrayAppend(project.Data())
+		}
+	}
+	return filtered
+}
+
+func getProjectNames(projects *gabs.Container) []string {
+	projectNames := []string{}
+	for _, project := range projects.Children() {
+		name, ok := project.Path("metadata.name").Data().(string)
+		if ok {
+			projectNames = append(projectNames, name)
+		}
+	}
+	return projectNames
+}
+
+func getProjects(clusterid, username string) (*gabs.Container, error) {
 	resp, err := getOseHTTPClient("GET", clusterid, "apis/project.openshift.io/v1/projects", nil)
 	if err != nil {
-		return []string{}, err
+		return nil, err
 	}
 
 	defer resp.Body.Close()
@@ -100,18 +137,10 @@ func getUserProjects(clusterid, username string) ([]string, error) {
 	json, err := gabs.ParseJSONBuffer(resp.Body)
 	if err != nil {
 		log.Println("error decoding json:", err, resp.StatusCode)
-		return []string{}, errors.New(genericAPIError)
+		return nil, errors.New(genericAPIError)
 	}
-	projects, err := json.Search("items").Children()
-	if err != nil {
-		log.Println("error getting projects: ", err)
-		return []string{}, errors.New(genericAPIError)
-	}
-	var projectNames []string
-	for _, project := range projects {
-		projectNames = append(projectNames, project.Path("metadata.name").Data().(string))
-	}
-	return projectNames, nil
+	projects := json.Search("items")
+	return projects, nil
 }
 
 func getProjectAdminsHandler(c *gin.Context) {
