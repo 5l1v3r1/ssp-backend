@@ -49,10 +49,12 @@ oc adm policy add-cluster-role-to-user admin system:serviceaccount:ose-selfservi
 
 Just create a 'oc new-app' from the dockerfile.
 
-### Parameters
-[openshift/ssp-backend-template.json#L254](https://github.com/SchweizerischeBundesbahnen/ssp-backend/blob/master/openshift/ssp-backend-template.json#L254)
+### Config
+[openshift/ssp-backend-template.json#L303](https://github.com/SchweizerischeBundesbahnen/ssp-backend/blob/master/openshift/ssp-backend-template.json#L303)
 
-Openshift config must be in a configmap named `config.yaml`:
+We are currently migrating from environment variables (with OpenShift template parameters) to a yaml config file. Most of the config options are compatible with both formats (can be set as environment variable or in the `config.yaml` file). The yaml config was introduced, because we needed more complex data structures.
+
+e.g. The Openshift config must be set in `config.yaml` (see `config.yaml.example`):
 
 ```
 openshift:
@@ -73,6 +75,30 @@ openshift:
       secret: s3Cr3T
       proxy: http://nfsproxy.com:8000
 ```
+To enable support for Ansible Tower jobs, add the following:
+```
+tower:
+  base_url: https://deploy.domain.ch/api/v2/
+  username: user
+  password: pass
+  parameter_blacklist:
+    - unifiedos_creator
+  job_templates:
+    - id: 11111
+    - id: 12345
+      validate: metadata.uos_group
+```
+All variables set in `parameter_blacklist` will be removed from the `extra_vars`.
+The list of `job_templates` is a whitelist and only templates included here may be started.
+If `validate` is not set, then no further validation will be executed.
+
+**Validations**
+
+Currently only `metadata.uos_group` is supported as a validation.
+The validation checks if the users AD groups contains the group defined in `metadata.uos_group`.
+The parameter `unifiedos_hostname` must be included in the `extra_vars`.
+
+To add more validations: edit `server/tower/shared.go`
 
 ### Route timeout
 The `api/aws/ec2` endpoints wait until VMs have the desired state.
@@ -128,7 +154,14 @@ Content-Length: 70
 For the other (internal) endpoints take a look at the code (glusterapi/main.go)
 
 # Contributing
-The backend can be started with Docker. All required environment variables must be set in the `env_vars` file.
+All required configuration must be set in `config.yaml`. See the `config.yaml.example` file for a sample config.
+## Go
+```
+go run server/main.go
+```
+
+## Docker
+The backend can be started with Docker.
 ```
 # without proxy:
 docker build -p 8000:8000 -t ssp-backend .
@@ -136,10 +169,5 @@ docker build -p 8000:8000 -t ssp-backend .
 docker build -p 8000:8000 --build-arg https_proxy=http://proxy.ch:9000 -t ssp-backend .
 
 # env_vars must not contain export and quotes
-docker run -it --rm --env-file <(sed "s/export\s//" env_vars | tr -d "'") ssp-backend
-```
-
-There is a small script for local API testing. It handles authorization (login, token etc).
-```
-go run curl.go [-X GET/POST] http://localhost:8000/api/...
+docker run -it --rm ssp-backend
 ```
