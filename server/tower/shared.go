@@ -229,6 +229,11 @@ func getJobsHandler(c *gin.Context) {
 }
 
 func getJobs(username string) (*gabs.Container, error) {
+	// We use skip tags for filtering jobs by username
+	// The skip tag normally skips any Ansible code with this tag,
+	// but since there is none, it is ignored.
+	// We need this because filtering on extra_vars is not possible
+	// and artifacts only appear when the job is done.
 	resp, err := getTowerHTTPClient("GET", "jobs/?order_by=-created&skip_tags__contains="+username, nil)
 	if err != nil {
 		return nil, err
