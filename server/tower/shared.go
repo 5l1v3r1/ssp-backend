@@ -68,7 +68,6 @@ func launchJobTemplate(jobTemplate string, json *gabs.Container, username string
 	json.SetP(username, "extra_vars.custom_tower_user_name")
 	log.Printf("%+v", json)
 
-
 	// Add an Ansible skip tag for filtering in the SSP.
 	// The skip tag normally skips any Ansible code with this tag,
 	// but since there is none, it is ignored.
