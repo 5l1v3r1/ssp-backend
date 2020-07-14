@@ -276,6 +276,28 @@ func validateAdminAccess(clusterId, username, project string) error {
 	return nil
 }
 
+func validateProjectPermissions(clusterId, username, project string) error {
+	if clusterId == "" {
+		return errors.New("Cluster must be provided")
+	}
+
+	if project == "" {
+		return errors.New("Project name must be provided")
+	}
+
+	// Allow functional account
+	if username == "fssnow1" {
+		return nil
+	}
+
+	// Validate permissions
+	if err := checkAdminPermissions(clusterId, username, project); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func validateProjectInformation(data common.UpdateProjectInformationCommand, username string) error {
 	if data.ClusterId == "" {
 		return errors.New("Cluster must be provided")
@@ -290,7 +312,7 @@ func validateProjectInformation(data common.UpdateProjectInformationCommand, use
 	}
 
 	// Validate permissions
-	if err := checkAdminPermissions(data.ClusterId, username, data.Project); err != nil {
+	if err := validateProjectPermissions(data.ClusterId, username, data.Project); err != nil {
 		return err
 	}
 
