@@ -11,11 +11,12 @@ import (
 	"fmt"
 
 	"crypto/tls"
+	"os"
+
 	"github.com/Jeffail/gabs/v2"
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/common"
 	"github.com/gin-gonic/gin"
 	"gopkg.in/gomail.v2"
-	"os"
 )
 
 func newProjectHandler(c *gin.Context) {
@@ -93,7 +94,7 @@ func getProjectsHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, getProjectNames(filteredProjects))
 }
 
-// filter projects by accountingNumber OR megaID
+// filter projects by accountingNumber AND megaID
 // this is used by ESTA
 func filterProjects(projects *gabs.Container, accountingNumber, megaID string) *gabs.Container {
 	if accountingNumber == "" && megaID == "" {
@@ -102,13 +103,14 @@ func filterProjects(projects *gabs.Container, accountingNumber, megaID string) *
 	filtered := gabs.New()
 	for _, project := range projects.Children() {
 		m, ok := project.Search("metadata", "annotations", "openshift.io/MEGAID").Data().(string)
-		if ok && m == megaID {
-			filtered.ArrayAppend(project.Data())
-			// This is an OR operation, if this is true, then the second case is irelevant
+		if !ok {
 			continue
 		}
 		a, ok := project.Search("metadata", "annotations", "openshift.io/kontierung-element").Data().(string)
-		if ok && a == accountingNumber {
+		if !ok {
+			continue
+		}
+		if m == megaID && a == accountingNumber {
 			filtered.ArrayAppend(project.Data())
 		}
 	}
