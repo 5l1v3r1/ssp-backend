@@ -36,8 +36,30 @@ func TestProjectFilter(t *testing.T) {
 		{
 			"metadata": {
 				"annotations": {
+					"openshift.io/kontierung-element": "8888"
+				}
+			}
+		},
+		{
+			"metadata": {
+				"annotations": {
 					"openshift.io/kontierung-element": "5678",
 					"openshift.io/MEGAID": "1235"
+				}
+			}
+		},
+		{
+			"metadata": {
+				"annotations": {
+					"openshift.io/kontierung-element": "",
+					"openshift.io/MEGAID": "9999"
+				}
+			}
+		},
+		{
+			"metadata": {
+				"annotations": {
+					"openshift.io/MEGAID": "9999"
 				}
 			}
 		},
@@ -62,6 +84,8 @@ func TestProjectFilter(t *testing.T) {
 	}{
 		{"1234", "5678", 0},
 		{"5678", "1234", 1},
+		{"8888", "", 2},
+		{"", "9999", 2},
 	}
 
 	for _, set := range searchsets {
