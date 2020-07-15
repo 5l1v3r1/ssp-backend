@@ -8,30 +8,59 @@ import (
 )
 
 func TestProjectFilter(t *testing.T) {
-	projects, _ := gabs.ParseJSON([]byte(`[
+	projects, err := gabs.ParseJSON([]byte(`[
 		{
 			"metadata": {
 				"annotations": {
-					"openshift.io/MEGAID": "1234",
-					"openshift.io/kontierung-element": "5678"
+					"openshift.io/kontierung-element": "5678",
+					"openshift.io/MEGAID": "1234"
 				}
 			}
 		},
 		{
 			"metadata": {
 				"annotations": {
-					"openshift.io/MEGAID": "5678",
-					"openshift.io/kontierung-element": "1234"
+					"openshift.io/kontierung-element": "5678",
+					"openshift.io/MEGAID": "8080"
+				}
+			}
+		},
+		{
+			"metadata": {
+				"annotations": {
+					"openshift.io/kontierung-element": "8888",
+					"openshift.io/MEGAID": ""
+				}
+			}
+		},
+		{
+			"metadata": {
+				"annotations": {
+					"openshift.io/kontierung-element": "5678",
+					"openshift.io/MEGAID": "1235"
+				}
+			}
+		},
+		{
+			"metadata": {
+				"annotations": {
+					"openshift.io/kontierung-element": "5050",
+					"openshift.io/MEGAID": "5678"
 				}
 			}
 		}
 	]`))
+	if err != nil {
+		t.Error("Invalid JSON!")
+		return
+
+	}
 	var searchsets = []struct {
 		inAccountingNumber string
 		inMegaId           string
 		numberOfResults    int
 	}{
-		{"1234", "5678", 1},
+		{"1234", "5678", 0},
 		{"5678", "1234", 1},
 	}
 
