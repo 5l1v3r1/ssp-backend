@@ -1,6 +1,7 @@
 package openshift
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/Jeffail/gabs/v2"
@@ -25,8 +26,21 @@ func TestProjectFilter(t *testing.T) {
 			}
 		}
 	]`))
-	filteredProjects := filterProjects(projects, "1234", "5678")
-	if len(filteredProjects.Children()) != 1 {
-		t.Errorf("ERROR: number of filtered projects should be 1, but is: %v", len(filteredProjects.Children()))
+	var searchsets = []struct {
+		inAccountingNumber string
+		inMegaId           string
+		numberOfResults    int
+	}{
+		{"1234", "5678", 1},
+		{"5678", "1234", 1},
+	}
+
+	for _, set := range searchsets {
+		t.Run(fmt.Sprintf("accountingNumber=%s megaId=%s", set.inAccountingNumber, set.inMegaId), func(t *testing.T) {
+			filteredProjects := filterProjects(projects, set.inAccountingNumber, set.inMegaId)
+			if len(filteredProjects.Children()) != set.numberOfResults {
+				t.Errorf("ERROR: number of filtered projects should be %v, but is: %v", set.numberOfResults, len(filteredProjects.Children()))
+			}
+		})
 	}
 }
