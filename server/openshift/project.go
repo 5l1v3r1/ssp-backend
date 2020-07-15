@@ -100,7 +100,7 @@ func filterProjects(projects *gabs.Container, accountingNumber, megaID string) *
 	if accountingNumber == "" && megaID == "" {
 		return projects
 	}
-	filtered := gabs.New()
+	filtered, _ := gabs.New().Array()
 	for _, project := range projects.Children() {
 		m, ok := project.Search("metadata", "annotations", "openshift.io/MEGAID").Data().(string)
 		if !ok {
