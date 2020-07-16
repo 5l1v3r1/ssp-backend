@@ -23,3 +23,6 @@ env_vars
 config.yaml
 gopkg*
 vendor/
+
+# MacOS files
+.DS_Store
