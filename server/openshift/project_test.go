@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/Jeffail/gabs/v2"
+	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/config"
 )
 
 func TestProjectFilter(t *testing.T) {
@@ -95,5 +96,26 @@ func TestProjectFilter(t *testing.T) {
 				t.Errorf("ERROR: number of filtered projects should be %v, but is: %v", set.numberOfResults, len(filteredProjects.Children()))
 			}
 		})
+	}
+}
+
+func TestValidateProjectPermissions(t *testing.T) {
+	// testing empty Cluster ID
+	err := validateProjectPermissions("", "faccount", "project")
+	if err.Error() != "Cluster must be provided" {
+		t.Error("ERROR! function \"validateProjectPermissions\" not throwing the right error on empty Cluster!")
+	}
+	// testing empty Project name
+	err = validateProjectPermissions("clusterId", "faccount", "")
+	if err.Error() != "Project name must be provided" {
+		t.Error("ERROR! function \"validateProjectPermissions\" not throwing the right error on empty Project!")
+	}
+	// "mocking" the configuration for the next test
+	config.Init("bla")
+	config.Config().Set("openshift_functional_account", "faccount")
+	// testing the functional account
+	newErr := validateProjectPermissions("cluster", "faccount", "project")
+	if newErr != nil {
+		t.Error("ERROR! function \"validateProjectPermissions\" not allowing the functional account")
 	}
 }
