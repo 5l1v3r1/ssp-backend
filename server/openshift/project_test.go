@@ -112,10 +112,13 @@ func TestValidateProjectPermissions(t *testing.T) {
 	}
 	// "mocking" the configuration for the next test
 	config.Init("bla")
-	config.Config().Set("openshift_functional_account", "faccount")
-	// testing the functional account
-	newErr := validateProjectPermissions("cluster", "faccount", "project")
-	if newErr != nil {
-		t.Error("ERROR! function \"validateProjectPermissions\" not allowing the functional account")
+	// (testing the functional account when it's not set requires mocking
+	// of the Openshift API. for the moment won't be done)
+	// setting the functional account (a.k.a. "additional project admin account")
+	config.Config().Set("openshift_additional_project_admin_account", "faccount")
+	// testing the functional account (when set)
+	err = validateProjectPermissions("cluster", "faccount", "project")
+	if err != nil {
+		t.Error("ERROR! function \"validateProjectPermissions\" not checking the functional account")
 	}
 }
