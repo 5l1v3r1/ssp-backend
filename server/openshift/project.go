@@ -11,11 +11,13 @@ import (
 	"fmt"
 
 	"crypto/tls"
+	"os"
+
 	"github.com/Jeffail/gabs/v2"
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/common"
+	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/config"
 	"github.com/gin-gonic/gin"
 	"gopkg.in/gomail.v2"
-	"os"
 )
 
 func newProjectHandler(c *gin.Context) {
@@ -286,7 +288,8 @@ func validateProjectPermissions(clusterId, username, project string) error {
 	}
 
 	// Allow functional account
-	if username == "fssnow1" {
+	functionalAccount := config.Config().GetString("openshift_functional_account")
+	if username == functionalAccount {
 		return nil
 	}
 

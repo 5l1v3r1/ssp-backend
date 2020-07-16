@@ -27,6 +27,7 @@ newrelic_api_token:
 newrelic_api_account:
 openshift_chargeback_sender:
 openshift_chargeback_art:
+openshift_functional_account:
 
 aws_nonprod_login_url:
 aws_prod_login_url:
