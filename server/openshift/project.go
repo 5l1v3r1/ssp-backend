@@ -95,22 +95,17 @@ func getProjectsHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, getProjectNames(filteredProjects))
 }
 
-// filter projects by accountingNumber OR megaID
+// filter projects by accountingNumber AND megaID
 // this is used by ESTA
 func filterProjects(projects *gabs.Container, accountingNumber, megaID string) *gabs.Container {
-	if accountingNumber == "" && megaID == "" {
-		return projects
-	}
-	filtered := gabs.New()
+	filtered, _ := gabs.New().Array()
 	for _, project := range projects.Children() {
-		m, ok := project.Search("metadata", "annotations", "openshift.io/MEGAID").Data().(string)
-		if ok && m == megaID {
-			filtered.ArrayAppend(project.Data())
-			// This is an OR operation, if this is true, then the second case is irelevant
-			continue
-		}
-		a, ok := project.Search("metadata", "annotations", "openshift.io/kontierung-element").Data().(string)
-		if ok && a == accountingNumber {
+		// for these searches we ignore "ok" because we consider that when the key "MEGAID" is not
+		// present, this is equivalent to having MegaID = ""
+		m, _ := project.Search("metadata", "annotations", "openshift.io/MEGAID").Data().(string)
+		// same case for accounting number
+		a, _ := project.Search("metadata", "annotations", "openshift.io/kontierung-element").Data().(string)
+		if m == megaID && a == accountingNumber {
 			filtered.ArrayAppend(project.Data())
 		}
 	}
