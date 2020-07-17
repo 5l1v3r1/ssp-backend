@@ -283,11 +283,13 @@ func validateProjectPermissions(clusterId, username, project string) error {
 	}
 
 	// Allow functional account
-	cfg := config.Config()
+	functionalAccount := config.Config().GetString("openshift_additional_project_admin_account")
 	// first checks if the variable is even set; if not, skips this part
-	if cfg.IsSet("openshift_additional_project_admin_account") {
+	// (either when the key is set to an empty string or not present at all, the
+	// result of the lookup in the config is an empty string: "")
+	if functionalAccount != "" {
 		// if it's the functional account, returns with no error ("validated")
-		if username == config.Config().GetString("openshift_additional_project_admin_account") {
+		if username == functionalAccount {
 			return nil
 		}
 	}
