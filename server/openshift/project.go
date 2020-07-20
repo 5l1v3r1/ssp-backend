@@ -89,8 +89,7 @@ func getProjectsHandler(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: err.Error()})
 		return
 	}
-	// only return projects that have accountingNumber OR megaID
-	// if both are empty (no filtering), then all projects are returned
+	// only returns projects that have matching accountingNumber AND megaID
 	filteredProjects := filterProjects(projects, accountingNumber, megaID)
 	c.JSON(http.StatusOK, getProjectNames(filteredProjects))
 }
