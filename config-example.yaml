@@ -9,12 +9,14 @@ ldap_search_base:
 gin_mode: debug
 logsene_enabled: true
 max_volume_gb: 100
-aws_s3_bucket_prefix: prefix
-aws_nonprod_secret_access_key:
 aws_region: eu-central-1
+aws_nonprod_login_url:
+aws_nonprod_access_key_id:
+aws_nonprod_secret_access_key:
+aws_prod_login_url:
 aws_prod_access_key_id:
 aws_prod_secret_access_key:
-aws_nonprod_access_key_id:
+aws_s3_bucket_prefix: prefix
 sematext_api_token:
 sematext_base_url:
 logsene_discountcode:
@@ -27,9 +29,8 @@ newrelic_api_token:
 newrelic_api_account:
 openshift_chargeback_sender:
 openshift_chargeback_art:
-
-aws_nonprod_login_url:
-aws_prod_login_url:
+# This account acts as a secondary Openshift Project Admin, so it has all rights
+openshift_additional_project_admin_account:
 
 https_proxy:
 

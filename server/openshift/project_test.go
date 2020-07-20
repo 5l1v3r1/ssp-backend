@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/Jeffail/gabs/v2"
+	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/config"
 )
 
 func TestProjectFilter(t *testing.T) {
@@ -95,5 +96,29 @@ func TestProjectFilter(t *testing.T) {
 				t.Errorf("ERROR: number of filtered projects should be %v, but is: %v", set.numberOfResults, len(filteredProjects.Children()))
 			}
 		})
+	}
+}
+
+func TestValidateProjectPermissions(t *testing.T) {
+	// testing empty Cluster ID
+	err := validateProjectPermissions("", "faccount", "project")
+	if err.Error() != "Cluster must be provided" {
+		t.Error("ERROR! function \"validateProjectPermissions\" not throwing the right error on empty Cluster!")
+	}
+	// testing empty Project name
+	err = validateProjectPermissions("clusterId", "faccount", "")
+	if err.Error() != "Project name must be provided" {
+		t.Error("ERROR! function \"validateProjectPermissions\" not throwing the right error on empty Project!")
+	}
+	// "mocking" the configuration for the next test
+	config.Init("bla")
+	// (testing the functional account when it's not set requires mocking
+	// of the Openshift API. for the moment won't be done)
+	// setting the functional account (a.k.a. "additional project admin account")
+	config.Config().Set("openshift_additional_project_admin_account", "faccount")
+	// testing the functional account (when set)
+	err = validateProjectPermissions("cluster", "faccount", "project")
+	if err != nil {
+		t.Error("ERROR! function \"validateProjectPermissions\" not checking the functional account")
 	}
 }

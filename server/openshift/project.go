@@ -15,6 +15,7 @@ import (
 
 	"github.com/Jeffail/gabs/v2"
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/common"
+	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/config"
 	"github.com/gin-gonic/gin"
 	"gopkg.in/gomail.v2"
 )
@@ -282,8 +283,15 @@ func validateProjectPermissions(clusterId, username, project string) error {
 	}
 
 	// Allow functional account
-	if username == "fssnow1" {
-		return nil
+	functionalAccount := config.Config().GetString("openshift_additional_project_admin_account")
+	// first checks if the variable is even set; if not, skips this part
+	// (either when the key is set to an empty string or not present at all, the
+	// result of the lookup in the config is an empty string: "")
+	if functionalAccount != "" {
+		// if it's the functional account, returns with no error ("validated")
+		if username == functionalAccount {
+			return nil
+		}
 	}
 
 	// Validate permissions
