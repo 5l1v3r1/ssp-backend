@@ -101,37 +101,38 @@ func TestFilterProjects(t *testing.T) {
 
 func TestValidateNewProject(t *testing.T) {
 
+	// testing empty project
 	err := validateNewProject("", "billing", true)
 	if err.Error() != "Project name has to be provided" {
 		t.Error("ERROR! function \"validateNewProject\" not throwing the right error on empty Project!")
 	}
+	// testing empty accounting number (and not a testing project)
 	err = validateNewProject("project", "", false)
 	if err.Error() != "Accounting number must be provided" {
 		t.Error("ERROR! function \"validateNewProject\" not throwing the right error on empty Accounting Number!")
 	}
+	// testing empty accounting number, but for a testing project
 	err = validateNewProject("project", "", true)
 	if err != nil {
 		t.Error("ERROR! function \"validateNewProject\" not skipping Accounting Number validation on a test project!")
 	}
+	// testing when none of the inputs is empty
 	err = validateNewProject("project", "billing", false)
 	if err != nil {
 		t.Error("ERROR! function \"validateNewProject\" still returning error on non-empty project + accounting number!")
 	}
 }
 
-//func validateAdminAccess(clusterId, username, project string) error {
-//	if clusterId == "" {
-//		return errors.New("Cluster must be provided")
-//	}
-//	if project == "" {
-//		return errors.New("Project name must be provided")
-//	}
-//	// Validate permissions
-//	if err := checkAdminPermissions(clusterId, username, project); err != nil {
-//		return err
-//	}
-//	return nil
-//}
+func TestValidateAdminAccess(t *testing.T) {
+	err := validateAdminAccess("", "user", "project")
+	if err.Error() != "Cluster must be provided" {
+		t.Error("ERROR! function \"validateAdminAccess\" not throwing the right error on empty Cluster!")
+	}
+	err = validateAdminAccess("cluster", "user", "")
+	if err.Error() != "Project name must be provided" {
+		t.Error("ERROR! function \"validateAdminAccess\" not throwing the right error on empty Project!")
+	}
+}
 
 func TestValidateProjectPermissions(t *testing.T) {
 	// testing empty Cluster ID
