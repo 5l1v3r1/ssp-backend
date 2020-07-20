@@ -8,7 +8,7 @@ import (
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/config"
 )
 
-func TestProjectFilter(t *testing.T) {
+func TestFilterProjects(t *testing.T) {
 	projects, err := gabs.ParseJSON([]byte(`[
 		{
 			"metadata": {
@@ -98,6 +98,40 @@ func TestProjectFilter(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateNewProject(t *testing.T) {
+
+	err := validateNewProject("", "billing", true)
+	if err.Error() != "Project name has to be provided" {
+		t.Error("ERROR! function \"validateNewProject\" not throwing the right error on empty Project!")
+	}
+	err = validateNewProject("project", "", false)
+	if err.Error() != "Accounting number must be provided" {
+		t.Error("ERROR! function \"validateNewProject\" not throwing the right error on empty Accounting Number!")
+	}
+	err = validateNewProject("project", "", true)
+	if err != nil {
+		t.Error("ERROR! function \"validateNewProject\" not skipping Accounting Number validation on a test project!")
+	}
+	err = validateNewProject("project", "billing", false)
+	if err != nil {
+		t.Error("ERROR! function \"validateNewProject\" still returning error on non-empty project + accounting number!")
+	}
+}
+
+//func validateAdminAccess(clusterId, username, project string) error {
+//	if clusterId == "" {
+//		return errors.New("Cluster must be provided")
+//	}
+//	if project == "" {
+//		return errors.New("Project name must be provided")
+//	}
+//	// Validate permissions
+//	if err := checkAdminPermissions(clusterId, username, project); err != nil {
+//		return err
+//	}
+//	return nil
+//}
 
 func TestValidateProjectPermissions(t *testing.T) {
 	// testing empty Cluster ID
