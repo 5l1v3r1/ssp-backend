@@ -106,72 +106,44 @@ func getJobTemplateGetDetailsHandler(c *gin.Context) {
 	username := common.GetUserName(c)
 	jobTemplate := c.Param("jobTemplate")
 
-	request, err := ioutil.ReadAll(c.Request.Body)
+	err := getJobTemplateDetails(jobTemplate, username)
 	if err != nil {
 		log.Errorf("%v", err)
 		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericAPIError})
 		return
 	}
-	json, err := gabs.ParseJSON(request)
-	if err != nil {
-		log.Errorf("%v", err)
-		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericAPIError})
-		return
-	}
-	job, err := getJobTemplateDetails(jobTemplate, json, username)
-	if err != nil {
-		log.Errorf("%v", err)
-		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericAPIError})
-		return
-	}
-	c.JSON(http.StatusOK, job)
+	c.JSON(http.StatusOK, nil)
 }
 
-func getJobTemplateDetails(jobTemplate string, json *gabs.Container, username string) (string, error) {
+func getJobTemplateDetails(jobTemplate string, username string) error {
 	// Check if the user is allowed to execute this jobTemplate.
 	// This also checks if the jobTemplate is whitelisted (see sample config)
-	if err := checkPermissions(jobTemplate, json, username); err != nil {
-		return "", err
+	if err := checkPermissions(jobTemplate, nil, username); err != nil {
+		return err
 	}
 
-	// Remove extra_vars that the user is not allowed to set.
-	json = removeBlacklistedParameters(json)
-
-	// Overwrite/set the username, this is mostly used for email notifications and
-	// for filtering jobs in the SSP (list all jobs with one username)
-	json.SetP(username, "extra_vars.custom_tower_user_name")
-	log.Printf("%+v", json)
-
-	// Add an Ansible skip tag for filtering in the SSP.
-	// The skip tag normally skips any Ansible code with this tag,
-	// but since there is none, it is ignored.
-	// We need this because filtering on extra_vars is not possible
-	// and artifacts only appear when the job is done.
-	json.SetP("ssp_filter_"+username, "skip_tags")
-
-	resp, err := getTowerHTTPClient("POST", "job_templates/"+jobTemplate+"/launch/", bytes.NewReader(json.Bytes()))
+	resp, err := getTowerHTTPClient("GET", "job_templates/"+jobTemplate+"/survey_spec/", nil)
 
 	if err != nil {
-		return "", err
+		return err
 	}
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return "", err
+		return err
 	}
+	var json *gabs.Container
 	json, err = gabs.ParseJSON(body)
+	log.Printf("JSON: %v\n", json)
 	if err != nil {
-		return "", err
+		return err
 	}
 	if resp.StatusCode == http.StatusBadRequest {
 		// Should never happen. This means the SSP and Tower send/expect different variables
 		errs := "Fehler vom Ansible Tower:"
-		for _, err := range json.Path("variables_needed_to_start").Children() {
-			errs += ", " + err.Data().(string)
-		}
-		return "", fmt.Errorf(string(errs))
+		return fmt.Errorf(string(errs))
 	}
-	return string(body), nil
+	return nil
 }
 
 type jobTemplateConfig struct {
