@@ -141,15 +141,27 @@ func getJobTemplateDetails(jobTemplate string, username string) (string, error) 
 		return "", err
 	}
 
+	err = addSpecsMap(details)
+	if err != nil {
+		return "", err
+	}
+
+	return details.String(), nil
+}
+
+func addSpecsMap(details *gabs.Container) error {
 	// rearranging specs as a hashmap for better navigation in frontend
 	for index, spec := range details.Path("spec").Children() {
 		variableName, _ := spec.Search("variable").Data().(string)
 		for k, v := range spec.ChildrenMap() {
-			details.Set(v.Data(), "specsMap", variableName, k)
+			_, err := details.Set(v.Data(), "specsMap", variableName, k)
+			if err != nil {
+				return err
+			}
 		}
 		details.Set(index, "specsMap", variableName, "index")
 	}
-	return details.String(), nil
+	return nil
 }
 
 type jobTemplateConfig struct {
