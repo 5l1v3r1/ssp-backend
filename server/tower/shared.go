@@ -4,16 +4,17 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"io"
+	"io/ioutil"
+	"net/http"
+	"strings"
+
 	"github.com/Jeffail/gabs/v2"
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/common"
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/config"
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/otc"
 	"github.com/gin-gonic/gin"
 	log "github.com/sirupsen/logrus"
-	"io"
-	"io/ioutil"
-	"net/http"
-	"strings"
 )
 
 const (
@@ -25,6 +26,7 @@ func RegisterRoutes(r *gin.RouterGroup) {
 	r.GET("/tower/jobs/:job/stdout", getJobOutputHandler)
 	r.GET("/tower/jobs/:job", getJobHandler)
 	r.GET("/tower/jobs", getJobsHandler)
+	r.GET("/tower/job_templates/:jobTemplate/getDetails", getJobTemplateGetDetailsHandler)
 	r.POST("/tower/job_templates/:jobTemplate/launch", postJobTemplateLaunchHandler)
 }
 
@@ -91,13 +93,75 @@ func launchJobTemplate(jobTemplate string, json *gabs.Container, username string
 	}
 	if resp.StatusCode == http.StatusBadRequest {
 		// Should never happen. This means the SSP and Tower send/expect different variables
-		errs := "Fehler vom Ansible Tower:"
+		errs := "Error from Ansible Tower:"
 		for _, err := range json.Path("variables_needed_to_start").Children() {
 			errs += ", " + err.Data().(string)
 		}
 		return "", fmt.Errorf(string(errs))
 	}
 	return string(body), nil
+}
+
+func getJobTemplateGetDetailsHandler(c *gin.Context) {
+	username := common.GetUserName(c)
+	jobTemplate := c.Param("jobTemplate")
+
+	details, err := getJobTemplateDetails(jobTemplate, username)
+	if err != nil {
+		log.Errorf("%v", err)
+		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericAPIError})
+		return
+	}
+	c.JSON(http.StatusOK, details)
+}
+
+func getJobTemplateDetails(jobTemplate string, username string) (string, error) {
+	// Check if the user is allowed to execute this jobTemplate.
+	// This also checks if the jobTemplate is whitelisted (see sample config)
+	if err := checkPermissions(jobTemplate, nil, username); err != nil {
+		return "", err
+	}
+
+	resp, err := getTowerHTTPClient("GET", "job_templates/"+jobTemplate+"/survey_spec/", nil)
+
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+	if resp.StatusCode == http.StatusBadRequest {
+		// Should never happen
+		return "", fmt.Errorf("Error from Ansible Tower")
+	}
+	details, err := gabs.ParseJSON(body)
+	if err != nil {
+		return "", err
+	}
+
+	err = addSpecsMap(details)
+	if err != nil {
+		return "", err
+	}
+
+	return details.String(), nil
+}
+
+func addSpecsMap(details *gabs.Container) error {
+	// rearranging specs as a hashmap for better navigation in frontend
+	for index, spec := range details.Path("spec").Children() {
+		variableName, _ := spec.Search("variable").Data().(string)
+		for k, v := range spec.ChildrenMap() {
+			_, err := details.Set(v.Data(), "specsMap", variableName, k)
+			if err != nil {
+				return err
+			}
+		}
+		details.Set(index, "specsMap", variableName, "index")
+	}
+	return nil
 }
 
 type jobTemplateConfig struct {
