@@ -93,7 +93,7 @@ func launchJobTemplate(jobTemplate string, json *gabs.Container, username string
 	}
 	if resp.StatusCode == http.StatusBadRequest {
 		// Should never happen. This means the SSP and Tower send/expect different variables
-		errs := "Fehler vom Ansible Tower:"
+		errs := "Error from Ansible Tower:"
 		for _, err := range json.Path("variables_needed_to_start").Children() {
 			errs += ", " + err.Data().(string)
 		}
@@ -106,44 +106,50 @@ func getJobTemplateGetDetailsHandler(c *gin.Context) {
 	username := common.GetUserName(c)
 	jobTemplate := c.Param("jobTemplate")
 
-	err := getJobTemplateDetails(jobTemplate, username)
+	details, err := getJobTemplateDetails(jobTemplate, username)
 	if err != nil {
 		log.Errorf("%v", err)
 		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: genericAPIError})
 		return
 	}
-	c.JSON(http.StatusOK, nil)
+	c.JSON(http.StatusOK, details)
 }
 
-func getJobTemplateDetails(jobTemplate string, username string) error {
+func getJobTemplateDetails(jobTemplate string, username string) (string, error) {
 	// Check if the user is allowed to execute this jobTemplate.
 	// This also checks if the jobTemplate is whitelisted (see sample config)
 	if err := checkPermissions(jobTemplate, nil, username); err != nil {
-		return err
+		return "", err
 	}
 
 	resp, err := getTowerHTTPClient("GET", "job_templates/"+jobTemplate+"/survey_spec/", nil)
 
 	if err != nil {
-		return err
+		return "", err
 	}
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return err
-	}
-	var json *gabs.Container
-	json, err = gabs.ParseJSON(body)
-	log.Printf("JSON: %v\n", json)
-	if err != nil {
-		return err
+		return "", err
 	}
 	if resp.StatusCode == http.StatusBadRequest {
-		// Should never happen. This means the SSP and Tower send/expect different variables
-		errs := "Fehler vom Ansible Tower:"
-		return fmt.Errorf(string(errs))
+		// Should never happen
+		return "", fmt.Errorf("Error from Ansible Tower")
 	}
-	return nil
+	details, err := gabs.ParseJSON(body)
+	if err != nil {
+		return "", err
+	}
+
+	// rearranging specs as a hashmap for better navigation in frontend
+	for index, spec := range details.Path("spec").Children() {
+		variableName, _ := spec.Search("variable").Data().(string)
+		for k, v := range spec.ChildrenMap() {
+			details.Set(v.Data(), "specsMap", variableName, k)
+		}
+		details.Set(index, "specsMap", variableName, "index")
+	}
+	return details.String(), nil
 }
 
 type jobTemplateConfig struct {
