@@ -2,6 +2,7 @@ package openshift
 
 import (
 	"fmt"
+	"net/url"
 	"testing"
 
 	"github.com/Jeffail/gabs/v2"
@@ -91,7 +92,11 @@ func TestProjectFilter(t *testing.T) {
 
 	for _, set := range searchsets {
 		t.Run(fmt.Sprintf("accountingNumber=%s megaId=%s", set.inAccountingNumber, set.inMegaId), func(t *testing.T) {
-			filteredProjects := filterProjects(projects, set.inAccountingNumber, set.inMegaId)
+			// filtering by Accounting Number AND Mega ID
+			params := url.Values{}
+			params.Set("sbb_accounting_number", set.inAccountingNumber)
+			params.Set("sbb_mega_id", set.inMegaId)
+			filteredProjects := filterProjects(projects, params)
 			if len(filteredProjects.Children()) != set.numberOfResults {
 				t.Errorf("ERROR: number of filtered projects should be %v, but is: %v", set.numberOfResults, len(filteredProjects.Children()))
 			}
