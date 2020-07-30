@@ -100,7 +100,8 @@ func filterProjects(projects *gabs.Container, params url.Values) *gabs.Container
 	var filterMap = map[string]string{
 		"sbb_accounting_number": "openshift.io/kontierung-element",
 		"sbb_mega_id":           "openshift.io/MEGAID"}
-	// discarding parameters with invalid filter names
+	// "filters" is a map containing only the parameters with valid
+	// filter names
 	filters := make(map[string]string)
 	for paramName, paramValues := range params {
 		// this parameter is not a filter
