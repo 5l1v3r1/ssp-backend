@@ -94,34 +94,36 @@ func getProjectsHandler(c *gin.Context) {
 
 // generic filter for projects
 // this is used by ESTA
-func filterProjects(projects *gabs.Container, filters url.Values) *gabs.Container {
+func filterProjects(projects *gabs.Container, params url.Values) *gabs.Container {
 	filtered, _ := gabs.New().Array()
 	// possible filters:
 	var filterMap = map[string]string{
 		"sbb_accounting_number": "openshift.io/kontierung-element",
 		"sbb_mega_id":           "openshift.io/MEGAID"}
-	// for logging purposes only
-	for filterName, valueComp := range filters {
+	// discarding parameters with invalid filter names
+	filters := make(map[string]string)
+	for paramName, paramValues := range params {
 		// this parameter is not a filter
-		if filterName == "clusterid" {
+		if paramName == "clusterid" {
 			continue
 		}
-		_, ok := filterMap[filterName]
-		// skip filters that are not defined here
+		propertyAnnotation, ok := filterMap[paramName]
+		// skip filter names that are not defined here
 		if !ok {
-			log.Printf("WARN: invalid filter name: '%v'!", filterName)
-		} else {
-			log.Printf("filtering projects by '%v': '%v'", filterName, valueComp[0])
+			log.Printf("WARN: invalid filter name: '%v'!", paramName)
+			continue
 		}
+		// only takes first appearance of the parameter; it means, for
+		// requests like this: api/ose/projects?sbb_mega_id=0&sbb_mega_id=1
+		// it will only take sbb_mega_id = 0
+		log.Printf("filtering projects by '%v' (%v): '%v'", paramName, propertyAnnotation, paramValues[0])
+		// the "value" in this map is a 2-string Array with the annotation to
+		// look for in the metadata, and the value to compare
+		filters[propertyAnnotation] = paramValues[0]
 	}
 	for _, project := range projects.Children() {
 		matches := true
-		for filterName, valueComp := range filters {
-			propertyAnnotation, ok := filterMap[filterName]
-			// skip filters that are not defined here
-			if !ok {
-				continue
-			}
+		for propertyAnnotation, valueComp := range filters {
 			// for this search we ignore the second returning value ("ok") because we
 			// consider that when the annotation is not present in the project
 			// metadata, this is equivalent to having property = ""
@@ -129,7 +131,7 @@ func filterProjects(projects *gabs.Container, filters url.Values) *gabs.Containe
 			// if any of the values in this loop is different, sets matches to false and
 			// breaks (no need to keep comparing)
 			// this is equivalent to a AND (all values need to match for the project to be appended)
-			if v != valueComp[0] {
+			if v != valueComp {
 				matches = false
 				break
 			}
