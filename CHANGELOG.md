@@ -11,6 +11,10 @@ The current role maintainer is the SBB Cloud Platform Team.
 
 ### Added
 
+## [3.9.1](https://github.com/SchweizerischeBundesbahnen/ssp-backend/compare/v3.9.1...v3.9.0) - 03.08.2020
+
+### Added
+
 - Fixed the filter on `server/openshift/project.go` for the REST call `api/ose/projects`, so it
   filters if the parameter is specified, even as an empty string, but does not filter if the
   parameter is not specified (the behavior in 3.9.0 was that if the parameter was not present, it
