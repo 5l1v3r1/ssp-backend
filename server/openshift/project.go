@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"fmt"
@@ -77,8 +78,6 @@ func getProjectsHandler(c *gin.Context) {
 	username := common.GetUserName(c)
 	params := c.Request.URL.Query()
 	clusterId := params.Get("clusterid")
-	accountingNumber := params.Get("sbb_accounting_number")
-	megaID := params.Get("sbb_mega_id")
 	if clusterId == "" {
 		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: wrongAPIUsageError})
 		return
@@ -89,23 +88,56 @@ func getProjectsHandler(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, common.ApiResponse{Message: err.Error()})
 		return
 	}
-	// only return projects that have accountingNumber OR megaID
-	// if both are empty (no filtering), then all projects are returned
-	filteredProjects := filterProjects(projects, accountingNumber, megaID)
+	filteredProjects := filterProjects(projects, params)
 	c.JSON(http.StatusOK, getProjectNames(filteredProjects))
 }
 
-// filter projects by accountingNumber AND megaID
+// generic filter for projects
 // this is used by ESTA
-func filterProjects(projects *gabs.Container, accountingNumber, megaID string) *gabs.Container {
+func filterProjects(projects *gabs.Container, params url.Values) *gabs.Container {
 	filtered, _ := gabs.New().Array()
+	// possible filters:
+	var filterMap = map[string]string{
+		"sbb_accounting_number": "openshift.io/kontierung-element",
+		"sbb_mega_id":           "openshift.io/MEGAID"}
+	// "filters" is a map containing only the parameters with valid
+	// filter names
+	filters := make(map[string]string)
+	for paramName, paramValues := range params {
+		// this parameter is not a filter
+		if paramName == "clusterid" {
+			continue
+		}
+		propertyAnnotation, ok := filterMap[paramName]
+		// skip filter names that are not defined here
+		if !ok {
+			log.Printf("WARN: invalid filter name: '%v'!", paramName)
+			continue
+		}
+		// only takes first appearance of the parameter; it means, for
+		// requests like this: api/ose/projects?sbb_mega_id=0&sbb_mega_id=1
+		// it will only take sbb_mega_id = 0
+		log.Printf("filtering projects by '%v' (%v): '%v'", paramName, propertyAnnotation, paramValues[0])
+		// the "value" in this map is a 2-string Array with the annotation to
+		// look for in the metadata, and the value to compare
+		filters[propertyAnnotation] = paramValues[0]
+	}
 	for _, project := range projects.Children() {
-		// for these searches we ignore "ok" because we consider that when the key "MEGAID" is not
-		// present, this is equivalent to having MegaID = ""
-		m, _ := project.Search("metadata", "annotations", "openshift.io/MEGAID").Data().(string)
-		// same case for accounting number
-		a, _ := project.Search("metadata", "annotations", "openshift.io/kontierung-element").Data().(string)
-		if m == megaID && a == accountingNumber {
+		matches := true
+		for propertyAnnotation, valueComp := range filters {
+			// for this search we ignore the second returning value ("ok") because we
+			// consider that when the annotation is not present in the project
+			// metadata, this is equivalent to having property = ""
+			v, _ := project.Search("metadata", "annotations", propertyAnnotation).Data().(string)
+			// if any of the values in this loop is different, sets matches to false and
+			// breaks (no need to keep comparing)
+			// this is equivalent to a AND (all values need to match for the project to be appended)
+			if v != valueComp {
+				matches = false
+				break
+			}
+		}
+		if matches {
 			filtered.ArrayAppend(project.Data())
 		}
 	}
