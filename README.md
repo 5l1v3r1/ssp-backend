@@ -1,7 +1,7 @@
 # General idea
 Build Status: [![Build Status](https://travis-ci.org/SchweizerischeBundesbahnen/ssp-backend.svg?branch=master)](https://travis-ci.org/SchweizerischeBundesbahnen/ssp-backend)
 
-[![Docker Hub package][dockerhub-badge]][dockerhub-link]
+Docker Image: [![Docker Hub package][dockerhub-badge]][dockerhub-link]
 
 [dockerhub-badge]: https://images.microbadger.com/badges/version/schweizerischebundesbahnen/ssp-backend.svg
 [dockerhub-link]: https://hub.docker.com/r/schweizerischebundesbahnen/ssp-backend/tags?page=1&ordering=last_updated "Docker images"
