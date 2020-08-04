@@ -1,5 +1,5 @@
 # General idea
-Build Status: [![Build Status](https://travis-ci.org/SchweizerischeBundesbahnen/ssp-backend.svg?branch=master)](https://travis-ci.org/SchweizerischeBundesbahnen/ssp-backend)
+Build Status: [![Build Status](https://travis-ci.org/SchweizerischeBundesbahnen/ssp-backend.svg?branch=master)](https://travis-ci.org/SchweizerischeBundesbahnen/ssp-backend "Travis CI Jobs")
 
 Docker Image: [![Docker Hub package][dockerhub-badge]][dockerhub-link]
 
