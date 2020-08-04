@@ -1,6 +1,11 @@
 # General idea
 Build Status: [![Build Status](https://travis-ci.org/SchweizerischeBundesbahnen/ssp-backend.svg?branch=master)](https://travis-ci.org/SchweizerischeBundesbahnen/ssp-backend)
 
+[![Docker Hub package][dockerhub-badge]][dockerhub-link]
+
+[dockerhub-badge]: https://images.microbadger.com/badges/version/schweizerischebundesbahnen/ssp-backend.svg
+[dockerhub-link]: https://hub.docker.com/r/schweizerischebundesbahnen/ssp-backend/tags?page=1&ordering=last_updated "Docker images"
+
 We at [@SchweizerischeBundesbahnen](https://github.com/SchweizerischeBundesbahnen) own a lot of projects which receive changes all the time. As those settings are (and that is fine) limited to administrative roles, we had to do a lot of manual work like:
 
 OpenShift:
