@@ -1,6 +1,8 @@
 package main
 
 import (
+	"net/http"
+
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/aws"
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/config"
 	"github.com/SchweizerischeBundesbahnen/ssp-backend/server/kafka"
@@ -13,7 +15,6 @@ import (
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	log "github.com/sirupsen/logrus"
-	"net/http"
 )
 
 func main() {
@@ -40,6 +41,7 @@ func main() {
 
 	// Public routes
 	router.GET("/features", featuresHandler)
+	router.GET("/version", versionHandler)
 
 	// Protected routes
 	auth := router.Group("/api/")
@@ -94,4 +96,12 @@ func featuresHandler(c *gin.Context) {
 		OTC:       otc.GetFeatures(),
 		Kafka:     kafka.GetFeatures(),
 	})
+}
+
+func versionHandler(c *gin.Context) {
+	versionResponse := map[string]string{
+		"version":   config.Config().GetString("ssp_backend_version"),
+		"gitCommit": config.Config().GetString("ssp_backend_git_commit"),
+	}
+	c.JSON(http.StatusOK, versionResponse)
 }
